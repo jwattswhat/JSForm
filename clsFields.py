@@ -876,7 +876,8 @@ class clsField:
 
         def SetValue(self, value, dateformat=None):
             if value == None:
-                value = datetime.datetime.now().date()
+                value = None
+                return 
             try:
                 if dateformat is not None:
                     value = datetime.datetime.strptime(value, dateformat)
@@ -885,7 +886,7 @@ class clsField:
                         value, CONFIG.get_Config_Value("Format", "Date")
                     )
             except Exception as Err:
-                clsError.ErrorHandler.msg("clsFields:clsDatePickerCtrl:SetValue", Err)
+                clsError.clsErrorHandler("clsFields:clsDatePickerCtrl:SetValue", Err)
             super().SetValue(value)
 
         def GetValue(self):

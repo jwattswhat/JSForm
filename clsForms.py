@@ -100,6 +100,8 @@ class clsBASEForm:
 
         self.override_linked_and_sub_forms()
 
+        if "controls" not in self.FORMDESCRIPTON:
+            self.FORMDESCRIPTON["controls"] = ["Navigation", "Close"]
         if controls != None:
             self.FORMDESCRIPTON["controls"] = controls
 
@@ -140,12 +142,12 @@ class clsBASEForm:
     def process_predefined_controls(self, controls):
         lg.log(controls=controls)
 
-        lastcolumn = self.FORMDESCRIPTON["size"][0]
-        lastline = self.FORMDESCRIPTON["size"][1] - 5
+        lastcolumn = FONT.chtopt(self.FORMDESCRIPTON["sizech"][0])
+        lastline = FONT.chtopt(self.FORMDESCRIPTON["sizech"][1]) 
 
         NavControls = {}
         self.NavControlsPresent = False
-        x = 5  # start 5 in
+        x = 2  # start 5 in
         if "Navigation" in controls:
             self.NavControlsPresent = True
 
@@ -155,7 +157,11 @@ class clsBASEForm:
                     x,
                     lastline,
                 ]  # - CONST.btnNavigationCONTROLS["Navigation"][key]["size"][1]]
-                x += CONST.btnNavigationCONTROLS["Navigation"][key]["size"][0]
+                x += CONST.btnNavigationCONTROLS["Navigation"][key]["sizech"][0]
+                NavControls[key]["size"] = [
+                    FONT.chtopt(CONST.btnNavigationCONTROLS["Navigation"][key]["sizech"][0]),
+                    FONT.chtopt(CONST.btnNavigationCONTROLS["Navigation"][key]["sizech"][1])
+                ]
         else:
             if "Update" in controls:
                 NavControls["btnUpdate"] = CONST.btnNavigationCONTROLS["Navigation"][
@@ -165,6 +171,10 @@ class clsBASEForm:
                     x,
                     lastline,
                 ]  # -CONST.btnNavigationCONTROLS["Navigation"]["btnUpdate"]["size"][1]]
+                NavControls["btnUpdate"]["size"] = [
+                    FONT.chtopt(CONST.btnNavigationCONTROLS["Navigation"]["btnUpdate"]["sizech"][0]),
+                    FONT.chtopt(CONST.btnNavigationCONTROLS["Navigation"]["btnUpdate"]["sizech"][1])
+                ]
 
         #   Predefined Controls "Close"
         self.ClosePresent = False
@@ -173,9 +183,14 @@ class clsBASEForm:
             NavControls["btnClose"] = CONST.btnNavigationCONTROLS["Close"]["btnClose"]
             NavControls["btnClose"]["pos"] = [
                 lastcolumn
-                - CONST.btnNavigationCONTROLS["Close"]["btnClose"]["size"][0],
-                lastline,
+                - FONT.chtopt(CONST.btnNavigationCONTROLS["Close"]["btnClose"]["sizech"][0]),
+                lastline
+                - FONT.chtopt(CONST.btnNavigationCONTROLS["Close"]["btnClose"]["sizech"][1]),
             ]  # -CONST.btnNavigationCONTROLS["Close"]["btnClose"]["size"][1]]
+            NavControls["btnClose"]["size"] = [
+                FONT.chtopt(CONST.btnNavigationCONTROLS["Close"]["btnClose"]["sizech"][0]),
+                FONT.chtopt(CONST.btnNavigationCONTROLS["Close"]["btnClose"]["sizech"][1])
+            ]
 
         return NavControls
 
@@ -607,7 +622,7 @@ class clsBASEForm:
         field = event.GetEventObject().GetName()
         evnttype = event.GetEventType()
         if evnttype == wx.EVT_TEXT.typeId:
-
+            v = self.CONTROLID[field].GetValue()
             self.RECORDS.setfieldvalue(field, self.CONTROLID[field].GetValue())
             self._display_records(self.FORMDESCRIPTON["table"])
 
@@ -798,190 +813,3 @@ class clsBASEForm:
         self._first_prev_next_last(CONST.FORM_LAST)
 
 
-class clsForm(clsBASEForm):
-    class MergeorReplaceChecklist(wx.Dialog):
-        def __init__(self, parent, title):
-            super().__init__(parent, title=title, size=(400, 200))
-            panel = wx.Panel(self)
-            self.text = wx.StaticText(
-                panel,
-                wx.ID_ANY,
-                label="Merge or Replace this CheckList with existing?",
-                pos=(10, 50),
-            )
-            self.btn = wx.Button(
-                panel, wx.ID_OK, label="Merge", size=(100, 30), pos=(10, 100)
-            )
-            self.btn = wx.Button(
-                panel, wx.ID_CANCEL, label="Replace", size=(100, 30), pos=(120, 100)
-            )
-
-    def bind_form_controls(self):
-        lg.log()
-        if "CheckListID" in self.CONTROLID:
-            self.CONTROLID["CheckListID"].Bind(wx.EVT_TEXT, self._fillchecklist)
-            self.CONTROLID["CheckList"].Bind(
-                wx.EVT_CHECKLISTBOX, self._checkboxallchecked
-            )
-        if "btnHymnSearchByHymn" in self.CONTROLID:
-            self.FORM.Bind(
-                wx.EVT_BUTTON,
-                self._processhymnsearch,
-                self.CONTROLID["btnHymnSearchByHymn"],
-            )
-        if "btnHymnSearchByTitle" in self.CONTROLID:
-            self.FORM.Bind(
-                wx.EVT_BUTTON,
-                self._processhymnsearch,
-                self.CONTROLID["btnHymnSearchByTitle"],
-            )
-        if "btnHymnSearchByBible" in self.CONTROLID:
-            self.FORM.Bind(
-                wx.EVT_BUTTON,
-                self._processhymnsearch,
-                self.CONTROLID["btnHymnSearchByBible"],
-            )
-        if "btnHymnSearchByCategory" in self.CONTROLID:
-            self.FORM.Bind(
-                wx.EVT_BUTTON,
-                self._processhymnsearch,
-                self.CONTROLID["btnHymnSearchByCategory"],
-            )
-        if "btnHymnSearchByNote" in self.CONTROLID:
-            self.FORM.Bind(
-                wx.EVT_BUTTON,
-                self._processhymnsearch,
-                self.CONTROLID["btnHymnSearchByNote"],
-            )
-
-        if "btnHymnSearchAdd" in self.CONTROLID:
-            self.FORM.Bind(
-                wx.EVT_BUTTON,
-                self._processhymnsearch,
-                self.CONTROLID["btnHymnSearchAdd"],
-            )
-
-        if "btnHymnUsageUpdate" in self.CONTROLID:
-            self.FORM.Bind(
-                wx.EVT_BUTTON,
-                self._processhymnusage,
-                self.CONTROLID["btnHymnUsageUpdate"],
-            )
-
-        if "btnHymnUsageAdd" in self.CONTROLID:
-            self.FORM.Bind(
-                wx.EVT_BUTTON, self._processhymnusage, self.CONTROLID["btnHymnUsageAdd"]
-            )
-
-        super().bind_form_controls()
-
-    def _fillchecklist(self, event):
-        field = event.GetEventObject().GetName()
-        evnttype = event.GetEventType()
-        ID = self.CONTROLID[field].GetValue()
-        if ID is None:
-            return None
-        sql = "SELECT CheckList FROM tblCheckList WHERE ID = {ID};".format(ID=ID)
-        cursor = self.DBConnection.cursor()
-        cursor.execute(sql)
-        row = cursor.fetchone()
-        newchecklist = json.loads(row[0])
-        fld = self.CONTROLID["CheckList"].GetValue()
-        if fld != None:
-            existingchecklist = json.loads(fld)
-            if len(existingchecklist) == 0:
-                self.CONTROLID["CheckList"].SetValue(json.dumps(newchecklist))
-                self.CONTROLID["CheckListComplete"].SetValue(False)
-                return
-        dlg = self.MergeorReplaceChecklist(self.FORM, title="CheckList Merge / Replace")
-        result = dlg.ShowModal()
-        dlg.Destroy()
-        if result == wx.ID_OK:  # ok is merge
-            self.CONTROLID["CheckList"].SetValue(
-                json.dumps(newchecklist | existingchecklist)
-            )
-        else:  # cancel is replace
-            self.CONTROLID["CheckList"].SetValue(json.dumps(newchecklist))
-        self.CONTROLID["CheckListComplete"].SetValue(False)
-
-    def _checkboxallchecked(self, event):
-        lg.log()
-        field = event.GetEventObject().GetName()
-        evnttype = event.GetEventType()
-        ID = self.CONTROLID[field].GetValue()
-        if len(self.CONTROLID[field].Items) == len(
-            self.CONTROLID[field].GetCheckedItems()
-        ):
-            self.CONTROLID["CheckListComplete"].SetValue(True)
-        else:
-            self.CONTROLID["CheckListComplete"].SetValue(False)
-
-    def _processhymnsearch(self, event):
-        lg.log()
-        field = event.GetEventObject().GetName()
-        eventtype = event.GetEventType()
-        if field == "btnHymnSearchAdd":
-            if self.CONTROLID["UsedAs"].GetValueText() is None:
-                dlg = wx.MessageDialog(self.FORM, "'Used As' cannot be blank")
-                dlg.ShowModal()
-                dlg.Destroy()
-                return
-            usedas = self.CONTROLID["UsedAs"].GetValueText()
-            row = self.CONTROLID["dvlHymnList"].GetSelectedRow()
-            if row is None:
-                dlg = wx.MessageDialog(self.FORM, "No Hymn Selected")
-                dlg.ShowModal()
-                dlg.Destroy()
-                return
-            self.PARENT.CONTROLID["HymnID"].ChangeValue(row["ID"])
-            self.PARENT.CONTROLID["UsedAs"].ChangeValue(usedas)
-            self.PARENT.LINKEDFORM.pop("frmHymnSearch")
-            try:
-                self.FRAME.Destroy()
-            except:
-                pass
-            finally:
-                self.FORM.Destroy()
-
-        elif "Search" in self.CONTROLID:
-            search = self.CONTROLID["Search"].GetValue()
-            if search == "":
-                return None
-            table = {}
-            table["name"] = "tblHymn"
-            table["fields"] = ["ID", "Hymn", "Title", "BibleText", "Category", "Note"]
-            table["condition"] = "{column} LIKE '%{search}%'"
-
-            if field == "btnHymnSearchByHymn":
-                table["condition"] = table["condition"].format(
-                    column="Hymn", search=search
-                )
-            elif field == "btnHymnSearchByTitle":
-                table["condition"] = table["condition"].format(
-                    column="Title", search=search
-                )
-            elif field == "btnHymnSearchByBible":
-                table["condition"] = table["condition"].format(
-                    column="BibleText", search=search
-                )
-            elif field == "btnHymnSearchByCategory":
-                table["condition"] = table["condition"].format(
-                    column="Category", search=search
-                )
-            elif field == "btnHymnSearchByNote":
-                table["condition"] = table["condition"].format(
-                    column="Note", search=search
-                )
-            if "dvlHymnList" in self.CONTROLID:
-                self.CONTROLID["dvlHymnList"].SetValueTable(table=table)
-
-    def _processhymnusage(self, event):
-        lg.log()
-        field = event.GetEventObject().GetName()
-        eventtype = event.GetEventType()
-        if field == "btnHymnSearchAdd":
-            row = self.CONTROLID["dvlHymnList"].GetSelectedRow()
-            self.CONTROLID["dvlHymnUsage"].SetValue(row)
-        if field == "btnHymnUsageUpdate":
-            row = self.CONTROLID["dvlHymnUsage"].GetSelectedRow()
-            self.open_linked_form("frmHymnUsage")

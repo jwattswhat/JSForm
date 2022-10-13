@@ -6,6 +6,7 @@
 
 #   System Imports
 
+import wx
 import mysql
 import mysql.connector
 from mysql.connector import FieldType
@@ -15,7 +16,11 @@ from datetime import datetime, timedelta
 
 import clsSQL
 from clsConfig import CONFIG
+from clsConstants import CONST
+import clsError
 
+
+    
 
 class clsDB:
     """
@@ -26,10 +31,44 @@ class clsDB:
     DB = dictionary description of username, password, host, database
     DBconnection = connection to database
     """
+    class _getcredentials(wx.Dialog):
+        def __init__(self, parent, title):
+            super().__init__(None,title=title,size=(400,250))
+            panel = wx.Panel(self)
+            lblhost =       wx.StaticText(panel,wx.ID_ANY,  pos=(10,20),label="Host:")
+            self.host =     wx.TextCtrl(panel,wx.ID_ANY,    pos=(100,20),size=(200,30))
+            lbldb =         wx.StaticText(panel,wx.ID_ANY,  pos=(10,50),label="Database:")
+            self.database =       wx.TextCtrl(panel,wx.ID_ANY,    pos=(100,50),size=(200,30))
+            lblusername =   wx.StaticText(panel,wx.ID_ANY,  pos=(10,80),label="Username:")
+            self.username = wx.TextCtrl(panel,wx.ID_ANY,    pos=(100,80),size=(200,30))
+            lblpassword =   wx.StaticText(panel,wx.ID_ANY,  pos=(10,110),label="Password:")
+            self.password = wx.TextCtrl(panel,wx.ID_ANY,    pos=(100,110),size=(200,30) )
+            btnok = wx.Button(panel,wx.ID_OK,label="Connect",pos=(10,150),size=(100,30))
 
     DBConnection = 0
 
-    def __init__(self, host, databasename, username, password):
+    def __init__(self, host=None, databasename=None, username=None, password=None):
+        if username == None:
+                dlg = self._getcredentials(self, title="Enter DB Login info")
+                if host:
+                    dlg.host.SetValue(host)
+                if databasename:
+                    dlg.database.SetValue(databasename)
+                if username:
+                    dlg.username.SetValue(username)
+                if password:
+                    dlg.password.SetValue(password)
+                result = dlg.ShowModal()
+                host = dlg.host.GetValue()
+                databasename = dlg.database.GetValue()
+                username = dlg.username.GetValue()
+                password = dlg.password.GetValue()
+
+                dlg.Destroy()
+                if result == CONST.FORM_CANCEL:
+                    return True
+        if password == None:
+            pass    
         self.DB = {
             "user": username,
             "password": password,

@@ -7,7 +7,7 @@ class clsErrorNameSpace:
 
     ERRMSG = "Application Error: #{number}:{msg}"
     ERR = [
-        "This is an error",  # 0 - Error
+        "Cannot Open Database",  # 0 - Error
         "This is also an error",  # 1 - Another Error
     ]
     ERR0 = 0

@@ -1,0 +1,44 @@
+{
+    "frmNamesFORM": {
+        "FORM":{
+            "type":"Panel",
+            "title":"Names",
+            "table": {
+                "name":"tblNames",
+                "fields": ["FirstName","LastName","NickName"],
+                "orderby": "LastName"
+            },
+            "posch" : [10,10],
+            "sizech": [50,50],
+            "name": "frmNames",
+            "stylelist":["CAPTION"],
+            "controls": ["Navigation","Close"]
+        },
+        "CONTROLS":{
+            "lblFirstName":{
+                "type":"StaticText",
+                "label":"First:",
+                "posch":[5,5],
+                "name":"lblFirstName"
+            },
+            "FirstName":{
+                "type":"TextCtrl",
+                "name":"FirstName",
+                "posch":[10,5],
+                "sizech":[20,2]
+            },
+            "LastName":{
+                "type":"TextCtrl",
+                "name": "LastName",
+                "posch": [10,7],
+                "sizech": [20,2]
+            },
+            "NickName": {
+                "type":"TextCtrl",
+                "name":"NickName",
+                "posch":[10,9],
+                "sizech":[20,2]
+            }
+        }
+    }
+}

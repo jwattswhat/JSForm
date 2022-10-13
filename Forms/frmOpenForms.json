@@ -1,0 +1,59 @@
+{
+    "frmOpenFormsFORM": {
+        "FORM": {
+            "type": "Panel",
+            "title": "frmOpenForms",
+            "posch": [
+                10,
+                10
+            ],
+            "sizech": [
+                35,
+                20
+            ],
+            "name": "frmForms",
+            "stylelist": [
+                "CAPTION"
+            ]
+        },
+        "CONTROLS": {
+            "lblForms": {
+                "type": "StaticText",
+                "label": "Forms:",
+                "posch": [
+                    3,
+                    3
+                ],
+                "name": "lblForms"
+            },
+            "Forms": {
+                "type": "ComboBox",
+                "posch": [
+                    7,
+                    3
+                ],
+                "sizech": [
+                    20,
+                    2
+                ],
+                "name": "Forms",
+                "choices": [
+                    "frmNames"
+                ]
+            },
+            "btnOpen": {
+                "type": "Button",
+                "label": "Open Form",
+                "name": "btnOpen",
+                "posch": [
+                    7,
+                    5
+                ],
+                "sizech": [
+                    20,
+                    4
+                ]
+            }
+        }
+    }
+}
