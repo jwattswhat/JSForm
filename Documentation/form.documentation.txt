@@ -20,6 +20,7 @@
         "controls" : ["Close","Navigation"] (list of string) - predefined controls
             "btnClose" - Close button shown on the form
             "Navigation" - New, Update, First(<<), Previous(<), Next(>), Last(>>) buttons shown on form
+            "Update" - Update Button only
         "stylelist" : ["CAPTION", "READONLY"] (list of strings) 
             "CAPTION"           - Puts a caption on the frame. (required by MINIMIZEBOX, MAXIMIZEBOX and CLOSEBOX)
             "MINIMIZEBOX"       - Displays a minimize box on the frame.
@@ -40,7 +41,7 @@
         "controlname" (string) : {  
             "type" : { control type below: (see wxpythone for more information)
                 ALL TYPES:
-                    "name" : (string)       - control name same as "type"
+                    "name" : (string)       - control name same as "type" NB! Must match SQL Column Name if not StaticText, or StaticBox
                     "pos" : [x,y] (tuple)   - (x,y) position of the control in pixels (overirdes "posch")
                     "size" : [w,h] (tuple)  - size of the control in pixels (overrides "sizech")
                     "posch" : [xch,ych]     - form position in Characters (does not overirde "pos')

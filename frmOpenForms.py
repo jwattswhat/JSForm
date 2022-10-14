@@ -1,5 +1,5 @@
 import wx, mysql 
-from JasonSQLForms import CONFIG, OPTION, FONT, clsDB, clsForm
+from JasonSQLForms import CONFIG, OPTION, FONT,clsDB, clsForm
 from clsForms import clsBASEForm
 class clsForm(clsBASEForm):
     pass
@@ -18,7 +18,7 @@ app = wx.App(0)
 #
 # 	Connect to DataBase
 #
-DB = clsDB.clsDB("localhost", "test", "church", "Church99")
+DB = clsDB.clsDB("localhost", "test")
 DBConnection = mysql.connector.connect(**DB.DB)
 CONFIG.set_Config_DBConnection(DBConnection)
 OPTION.set_Option_DBConnection(DBConnection)
