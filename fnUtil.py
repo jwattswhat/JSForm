@@ -76,7 +76,7 @@ def desccharactertopoint(description):
     return newdesc
 
 
-def convertNavButtions(NavControls):
+def convertNavButtons(NavControls):
     for section in NavControls:
         for control in NavControls[section]:
             NavControls[section][control] = desccharactertopoint(

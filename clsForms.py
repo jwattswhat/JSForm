@@ -142,8 +142,10 @@ class clsBASEForm:
     def process_predefined_controls(self, controls):
         lg.log(controls=controls)
 
+        CONST.btnNavigationCONTROLS = fnUtil.convertNavButtons(CONST.btnNavigationCONTROLS)
+
         lastcolumn = FONT.chtopt(self.FORMDESCRIPTON["sizech"][0])
-        lastline = FONT.chtopt(self.FORMDESCRIPTON["sizech"][1]) 
+        lastline = FONT.lntopt(self.FORMDESCRIPTON["sizech"][1]) - 2
 
         NavControls = {}
         self.NavControlsPresent = False
@@ -154,27 +156,21 @@ class clsBASEForm:
             for key in CONST.btnNavigationCONTROLS["Navigation"]:
                 NavControls[key] = CONST.btnNavigationCONTROLS["Navigation"][key]
                 NavControls[key]["pos"] = [
-                    x,
+                    FONT.chtopt(x),
                     lastline,
-                ]  # - CONST.btnNavigationCONTROLS["Navigation"][key]["size"][1]]
-                x += CONST.btnNavigationCONTROLS["Navigation"][key]["sizech"][0]
-                NavControls[key]["size"] = [
-                    FONT.chtopt(CONST.btnNavigationCONTROLS["Navigation"][key]["sizech"][0]),
-                    FONT.chtopt(CONST.btnNavigationCONTROLS["Navigation"][key]["sizech"][1])
                 ]
+                x += CONST.btnNavigationCONTROLS["Navigation"][key]["sizech"][0]
+                NavControls[key]["size"] = CONST.btnNavigationCONTROLS["Navigation"][key]["size"]
         else:
             if "Update" in controls:
                 NavControls["btnUpdate"] = CONST.btnNavigationCONTROLS["Navigation"][
                     "btnUpdate"
                 ]
                 NavControls["btnUpdate"]["pos"] = [
-                    x,
+                    FONT.chtopt(x),
                     lastline,
-                ]  # -CONST.btnNavigationCONTROLS["Navigation"]["btnUpdate"]["size"][1]]
-                NavControls["btnUpdate"]["size"] = [
-                    FONT.chtopt(CONST.btnNavigationCONTROLS["Navigation"]["btnUpdate"]["sizech"][0]),
-                    FONT.chtopt(CONST.btnNavigationCONTROLS["Navigation"]["btnUpdate"]["sizech"][1])
                 ]
+                NavControls["btnUpdate"]["size"] = CONST.btnNavigationCONTROLS["Navigation"]["btnUpdate"]["size"]
 
         #   Predefined Controls "Close"
         self.ClosePresent = False
@@ -182,15 +178,10 @@ class clsBASEForm:
             self.ClosePresent = True
             NavControls["btnClose"] = CONST.btnNavigationCONTROLS["Close"]["btnClose"]
             NavControls["btnClose"]["pos"] = [
-                lastcolumn
-                - FONT.chtopt(CONST.btnNavigationCONTROLS["Close"]["btnClose"]["sizech"][0]),
+                lastcolumn - CONST.btnNavigationCONTROLS["Close"]["btnClose"]["size"][0],
                 lastline
-                - FONT.chtopt(CONST.btnNavigationCONTROLS["Close"]["btnClose"]["sizech"][1]),
-            ]  # -CONST.btnNavigationCONTROLS["Close"]["btnClose"]["size"][1]]
-            NavControls["btnClose"]["size"] = [
-                FONT.chtopt(CONST.btnNavigationCONTROLS["Close"]["btnClose"]["sizech"][0]),
-                FONT.chtopt(CONST.btnNavigationCONTROLS["Close"]["btnClose"]["sizech"][1])
-            ]
+            ]  
+            NavControls["btnClose"]["size"] = CONST.btnNavigationCONTROLS["Close"]["btnClose"]["size"]
 
         return NavControls
 
@@ -811,5 +802,3 @@ class clsBASEForm:
     def _on_last_record_click(self, event):
         lg.log()
         self._first_prev_next_last(CONST.FORM_LAST)
-
-

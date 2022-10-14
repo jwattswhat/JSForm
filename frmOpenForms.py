@@ -1,14 +1,7 @@
-import wx
-import mysql.connector
-
-
-from clsConfig import CONFIG
-from clsOption import OPTION
-from clsFont import FONT
-import clsDB
-import clsForms
-
-class clsForm(clsForms.clsBASEForm):
+import wx, mysql 
+from JasonSQLForms import CONFIG, OPTION, FONT, clsDB, clsForm
+from clsForms import clsBASEForm
+class clsForm(clsBASEForm):
     pass
 
 def _buttonclick(event):
@@ -17,7 +10,6 @@ def _buttonclick(event):
     form = clsForm(None, DBConnection, form, ["Navigation", "Close"])
     form.display_form_data()
     form.show()
-
 
 #
 # 	Main Program
