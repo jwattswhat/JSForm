@@ -1,3 +1,4 @@
+import os
 import wx, mysql 
 from JasonSQLForms import CONFIG, OPTION, FONT,clsDB, clsForm
 from clsForms import clsBASEForm
@@ -27,7 +28,14 @@ FONT.Get_Config_Font()
 # 	Main form
 #
 frm = clsForm(None, DBConnection, "frmOpenForms", ["Close"])
-
+path = CONFIG.get_Config_Value("Location","Form")
+list_of_files = []
+for root,dirs,files in os.walk(path):
+    for file in files:
+        fn = os.path.splitext(file)[0]
+        if fn != "frmOpenForms":
+            list_of_files.append(fn)
+frm.CONTROLID["Forms"].Set(list_of_files)
 #
 # bind application events
 #

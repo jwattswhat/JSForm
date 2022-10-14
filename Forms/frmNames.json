@@ -27,11 +27,23 @@
                 "posch":[10,1],
                 "sizech":[20,2]
             },
+            "lblLastName":{
+                "type":"StaticText",
+                "label":"Last:",
+                "posch":[1,3],
+                "name":"lblFirstName"
+            },
             "LastName":{
                 "type":"TextCtrl",
                 "name": "LastName",
                 "posch": [10,3],
                 "sizech": [20,2]
+            },
+            "lblNickName":{
+                "type":"StaticText",
+                "label":"Nickname:",
+                "posch":[1,5],
+                "name":"lblFirstName"
             },
             "NickName": {
                 "type":"TextCtrl",

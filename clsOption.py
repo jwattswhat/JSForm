@@ -23,6 +23,8 @@ class clsOption:
         cursor.execute(SQL)
         row = cursor.fetchone()
         cursor.close()
+        if row==None:
+            return None
         return row[0]
 
     def set_Option_Value(self, optionfor, optiontype, optionvalue):
