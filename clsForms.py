@@ -22,6 +22,7 @@ import pyautogui
 from clsConstants import CONST
 from clsConfig import CONFIG
 from clsFont import FONT
+from clsOption import OPTION
 from clsLog import lg
 import clsFont
 import clsDB

@@ -3,11 +3,11 @@ import mysql.connector
 import yagmail
 
 import clsChoices
-import clsDB
+from clsDB import clsDB, clsRecord
 import clsError
 import clsFields
 import clsFont
-import clsForms
+from clsForms import clsBASEForm
 import clsLog
 import clsOption
 import clsSMTP
@@ -22,5 +22,5 @@ from clsOption import OPTION
 from clsMonitor import PMON
 from clsFont import FONT
 
-class clsForm(clsForms.clsBASEForm):
+class clsForm(clsBASEForm):
     pass
