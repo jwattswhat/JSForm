@@ -34,13 +34,13 @@ class _error:
         )
         self.btn = wx.Button(
             panel,
-            CONST.FORM_CONTINUE,
+            JSForm.CONST.FORM_CONTINUE,
             label="Continue",
             size=(100, 30),
             pos=(10, 100),
         )
         self.btn = wx.Button(
-            panel, CONST.FORM_CANCEL, label="Cancel", size=(100, 30), pos=(120, 100)
+            panel, JSForm.CONST.FORM_CANCEL, label="Cancel", size=(100, 30), pos=(120, 100)
         )
 
         result = panel.ShowModal()

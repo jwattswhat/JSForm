@@ -910,7 +910,7 @@ class clsField:
                         value, CONFIG.get_Config_Value("Format", "Time")
                     )
             except Exception as Err:
-                clsError.ErrorHandler.msg("clsFields:clsTimePickerCtrl:SetValue", Err)
+                JSForm.clsErrorHandler(9999, Err)
             super().SetValue(value)
 
         def GetValue(self):
