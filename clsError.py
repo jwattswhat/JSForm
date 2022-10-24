@@ -1,7 +1,5 @@
 import wx
-from clsConstants import CONST
-
-
+import JSForm
 class clsErrorNameSpace:
     #    __slots__ = ()
 

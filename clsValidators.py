@@ -7,8 +7,7 @@ from glob import glob
 import wx
 import datetime
 
-from clsConfig import CONFIG
-
+import JSForm
 
 class _validatorNotNull(wx.Validator):
     def __init__(self):
@@ -87,8 +86,6 @@ class _validatorDateAndNull(wx.Validator):
         return _validatorDateAndNull()
 
     def Validate(self, win):
-        global CONFIG
-
         ctrl = self.GetWindow()
         text = ctrl.GetValue()
         name = ctrl.GetName()
@@ -98,7 +95,7 @@ class _validatorDateAndNull(wx.Validator):
             ctrl.Refresh()
             return True
         try:
-            dt = datetime.datetime.strptime(text, CONFIG.get_Config_Value("FormatDate"))
+            dt = datetime.datetime.strptime(text, JSForm.CONFIG.get_Config_Value("FormatDate"))
             bckrnd = wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW)
             ctrl.SetBackgroundColour(bckrnd)
             ctrl.Refresh()
@@ -107,7 +104,7 @@ class _validatorDateAndNull(wx.Validator):
             wx.MessageBox(
                 name
                 + " not a valid date "
-                + CONFIG.get_Config_Value("FormatDate")
+                + JSForm.CONFIG.get_Config_Value("FormatDate")
                 + ".",
                 "Error",
             )
@@ -138,13 +135,12 @@ class _validatorDateAndNotNull(wx.Validator):
         return True  # Prevent wxDialog from complaining.
 
     def Validate(self, win):
-        global CONFIG
 
         ctrl = self.GetWindow()
         text = ctrl.GetValue()
         name = ctrl.GetName()
         try:
-            dt = datetime.datetime.strptime(text, CONFIG.get_Config_Value("FormatDate"))
+            dt = datetime.datetime.strptime(text, JSForm.CONFIG.get_Config_Value("FormatDate"))
             bckrnd = wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW)
             ctrl.SetBackgroundColour(bckrnd)
             ctrl.Refresh()
@@ -153,7 +149,7 @@ class _validatorDateAndNotNull(wx.Validator):
             wx.MessageBox(
                 name
                 + " not a valid date "
-                + CONFIG.get_Config_Value("FormatDate")
+                + JSForm.CONFIG.get_Config_Value("FormatDate")
                 + ".",
                 "Error",
             )
@@ -177,14 +173,13 @@ class _validatorDateMMDD(wx.Validator):
         return _validatorDateMMDD()
 
     def Validate(self, win):
-        global CONFIG
 
         ctrl = self.GetWindow()
         text = ctrl.GetValue()
         name = ctrl.GetName()
         try:
             dt = datetime.datetime.strptime(
-                text, CONFIG.get_Config_Value("FormatMonthDay")
+                text, JSForm.CONFIG.get_Config_Value("FormatMonthDay")
             )
             bckrnd = wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW)
             ctrl.SetBackgroundColour(bckrnd)
@@ -194,7 +189,7 @@ class _validatorDateMMDD(wx.Validator):
             wx.MessageBox(
                 name
                 + " not a valid Month and Day "
-                + CONFIG.get_Config_Value("FormatMonthDay")
+                + JSForm.CONFIG.get_Config_Value("FormatMonthDay")
                 + ".",
                 "Error",
             )
@@ -218,7 +213,6 @@ class _validatorDateMMDDAndNull(wx.Validator):
         return _validatorDateMMDDAndNull()
 
     def validate(self, win):
-        global CONFIG
 
         ctrl = self.GetWindow()
         text = ctrl.GetValue()
@@ -227,7 +221,7 @@ class _validatorDateMMDDAndNull(wx.Validator):
         name = ctrl.GetName()
         try:
             dt = datetime.datetime.strptime(
-                text, CONFIG.get_Config_Value("FormatMonthDay")
+                text, JSForm.CONFIG.get_Config_Value("FormatMonthDay")
             )
             bckrnd = wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW)
             ctrl.SetBackgroundColour(bckrnd)
@@ -237,7 +231,7 @@ class _validatorDateMMDDAndNull(wx.Validator):
             wx.MessageBox(
                 name
                 + " not a valid Month and Day "
-                + CONFIG.get_Config_Value("FormatMonthDay")
+                + JSForm.CONFIG.get_Config_Value("FormatMonthDay")
                 + ".",
                 "Error",
             )
@@ -261,14 +255,13 @@ class _validatorDateTime(wx.Validator):
         return _validatorDateTime()
 
     def Validate(self, win):
-        global CONFIG
 
         ctrl = self.GetWindow()
         text = ctrl.GetValue()
         name = ctrl.GetName()
         try:
             dt = datetime.datetime.strptime(
-                text, CONFIG.get_Config_Value("FormatDateTime")
+                text, JSForm.CONFIG.get_Config_Value("FormatDateTime")
             )
             bckrnd = wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW)
             ctrl.SetBackgroundColour(bckrnd)
@@ -278,7 +271,7 @@ class _validatorDateTime(wx.Validator):
             wx.MessageBox(
                 name
                 + " not a valid Date and Time "
-                + CONFIG.get_Config_Value("FormatDateTime")
+                + JSForm.CONFIG.get_Config_Value("FormatDateTime")
                 + ".",
                 "Error",
             )

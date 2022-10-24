@@ -21,15 +21,7 @@ import wx.dataview
 
 # import framwork
 
-import clsError
-from clsConstants import CONST
-from clsFont import FONT
-from clsConfig import CONFIG
-from clsSQL import clsSQL
-from clsValidators import setvalidatorfield
-import clsDB
-from fnUtil import stripcrlf
-import clsChoices
+import JSForm
 
 
 def getcontrolparameters(controldictionary):
@@ -46,10 +38,10 @@ def getcontrolparameters(controldictionary):
         newdict.update({"style": setstylefield(controldictionary["stylelist"])})
     if "validatorstr" in controldictionary:
         newdict.update(
-            {"validator": setvalidatorfield(controldictionary["validatorstr"])}
+            {"validator": JSForm.setvalidatorfield(controldictionary["validatorstr"])}
         )
 
-    for key in CONST.wxpythoncallparmameters[controldictionary["type"]]:
+    for key in JSForm.CONST.wxpythoncallparmameters[controldictionary["type"]]:
         if key in controldictionary.keys():
             newdict.update({key: controldictionary[key]})
     return newdict
@@ -185,7 +177,7 @@ class clsField:
             self.DIRTY = False
             self.DBConnection = parent.DBConnection
             self.CONTROLDESCRIPTION = controldescription.copy()
-            self.choices = clsChoices.clsChoices(
+            self.choices = JSForm.clsChoices(
                 self.DBConnection, self.CONTROLDESCRIPTION
             )
 
@@ -420,7 +412,7 @@ class clsField:
                 if self.choiceslist == None:
                     super().SetValue(value)
                 else:
-                    disp = self.choiceslist.getdisplaybyid(value)
+                    disp = self.choices.getchoicedisplay(value)
                     if disp == None:
                         return None
                     super().SetValue(disp)
@@ -435,7 +427,7 @@ class clsField:
                     disp = self.choices.getchoicedisplay(value)
                     if disp == None:
                         return None
-                    super().ChangeValue(disp)
+                    super().ChangeValue(str(disp))
 
         def GetValueText(self):
             value = super().GetValue()
@@ -669,7 +661,7 @@ class clsField:
 
             # preprocess
 
-            self.DLVCrecords = clsDB.clsRecord(
+            self.DLVCrecords = JSForm.clsRecord(
                 self.DBConnection, self.CONTROLDESCRIPTION["table"]
             )
 
@@ -831,15 +823,13 @@ class clsField:
             self.timefield.Disable()
 
         def SetValue(self, value):
-            global CONFIG
 
             if value is not None:
-                dtfmt = CONFIG.get_Config_Value("Format", "DateTime")
+                dtfmt = JSForm.CONFIG.get_Config_Value("Format", "DateTime")
                 self.datefield.SetValue(value, dtfmt)
                 self.timefield.SetValue(value, dtfmt)
 
         def GetValue(self):
-            global CONFIG
 
             dt = self.datefield.GetValue()
             tm = self.timefield.GetValue()
@@ -883,14 +873,14 @@ class clsField:
                     value = datetime.datetime.strptime(value, dateformat)
                 else:
                     value = datetime.datetime.strptime(
-                        value, CONFIG.get_Config_Value("Format", "Date")
+                        value, JSForm.CONFIG.get_Config_Value("Format", "Date")
                     )
             except Exception as Err:
                 clsError.clsErrorHandler("clsFields:clsDatePickerCtrl:SetValue", Err)
             super().SetValue(value)
 
         def GetValue(self):
-            return super().GetValue().Format(CONFIG.get_Config_Value("Format", "Date"))
+            return super().GetValue().Format(JSForm.CONFIG.get_Config_Value("Format", "Date"))
 
     class clsTimePickerCtrl(wx.adv.TimePickerCtrl, clsFieldExtra):
         def __init__(self, parent, controldescription):
@@ -924,7 +914,7 @@ class clsField:
             super().SetValue(value)
 
         def GetValue(self):
-            return super().GetValue().Format(CONFIG.get_Config_Value("Format", "Time"))
+            return super().GetValue().Format(JSForm.CONFIG.get_Config_Value("Format", "Time"))
 
     class clsFilePickerCtrl(wx.FilePickerCtrl, clsFieldExtra):
         def __init__(self, parent, controldescription):
@@ -942,7 +932,7 @@ class clsField:
             # filepickerctrl postprocess
 
             self.SetInitialDirectory(
-                CONFIG.get_Config_Value(
+                JSForm.CONFIG.get_Config_Value(
                     self.CONTROLDESCRIPTION["directory"][0],
                     self.CONTROLDESCRIPTION["directory"][1],
                 )
@@ -959,7 +949,7 @@ class clsField:
                 path = os.path.dirname(value)
                 filename = os.path.splitext(os.path.basename(value))
                 self.SetInitialDirectory(
-                    CONFIG.get_Config_Value(
+                    JSForm.CONFIG.get_Config_Value(
                         self.CONTROLDESCRIPTION["directory"][0],
                         self.CONTROLDESCRIPTION["directory"][1],
                     )

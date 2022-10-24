@@ -13,14 +13,7 @@ from mysql.connector import FieldType
 from datetime import datetime, timedelta
 
 #   Framework Imports
-
-import clsSQL
-from clsConfig import CONFIG
-from clsConstants import CONST
-import clsError
-
-
-    
+import JSForm
 
 class clsDB:
     """
@@ -45,9 +38,9 @@ class clsDB:
             self.password = wx.TextCtrl(panel,wx.ID_ANY,    pos=(100,110),size=(200,30) )
             btnok = wx.Button(panel,wx.ID_OK,label="Connect",pos=(10,150),size=(100,30))
 
-    DBConnection = 0
 
     def __init__(self, host=None, databasename=None, username=None, password=None):
+        global CONFIG,OPTION,FONT
         if username == None:
                 dlg = self._getcredentials(self, title="Enter DB Login info")
                 if host:
@@ -65,30 +58,17 @@ class clsDB:
                 password = dlg.password.GetValue()
 
                 dlg.Destroy()
-                if result == CONST.FORM_CANCEL:
+                if result == JSForm.CONST.FORM_CANCEL:
                     return True
         if password == None:
             pass    
-        self.DB = {
+        self.DBCredintials = {
             "user": username,
             "password": password,
             "host": host,
             "database": databasename,
         }
-
-    def connect(self):
-        try:
-            self.DBConnection = mysql.connector.connect(**self.DB)
-        except mysql.connector.Error as err:
-            if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-                print("Access Denied")
-            elif err.errno == errorcode.ER_BAD_DB_ERROR:
-                print("Database does not exist")
-            else:
-                print(err)
-        else:
-            self.DBConnection.close()
-
+        self.DBConnection = mysql.connector.connect(**self.DBCredintials)
 
 class clsRecord:
     """
@@ -166,9 +146,7 @@ class clsRecord:
         self.first()
 
     def read_records(self, table=None, parentrecord=None):
-        global CONFIG
-
-        self.sql = clsSQL.clsSQL(self.DBConnection, table, parentrecord)
+        self.sql = JSForm.clsSQL(self.DBConnection, table, parentrecord)
         cursor = self.DBConnection.cursor()
         sql = self.sql.select()
         try:

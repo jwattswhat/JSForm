@@ -2,8 +2,9 @@ import sys
 import pprint
 import datetime
 
+import JSForm
 
-class clslog:
+class clsLog:
     def __init__(self, logfile=None) -> None:
         if logfile == None:
             logfile = "Log.txt"
@@ -37,4 +38,4 @@ class clslog:
 
 cmLOG = False
 cmLOGPARAM = False
-lg = clslog()
+LG = clsLog()

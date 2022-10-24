@@ -8,12 +8,7 @@
 import pprint
 import wx
 
-from clsMonitor import PMON
-from clsConfig import CONFIG
-
-DBconnection = None
-
-
+import JSForm
 class clsFont:
     def __init__(self, DBConnection=None):
         self.fontdict = {}
@@ -24,10 +19,8 @@ class clsFont:
         self.DBConnection = DBConnection
 
     def Get_Config_Font(self):
-        global CONFIG
-
         self.fontdict = {}
-        strfont = CONFIG.get_Config_Family("Font")
+        strfont = JSForm.CONFIG.get_Config_Family("Font")
         for f in strfont:
             match f[0]:
                 case "PointSize":
@@ -47,31 +40,27 @@ class clsFont:
         return self._currentfont
 
     def chtopt(self, ch):
-        global PMON
-        return int(PMON.getfontpixelsx(self.fontdict["pointSize"]) * ch)
+        return int(JSForm.PMON.getfontpixelsx(self.fontdict["pointSize"]) * ch)
 
     def lntopt(self, ln):
-        global PMON
-        return int(PMON.getfontpixelsy(self.fontdict["pointSize"]) * ln)
+        return int(JSForm.PMON.getfontpixelsy(self.fontdict["pointSize"]) * ln)
 
     def Get_Current_Font(self):
         return self._currentfont
 
     def Set_Config_Font(self):
-        global CONFIG
-
         pointsize = self._currentfont.GetPointSize()
-        CONFIG.set_Config_Value("FontPointSize", pointsize)
+        JSForm.CONFIG.set_Config_Value("FontPointSize", pointsize)
         family = self._currentfont.GetFamily()
-        CONFIG.set_Config_Value("FontFamily", family)
+        JSForm.CONFIG.set_Config_Value("FontFamily", family)
         style = self._currentfont.GetStyle()
-        CONFIG.set_Config_Value("FontStyle", style)
+        JSForm.CONFIG.set_Config_Value("FontStyle", style)
         weight = self._currentfont.GetWeight()
-        CONFIG.set_Config_Value("FontWeight", weight)
+        JSForm.CONFIG.set_Config_Value("FontWeight", weight)
         facename = self._currentfont.GetFaceName()
-        CONFIG.set_Config_Value("FontFace", facename)
+        JSForm.CONFIG.set_Config_Value("FontFace", facename)
         underlined = self._currentfont.GetUnderlined()
-        CONFIG.set_Config_Value("FontUnderlined", underlined == True)
+        JSForm.CONFIG.set_Config_Value("FontUnderlined", underlined == True)
 
     def Font_Dialog(self, parent):
         data = wx.FontData()

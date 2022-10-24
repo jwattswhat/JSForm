@@ -6,8 +6,7 @@
 """
 import datetime
 
-from clsFont import FONT
-
+import JSForm
 
 def hexdump(str):
     asc = "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz"
@@ -56,22 +55,21 @@ def charactertopoint(formdescription, controldescription):
 
 
 def desccharactertopoint(description):
-    global FONT
 
     newdesc = description
     if "pos" in description:  # if "pos" exists it is not overridden by "posch"
         return newdesc
     newdesc["pos"] = [
-        FONT.chtopt(description["posch"][0]),
-        FONT.lntopt(description["posch"][1]),
+        JSForm.FONT.chtopt(description["posch"][0]),
+        JSForm.FONT.lntopt(description["posch"][1]),
     ]
 
     if "size" in description:  # if size exists it is not overridden by "sizech"
         return newdesc
     if "sizech" in description:  # size in not a required entry
         newdesc["size"] = [
-            FONT.chtopt(description["sizech"][0]),
-            FONT.lntopt(description["sizech"][1]),
+            JSForm.FONT.chtopt(description["sizech"][0]),
+            JSForm.FONT.lntopt(description["sizech"][1]),
         ]
     return newdesc
 

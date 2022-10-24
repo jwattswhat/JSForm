@@ -1,3 +1,7 @@
+import mysql
+import mysql.connector
+
+import JSForm
 class clsOption:
     """
     clsOption.py - Option Class for Getting and Setting System Options
@@ -5,7 +9,6 @@ class clsOption:
     August 9, 2022
     """
 
-    DBConnection = None
 
     def __init__(self, DBConnection=None):
         self.DBConnection = DBConnection
@@ -36,6 +39,5 @@ class clsOption:
         cursor = self.DBConnection.cursor()
         cursor.execute(SQL)
         cursor.close()
-
 
 OPTION = clsOption()

@@ -1,13 +1,11 @@
 import yagmail
 
-from clsConfig import CONFIG
+import JSForm
 
 
 class clsSMTP:
     def __init__(self):
-        global CONFIG
-
-        smtprows = CONFIG.get_Config_Family("SMTP")
+        smtprows = JSForm.CONFIG.get_Config_Family("SMTP")
         for smtp in range(len(smtprows)):
             match smtprows[smtp][0]:
                 case "Server":

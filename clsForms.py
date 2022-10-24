@@ -6,30 +6,19 @@
 #
 #   import wx classes
 #
-import os
 import wx
 import wx.dataview
 
 #
 #   import Pyhton classes
 #
+import os
 import json
-import pyautogui
 
 #
 #   import framework classes
 #
-from clsConstants import CONST
-from clsConfig import CONFIG
-from clsFont import FONT
-from clsOption import OPTION
-from clsLog import lg
-import clsFont
-import clsDB
-from clsFields import getcontrolparameters, clsField
-from clsSQL import clsSQL
-import clsValidators
-import fnUtil
+import JSForm
 
 
 class clsBASEForm:
@@ -75,7 +64,7 @@ class clsBASEForm:
         position=None,
         parentkey=None,
     ):
-        lg.log(
+        JSForm.LG.log(
             formname=formname,
             controls=controls,
             frmdescription=frmdescription,
@@ -100,13 +89,12 @@ class clsBASEForm:
             self.FORMDESCRIPTON.update(frmdescription)
 
         self.override_linked_and_sub_forms()
-
         if "controls" not in self.FORMDESCRIPTON:
             self.FORMDESCRIPTON["controls"] = ["Navigation", "Close"]
         if controls != None:
             self.FORMDESCRIPTON["controls"] = controls
 
-        self.FORMDESCRIPTON, self.CONTROLDESCRIPTION = fnUtil.charactertopoint(
+        self.FORMDESCRIPTON, self.CONTROLDESCRIPTION = JSForm.fnUtil.charactertopoint(
             self.FORMDESCRIPTON, self.CONTROLDESCRIPTION
         )
 
@@ -128,7 +116,7 @@ class clsBASEForm:
         self.bind_form_controls()
 
     def override_linked_and_sub_forms(self):
-        lg.log()
+        JSForm.LG.log()
         if "linkedform" in self.FORMDESCRIPTON:
             for linkedform in self.FORMDESCRIPTON["linkedform"]:
                 formdesc, controldesc = self.load_form_from_json(linkedform)
@@ -141,48 +129,46 @@ class clsBASEForm:
                 self.FORMDESCRIPTON["subform"][subform] = formdesc
 
     def process_predefined_controls(self, controls):
-        lg.log(controls=controls)
+        JSForm.LG.log(controls=controls)
 
-        CONST.btnNavigationCONTROLS = fnUtil.convertNavButtons(CONST.btnNavigationCONTROLS)
+        JSForm.CONST.btnNavigationCONTROLS = JSForm.fnUtil.convertNavButtons(JSForm.CONST.btnNavigationCONTROLS)
 
-        lastcolumn = FONT.chtopt(self.FORMDESCRIPTON["sizech"][0])
-        lastline = FONT.lntopt(self.FORMDESCRIPTON["sizech"][1]) - 2
+        lastcolumn = self.FORMDESCRIPTON["size"][0]
+        lastline = self.FORMDESCRIPTON["size"][1] - 5
 
         NavControls = {}
         self.NavControlsPresent = False
-        x = 2  # start 5 in
+        x = 5  # start 5 in
         if "Navigation" in controls:
             self.NavControlsPresent = True
 
-            for key in CONST.btnNavigationCONTROLS["Navigation"]:
-                NavControls[key] = CONST.btnNavigationCONTROLS["Navigation"][key]
+            for key in JSForm.CONST.btnNavigationCONTROLS["Navigation"]:
+                NavControls[key] = JSForm.CONST.btnNavigationCONTROLS["Navigation"][key]
                 NavControls[key]["pos"] = [
-                    FONT.chtopt(x),
+                    x,
                     lastline,
-                ]
-                x += CONST.btnNavigationCONTROLS["Navigation"][key]["sizech"][0]
-                NavControls[key]["size"] = CONST.btnNavigationCONTROLS["Navigation"][key]["size"]
+                ]  # - CONST.btnNavigationCONTROLS["Navigation"][key]["size"][1]]
+                x += JSForm.CONST.btnNavigationCONTROLS["Navigation"][key]["size"][0]
         else:
             if "Update" in controls:
-                NavControls["btnUpdate"] = CONST.btnNavigationCONTROLS["Navigation"][
+                NavControls["btnUpdate"] = JSForm.CONST.btnNavigationCONTROLS["Navigation"][
                     "btnUpdate"
                 ]
                 NavControls["btnUpdate"]["pos"] = [
-                    FONT.chtopt(x),
+                    x,
                     lastline,
-                ]
-                NavControls["btnUpdate"]["size"] = CONST.btnNavigationCONTROLS["Navigation"]["btnUpdate"]["size"]
+                ]  # -CONST.btnNavigationCONTROLS["Navigation"]["btnUpdate"]["size"][1]]
 
         #   Predefined Controls "Close"
         self.ClosePresent = False
         if "Close" in controls:
             self.ClosePresent = True
-            NavControls["btnClose"] = CONST.btnNavigationCONTROLS["Close"]["btnClose"]
+            NavControls["btnClose"] = JSForm.CONST.btnNavigationCONTROLS["Close"]["btnClose"]
             NavControls["btnClose"]["pos"] = [
-                lastcolumn - CONST.btnNavigationCONTROLS["Close"]["btnClose"]["size"][0],
-                lastline
-            ]  
-            NavControls["btnClose"]["size"] = CONST.btnNavigationCONTROLS["Close"]["btnClose"]["size"]
+                lastcolumn
+                - JSForm.CONST.btnNavigationCONTROLS["Close"]["btnClose"]["size"][0],
+                lastline,
+            ]  # -CONST.btnNavigationCONTROLS["Close"]["btnClose"]["size"][1]]
 
         return NavControls
 
@@ -196,7 +182,7 @@ class clsBASEForm:
             position - override position for form
 
         """
-        lg.log(formdescription=formdescription, position=position)
+        JSForm.LG.log(formdescription=formdescription, position=position)
         if position is not None:
             formdescription["pos"] = [position[0], position[1]]
 
@@ -204,7 +190,7 @@ class clsBASEForm:
             formdescription["size"][0] += 30
             formdescription["size"][1] += 70
             FRAME = wx.Dialog(
-                None, id=wx.ID_ANY, **getcontrolparameters(formdescription)
+                None, id=wx.ID_ANY, **JSForm.getcontrolparameters(formdescription)
             )
             FORM = FRAME
         elif formdescription["type"] == "Panel":
@@ -219,13 +205,13 @@ class clsBASEForm:
                 size=size,
             )
             formdescription["pos"] = [0, 0]
-            FORM = wx.Panel(FRAME, wx.ID_ANY, **getcontrolparameters(formdescription))
+            FORM = wx.Panel(FRAME, wx.ID_ANY, **JSForm.getcontrolparameters(formdescription))
         elif formdescription["type"] == "StaticBox":
             FORM = wx.StaticBox(
-                self.PARENT.FORM, wx.ID_ANY, **getcontrolparameters(formdescription)
+                self.PARENT.FORM, wx.ID_ANY, **JSForm.getcontrolparameters(formdescription)
             )
             FRAME = FORM
-            FRAME.SetFont(FONT.Get_Current_Font())
+            FRAME.SetFont(JSForm.FONT.Get_Current_Font())
 
         return FRAME, FORM
 
@@ -234,9 +220,9 @@ class clsBASEForm:
         loads form description from a JSON file.
         """
         global CONFIG
-        lg.log(Form=Form)
+        JSForm.LG.log(Form=Form)
 
-        FormLocation = CONFIG.get_Config_Value("Location", "Form")
+        FormLocation = JSForm.CONFIG.get_Config_Value("Location", "Form")
 
         formname = FormLocation + Form + ".json"
         f = open(
@@ -246,7 +232,7 @@ class clsBASEForm:
         return jsonfrm[Form + "FORM"]["FORM"], jsonfrm[Form + "FORM"]["CONTROLS"]
 
     def build_form(self):
-        lg.log()
+        JSForm.LG.log()
         controlid = {}
         if "readonly" in self.FORMDESCRIPTON:
             readonly = True
@@ -261,19 +247,19 @@ class clsBASEForm:
                 if key in self.FORMDESCRIPTON["readonlyfields"]:
                     self.CONTROLDESCRIPTION[key].update({"readonly": True})
 
-            fld = clsField(
+            fld = JSForm.clsField(
                 self, wx.ID_ANY, self.CONTROLDESCRIPTION[key], self.DBConnection
             )
             controlid.update({key: fld.FIELD})
         return controlid
 
     def initialize_data_record(self, formdescription):
-        lg.log(formdescription=formdescription)
+        JSForm.LG.log(formdescription=formdescription)
         if "table" in formdescription:
-            return clsDB.clsRecord(self.DBConnection, formdescription["table"])
+            return JSForm.clsRecord(self.DBConnection, formdescription["table"])
 
     def display_form_data(self, table=None, parentrecord=None):
-        lg.log(table=table, parentrecord=parentrecord)
+        JSForm.LG.log(table=table, parentrecord=parentrecord)
         if "table" not in self.FORMDESCRIPTON:
             return None
 
@@ -297,7 +283,7 @@ class clsBASEForm:
         return None
 
     def _display_records(self, table=None, parentrecord=None):
-        lg.log(table=table, parentrecord=parentrecord)
+        JSForm.LG.log(table=table, parentrecord=parentrecord)
         if "table" not in self.FORMDESCRIPTON:
             return None
 
@@ -320,7 +306,7 @@ class clsBASEForm:
         self._load_DataViewListCtrl()
 
     def update_choices(self):
-        lg.log()
+        JSForm.LG.log()
         for field in self.CONTROLID:
             if self.CONTROLDESCRIPTION[field]["type"] == "ComboBox":
                 choices = self.CONTROLID[field].choices.Load_Choices(
@@ -336,7 +322,7 @@ class clsBASEForm:
         """
         fill the form with editable data from the Read record
         """
-        lg.log(record=record)
+        JSForm.LG.log(record=record)
         for key in record:
             if key == "ID":
                 continue
@@ -354,7 +340,7 @@ class clsBASEForm:
                     self.CONTROLID[key].SetValue(record[key])
 
     def initialize_linked_forms(self):
-        lg.log()
+        JSForm.LG.log()
 
         if "linkedform" not in self.FORMDESCRIPTON:
             return
@@ -367,7 +353,7 @@ class clsBASEForm:
         """
         open_linked_form - setup open linked form.
         """
-        lg.log(lnkdfrm=lnkdfrm, record=record)
+        JSForm.LG.log(lnkdfrm=lnkdfrm, record=record)
 
         pk = []
         parentkey = self.FORMDESCRIPTON["linkedform"][lnkdfrm].get("parentkey")
@@ -394,7 +380,7 @@ class clsBASEForm:
         return LinkedForm.show()
 
     def initialize_sub_forms(self):
-        lg.log()
+        JSForm.LG.log()
         if "subform" not in self.FORMDESCRIPTON:
             return
 
@@ -412,7 +398,7 @@ class clsBASEForm:
             return SubForm.show()
 
     def bind_form_controls(self):
-        lg.log()
+        JSForm.LG.log()
         self.FORM.Bind(wx.EVT_CLOSE, self._on_close)
 
         if "linkedform" in self.FORMDESCRIPTON:
@@ -486,15 +472,15 @@ class clsBASEForm:
                     )
 
     def disable_button(self, name):
-        lg.log()
+        JSForm.LG.log()
         self.CONTROLID[name].Disable()
 
     def enable_button(self, name):
-        lg.log()
+        JSForm.LG.log()
         self.CONTROLID[name].Enbable()
 
     def enable_navigation_buttons(self):
-        lg.log()
+        JSForm.LG.log()
         # pre-defined buttons
         if self.NavControlsPresent:
             self.CONTROLID["btnNew"].Enable()
@@ -506,7 +492,7 @@ class clsBASEForm:
             self.CONTROLID["btnUpdate"].Enable()
 
     def disable_navigation_buttons(self):
-        lg.log()
+        JSForm.LG.log()
         # pre-defined buttons
         if self.NavControlsPresent:
             self.CONTROLID["btnNew"].Disable()
@@ -518,14 +504,14 @@ class clsBASEForm:
             self.CONTROLID["btnUpdate"].Disable()
 
     def validate_form(self):
-        lg.log()
+        JSForm.LG.log()
         if self.FORM.Validate():
             return True
         else:
             return False
 
     def update_screen_to_record(self):
-        lg.log()
+        JSForm.LG.log()
         if self.RECORDS.isempty():
             return None
         for field in self.RECORDS.current().keys():
@@ -534,7 +520,7 @@ class clsBASEForm:
             self.RECORDS.setfieldvalue(field, self.CONTROLID[field].GetValue())
 
     def show(self):
-        lg.log()
+        JSForm.LG.log()
         if "modal" in self.FORMDESCRIPTON:
             return self.FRAME.ShowModal()
         try:
@@ -545,11 +531,11 @@ class clsBASEForm:
             self.FORM.Show()
 
     def showmodal(self):
-        lg.log()
+        JSForm.LG.log()
         return self.FRAME.ShowModal()
 
     def new_record(self):
-        lg.log()
+        JSForm.LG.log()
         if not self.FORMDirty():
             self.RECORDS.add(self.RECORDS.sql.get_blank_record())
             if self.parentkey != None:
@@ -563,7 +549,7 @@ class clsBASEForm:
                 self.CONTROLID["btnUpdate"].Enable()
 
     def set_all_controls_to_normal_color(self):
-        lg.log()
+        JSForm.LG.log()
         for field in self.CONTROLID:
             self.CONTROLID[field].SetNormalColor()
 
@@ -571,14 +557,14 @@ class clsBASEForm:
     #   Evant Handlers
     #
     def _translateevent(self, eventstring):
-        lg.log()
+        JSForm.LG.log()
         evt = None
         if eventstring == "EVT_TEXT":
             evt = wx.EVT_TEXT
         return evt
 
     def _buttonclick(self, event):
-        lg.log()
+        JSForm.LG.log()
         btn = event.GetEventObject().GetName()
         for lnkdfrm in self.FORMDESCRIPTON["linkedform"]:
             if btn == self.FORMDESCRIPTON["linkedform"][lnkdfrm]["bindbtn"]:
@@ -602,11 +588,11 @@ class clsBASEForm:
                     self.open_linked_form(lnkdfrm)
 
     def _capturemouse(self, event):  # <TODO> implement.
-        lg.log()
+        JSForm.LG.log()
         field = event.GetEventObject().GetName()
 
     def _captureevent(self, event):
-        lg.log()
+        JSForm.LG.log()
         if "table" not in self.FORMDESCRIPTON:
             return
         if "name" not in self.FORMDESCRIPTON["table"]:
@@ -634,7 +620,7 @@ class clsBASEForm:
                 self.SUBFORM[subform].display_form_data(table)
 
     def _openfileevent(self, event):
-        lg.log()
+        JSForm.LG.log()
         file = None
         field = event.GetEventObject().GetName()
         evnttype = event.GetEventType()
@@ -650,7 +636,7 @@ class clsBASEForm:
                 file = self.CONTROLID[openctrl].GetValue()
             case "ComboBox":
                 table = self.CONTROLDESCRIPTION[openctrl]["table"]
-                sql = clsSQL(self.DBConnection, table, self.RECORDS.current())
+                sql = JSForm.clsSQL(self.DBConnection, table, self.RECORDS.current())
                 SQL = sql.select()
                 cursor = self.DBConnection.cursor()
                 cursor.execute(SQL)
@@ -662,11 +648,11 @@ class clsBASEForm:
             os.startfile(file)
 
     def _on_close_click(self, event):
-        lg.log()
+        JSForm.LG.log()
         self.FORM.Close()
 
     def _on_close(self, event):
-        lg.log()
+        JSForm.LG.log()
         if self.RECORDS == None:  # for no record forms.
             try:
                 self.FRAME.Destroy()
@@ -711,7 +697,7 @@ class clsBASEForm:
                 self.FORM.Destroy()
 
     def FORMDirty(self):
-        lg.log()
+        JSForm.LG.log()
 
         if "readonly" not in self.FORMDESCRIPTON:
             self.update_screen_to_record()
@@ -721,19 +707,19 @@ class clsBASEForm:
                 for field in dirtyfields:
                     self.CONTROLID[field].SetWarningColor()
                 dlg = self._dirtydialog(self.FORM, title="Form Modified(dirty)")
-                result = dlg.ShowModal()
-                dlg.Destroy()
-                if result == CONST.FORM_CANCEL:
+                result = JSForm.LG.ShowModal()
+                JSForm.LG.Destroy()
+                if result == JSForm.CONST.FORM_CANCEL:
                     return True
 
         return False
 
     def _on_new_record_click(self, event):
-        lg.log()
+        JSForm.LG.log()
         self.new_record()
 
     def _on_delete_record_click(self, event):
-        lg.log()
+        JSForm.LG.log()
         if not self.FORMDirty():
             self.RECORDS.delete_record_from_DB()
             dlg = wx.MessageDialog(
@@ -742,20 +728,20 @@ class clsBASEForm:
                 "Deleted",
                 wx.OK,
             )
-            result = dlg.ShowModal()
-            dlg.Destroy()
+            result = JSForm.LG.ShowModal()
+            JSForm.LG.Destroy()
             self.fill_form(self.RECORDS.current())
             self._close_linked_forms()
 
     def _close_linked_forms(self):
-        lg.log()
+        JSForm.LG.log()
         linked = self.LINKEDFORM.copy()
         for frm in linked:
             self.LINKEDFORM[frm].FORM.Close()
             self.LINKEDFORM.pop(frm)
 
     def _on_update_record_click(self, event):
-        lg.log()
+        JSForm.LG.log()
         self.update_screen_to_record()
         self.RECORDS.update_current_record_in_DB()
         self.enable_navigation_buttons()
@@ -770,36 +756,40 @@ class clsBASEForm:
         self.set_all_controls_to_normal_color()
 
     def _first_prev_next_last(self, firstprevnextlast):
-        lg.log()
+        JSForm.LG.log()
         if not self.FORMDirty():
 
             self.RECORDS._record[
                 self.RECORDS._position
             ] = self.RECORDS.original.restore()
 
-            if firstprevnextlast == CONST.FORM_FIRST:
+            if firstprevnextlast == JSForm.CONST.FORM_FIRST:
                 self.RECORDS.first()
-            elif firstprevnextlast == CONST.FORM_PREV:
+            elif firstprevnextlast == JSForm.CONST.FORM_PREV:
                 self.RECORDS.prev()
-            elif firstprevnextlast == CONST.FORM_NEXT:
+            elif firstprevnextlast == JSForm.CONST.FORM_NEXT:
                 self.RECORDS.next()
-            elif firstprevnextlast == CONST.FORM_LAST:
+            elif firstprevnextlast == JSForm.CONST.FORM_LAST:
                 self.RECORDS.last()
 
             self._display_records(self.FORMDESCRIPTON["table"], self.RECORDS.current())
 
     def _on_first_record_click(self, event):
-        lg.log()
-        self._first_prev_next_last(CONST.FORM_FIRST)
+        JSForm.LG.log()
+        self._first_prev_next_last(JSForm.CONST.FORM_FIRST)
 
     def _on_prev_record_click(self, event):
-        lg.log()
-        self._first_prev_next_last(CONST.FORM_PREV)
+        JSForm.LG.log()
+        self._first_prev_next_last(JSForm.CONST.FORM_PREV)
 
     def _on_next_record_click(self, event):
-        lg.log()
-        self._first_prev_next_last(CONST.FORM_NEXT)
+        JSForm.LG.log()
+        self._first_prev_next_last(JSForm.CONST.FORM_NEXT)
 
     def _on_last_record_click(self, event):
-        lg.log()
-        self._first_prev_next_last(CONST.FORM_LAST)
+        JSForm.LG.log()
+        self._first_prev_next_last(JSForm.CONST.FORM_LAST)
+
+
+class clsForm(clsBASEForm):
+    pass

@@ -8,8 +8,7 @@
 from mysql.connector import FieldType
 import datetime
 
-from clsConfig import CONFIG
-from clsOption import OPTION
+import JSForm
 
 
 class clsSQL:
@@ -89,7 +88,7 @@ class clsSQL:
             pos = start
             condition = condition.replace(
                 condition[start : end + 1],
-                '"' + OPTION.get_Option_Value(optionfor, optionvalue) + '"',
+                '"' + JSForm.OPTION.get_Option_Value(optionfor, optionvalue) + '"',
                 1,
             )
         return condition
@@ -165,11 +164,11 @@ class clsSQL:
             case "LONG":
                 return value
             case "TIME":
-                return value.strftime(CONFIG.get_Config_Value("Format", "Time"))
+                return value.strftime(JSForm.CONFIG.get_Config_Value("Format", "Time"))
             case "DATE":
-                return value.strftime(CONFIG.get_Config_Value("Format", "Date"))
+                return value.strftime(JSForm.CONFIG.get_Config_Value("Format", "Date"))
             case "DATETIME":
-                return value.strftime(CONFIG.get_Config_Value("Format", "DateTime"))
+                return value.strftime(JSForm.CONFIG.get_Config_Value("Format", "DateTime"))
             case other:
                 return value
 
@@ -186,7 +185,6 @@ class clsSQL:
         return returnrecords
 
     def get_blank_record(self):
-        global CONFIG
 
         record = {}
         for key in self.sqldescription:
@@ -196,7 +194,7 @@ class clsSQL:
                 record.update(
                     {
                         key: datetime.datetime.now().strftime(
-                            CONFIG.get_Config_Value("Format", "Date")
+                            JSForm.CONFIG.get_Config_Value("Format", "Date")
                         )
                     }
                 )
@@ -204,7 +202,7 @@ class clsSQL:
                 record.update(
                     {
                         key: datetime.datetime.now().strftime(
-                            CONFIG.get_Config_Value("Format", "DateTime")
+                            JSForm.CONFIG.get_Config_Value("Format", "DateTime")
                         )
                     }
                 )
@@ -297,12 +295,12 @@ class clsSQL:
             #   Date and Time Types
 
             case "DATETIME":
-                value = value.strftime(CONFIG.get_Config_Value("Format", "DateTime"))
+                value = value.strftime(JSForm.CONFIG.get_Config_Value("Format", "DateTime"))
             case "DATE":
-                value = value.strftime(CONFIG.get_Config_Value("Format", "Date"))
+                value = value.strftime(JSForm.CONFIG.get_Config_Value("Format", "Date"))
             case "TIME":
                 dt = datetime.datetime(2022, 1, 1) + value
-                value = dt.strftime(CONFIG.get_Config_Value("Format", "Time"))
+                value = dt.strftime(JSForm.CONFIG.get_Config_Value("Format", "Time"))
 
             #   Default to string type
 
@@ -359,16 +357,16 @@ class clsSQL:
             case "DATETIME":
                 value = "STR_TO_DATE('{date}','{dateformat}')".format(
                     date=value,
-                    dateformat=CONFIG.get_Config_Value("SQLFormat", "DateTime"),
+                    dateformat=JSForm.CONFIG.get_Config_Value("SQLFormat", "DateTime"),
                 )
             case "DATE":
                 value = "STR_TO_DATE('{date}','{dateformat}')".format(
-                    date=value, dateformat=CONFIG.get_Config_Value("SQLFormat", "Date")
+                    date=value, dateformat=JSForm.CONFIG.get_Config_Value("SQLFormat", "Date")
                 )
 
             case "TIME":
                 value = "STR_TO_DATE('{time}','{dateformat}')".format(
-                    time=value, dateformat=CONFIG.get_Config_Value("SQLFormat", "Time")
+                    time=value, dateformat=JSForm.CONFIG.get_Config_Value("SQLFormat", "Time")
                 )
 
             #   Default to string type

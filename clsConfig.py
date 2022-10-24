@@ -1,3 +1,6 @@
+import mysql
+import mysql.connector
+
 class clsConfig:
     """
     clsConfig.py - Configuration Class for getting and setting system configuration
@@ -5,7 +8,6 @@ class clsConfig:
     July 2022
     """
 
-    DBConnection = None
 
     def __init__(self, DBConnection=None):
         self.DBConnection = DBConnection
@@ -29,7 +31,7 @@ class clsConfig:
         if self.DBConnection == None:
             return None
         SQL = "UPDATE tblConfig SET ConfigFamily = '{ConfigFamily}', ConfigValue = '{ConfigValue}' WHERE ConfigType = '{ConfigType}';".format(
-            ConfigValue=ConfigValue, ConfigType=ConfigType
+            ConfigFamily=ConfigFamily, ConfigValue=ConfigValue, ConfigType=ConfigType
         )
         cursor = self.DBConnection.cursor()
         cursor.execute(SQL)
@@ -46,6 +48,5 @@ class clsConfig:
         rows = cursor.fetchall()
         cursor.close()
         return rows
-
 
 CONFIG = clsConfig()

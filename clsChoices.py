@@ -1,4 +1,7 @@
-import clsSQL
+import mysql
+import mysql.connector
+
+import JSForm
 
 
 class clsChoices:
@@ -37,6 +40,27 @@ class clsChoices:
             choices = self._loadchoicesfromtable()
         return choices
 
+    def getchoiceid(self, display):
+        if display not in self.display:
+            return display
+
+        for i in range(len(self.display)):
+            if self.display[i] == display:
+                return self.id[i]
+        return None
+
+    def getchoicedisplay(self, id):
+        if id not in self.id:
+            return id
+
+        for i in range(len(self.id)):
+            if self.id[i] == id:
+                return self.display[i]
+        return None
+
+    def len(self):
+        return len(self.display)
+
     def _loadfromchoicestable(self):
         """
         this module looks for field choices for 'fieldname' in the tblChoices table
@@ -73,7 +97,7 @@ class clsChoices:
         if "lookupchoices" not in self.controldescription:
             return None
 
-        self.sql = clsSQL.clsSQL(
+        self.sql = JSForm.clsSQL(
             self.dbconnection, self.controldescription["lookupchoices"]
         )
         SQL = self.sql.select()
@@ -101,23 +125,3 @@ class clsChoices:
         self.display.append(display)
         self.fielddata.append(fielddata)
 
-    def getchoiceid(self, display):
-        if display not in self.display:
-            return display
-
-        for i in range(len(self.display)):
-            if self.display[i] == display:
-                return self.id[i]
-        return None
-
-    def getchoicedisplay(self, id):
-        if id not in self.id:
-            return id
-
-        for i in range(len(self.id)):
-            if self.id[i] == id:
-                return self.display[i]
-        return None
-
-    def len(self):
-        return len(self.display)
