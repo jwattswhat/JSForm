@@ -907,7 +907,7 @@ class clsField:
                     value = datetime.datetime.strptime(value, timeformat)
                 else:
                     value = datetime.datetime.strptime(
-                        value, CONFIG.get_Config_Value("Format", "Time")
+                        value, JSForm.CONFIG.get_Config_Value("Format", "Time")
                     )
             except Exception as Err:
                 JSForm.clsErrorHandler(9999, Err)
