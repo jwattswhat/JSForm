@@ -20,8 +20,7 @@ import json
 #
 import JSForm
 
-
-class clsBASEForm:
+class clsForm:
     """
     clsBASEForm: Process a form
     Rev. Jonathan C. Watt
@@ -45,13 +44,13 @@ class clsBASEForm:
             )
             self.btn = wx.Button(
                 panel,
-                CONST.FORM_CONTINUE,
+                JSForm.CONST.FORM_CONTINUE,
                 label="Continue",
                 size=(100, 30),
                 pos=(10, 100),
             )
             self.btn = wx.Button(
-                panel, CONST.FORM_CANCEL, label="Cancel", size=(100, 30), pos=(120, 100)
+                panel, JSForm.CONST.FORM_CANCEL, label="Cancel", size=(100, 30), pos=(120, 100)
             )
 
     def __init__(
@@ -94,7 +93,7 @@ class clsBASEForm:
         if controls != None:
             self.FORMDESCRIPTON["controls"] = controls
 
-        self.FORMDESCRIPTON, self.CONTROLDESCRIPTION = JSForm.fnUtil.charactertopoint(
+        self.FORMDESCRIPTON, self.CONTROLDESCRIPTION = JSForm.charactertopoint(
             self.FORMDESCRIPTON, self.CONTROLDESCRIPTION
         )
 
@@ -219,7 +218,6 @@ class clsBASEForm:
         """
         loads form description from a JSON file.
         """
-        global CONFIG
         JSForm.LG.log(Form=Form)
 
         FormLocation = JSForm.CONFIG.get_Config_Value("Location", "Form")
@@ -627,7 +625,7 @@ class clsBASEForm:
         openctrl = self.CONTROLDESCRIPTION[field]["openbtn"]
         match self.CONTROLDESCRIPTION[openctrl]["type"]:
             case "FilePickerCtrl":
-                path = CONFIG.get_Config_Value(
+                path = JSForm.CONFIG.get_Config_Value(
                     self.CONTROLDESCRIPTION[openctrl]["directory"][0],
                     self.CONTROLDESCRIPTION[openctrl]["directory"][1],
                 )
@@ -790,6 +788,3 @@ class clsBASEForm:
         JSForm.LG.log()
         self._first_prev_next_last(JSForm.CONST.FORM_LAST)
 
-
-class clsForm(clsBASEForm):
-    pass
