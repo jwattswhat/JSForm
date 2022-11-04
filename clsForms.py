@@ -133,7 +133,7 @@ class clsForm:
         JSForm.CONST.btnNavigationCONTROLS = JSForm.fnUtil.convertNavButtons(JSForm.CONST.btnNavigationCONTROLS)
 
         lastcolumn = self.FORMDESCRIPTON["size"][0]
-        lastline = self.FORMDESCRIPTON["size"][1] - 5
+        lastline = self.FORMDESCRIPTON["size"][1] - (JSForm.FONT.Get_Current_Font().GetPixelSize()[1] * 2)
 
         NavControls = {}
         self.NavControlsPresent = False
@@ -146,7 +146,7 @@ class clsForm:
                 NavControls[key]["pos"] = [
                     x,
                     lastline,
-                ]  # - CONST.btnNavigationCONTROLS["Navigation"][key]["size"][1]]
+                ] 
                 x += JSForm.CONST.btnNavigationCONTROLS["Navigation"][key]["size"][0]
         else:
             if "Update" in controls:
@@ -156,7 +156,7 @@ class clsForm:
                 NavControls["btnUpdate"]["pos"] = [
                     x,
                     lastline,
-                ]  # -CONST.btnNavigationCONTROLS["Navigation"]["btnUpdate"]["size"][1]]
+                ] 
 
         #   Predefined Controls "Close"
         self.ClosePresent = False
@@ -210,7 +210,8 @@ class clsForm:
                 self.PARENT.FORM, wx.ID_ANY, **JSForm.getcontrolparameters(formdescription)
             )
             FRAME = FORM
-            FRAME.SetFont(JSForm.FONT.Get_Current_Font())
+        FRAME.SetFont(JSForm.FONT.Get_Current_Font())
+        FORM.SetFont(JSForm.FONT.Get_Current_Font())
 
         return FRAME, FORM
 
@@ -705,8 +706,8 @@ class clsForm:
                 for field in dirtyfields:
                     self.CONTROLID[field].SetWarningColor()
                 dlg = self._dirtydialog(self.FORM, title="Form Modified(dirty)")
-                result = JSForm.LG.ShowModal()
-                JSForm.LG.Destroy()
+                result = dlg.ShowModal()
+                dlg.Destroy()
                 if result == JSForm.CONST.FORM_CANCEL:
                     return True
 
