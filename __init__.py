@@ -5,8 +5,8 @@ from JSForm.clsFont import FONT
 from JSForm.clsLog import LG
 from JSForm.clsMonitor import PMON
 
-from JSForm.clsDB import clsDB, clsRecord
 from JSForm.clsForms import clsForm
+from JSForm.clsDB import clsDB, clsRecord
 from JSForm.clsChoices import clsChoices
 from JSForm.clsError import clsErrorHandler
 from JSForm.clsSMTP import clsSMTP

@@ -133,7 +133,7 @@ class clsForm:
         JSForm.CONST.btnNavigationCONTROLS = JSForm.fnUtil.convertNavButtons(JSForm.CONST.btnNavigationCONTROLS)
 
         lastcolumn = self.FORMDESCRIPTON["size"][0]
-        lastline = self.FORMDESCRIPTON["size"][1] - (JSForm.FONT.Get_Current_Font().GetPixelSize()[1] * 2)
+        lastline = self.FORMDESCRIPTON["size"][1] - (JSForm.FONT.Get_Current_Font().GetPixelSize()[1])
 
         NavControls = {}
         self.NavControlsPresent = False
