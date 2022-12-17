@@ -917,6 +917,7 @@ class clsField:
             return super().GetValue().Format(JSForm.CONFIG.get_Config_Value("Format", "Time"))
 
     class clsFilePickerCtrl(wx.FilePickerCtrl, clsFieldExtra):
+        path = ""
         def __init__(self, parent, controldescription):
 
             super().init_field(parent, controldescription)
@@ -946,7 +947,7 @@ class clsField:
                 super().SetPath("")
             else:
                 filename = str(value)
-                path = os.path.dirname(value)
+                self.path = os.path.dirname(value)
                 filename = os.path.splitext(os.path.basename(value))
                 self.SetInitialDirectory(
                     JSForm.CONFIG.get_Config_Value(
@@ -960,7 +961,6 @@ class clsField:
             value = str(super().GetPath())
             if value == "":
                 return None
-            path = os.path.dirname(value)
             filename = os.path.splitext(os.path.basename(value))
-            fn = path + "\\" + filename[0] + filename[1]
+            fn = self.path + "\\" + filename[0] + filename[1]
             return fn
