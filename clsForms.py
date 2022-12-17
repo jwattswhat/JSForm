@@ -20,6 +20,7 @@ import json
 #
 import JSForm
 
+
 class clsForm:
     """
     clsBASEForm: Process a form
@@ -50,7 +51,11 @@ class clsForm:
                 pos=(10, 100),
             )
             self.btn = wx.Button(
-                panel, JSForm.CONST.FORM_CANCEL, label="Cancel", size=(100, 30), pos=(120, 100)
+                panel,
+                JSForm.CONST.FORM_CANCEL,
+                label="Cancel",
+                size=(100, 30),
+                pos=(120, 100),
             )
 
     def __init__(
@@ -130,10 +135,14 @@ class clsForm:
     def process_predefined_controls(self, controls):
         JSForm.LG.log(controls=controls)
 
-        JSForm.CONST.btnNavigationCONTROLS = JSForm.fnUtil.convertNavButtons(JSForm.CONST.btnNavigationCONTROLS)
+        JSForm.CONST.btnNavigationCONTROLS = JSForm.fnUtil.convertNavButtons(
+            JSForm.CONST.btnNavigationCONTROLS
+        )
 
         lastcolumn = self.FORMDESCRIPTON["size"][0]
-        lastline = self.FORMDESCRIPTON["size"][1] - (JSForm.FONT.Get_Current_Font().GetPixelSize()[1])
+        lastline = self.FORMDESCRIPTON["size"][1] - (
+            JSForm.FONT.Get_Current_Font().GetPixelSize()[1]
+        )
 
         NavControls = {}
         self.NavControlsPresent = False
@@ -146,23 +155,25 @@ class clsForm:
                 NavControls[key]["pos"] = [
                     x,
                     lastline,
-                ] 
+                ]
                 x += JSForm.CONST.btnNavigationCONTROLS["Navigation"][key]["size"][0]
         else:
             if "Update" in controls:
-                NavControls["btnUpdate"] = JSForm.CONST.btnNavigationCONTROLS["Navigation"][
-                    "btnUpdate"
-                ]
+                NavControls["btnUpdate"] = JSForm.CONST.btnNavigationCONTROLS[
+                    "Navigation"
+                ]["btnUpdate"]
                 NavControls["btnUpdate"]["pos"] = [
                     x,
                     lastline,
-                ] 
+                ]
 
         #   Predefined Controls "Close"
         self.ClosePresent = False
         if "Close" in controls:
             self.ClosePresent = True
-            NavControls["btnClose"] = JSForm.CONST.btnNavigationCONTROLS["Close"]["btnClose"]
+            NavControls["btnClose"] = JSForm.CONST.btnNavigationCONTROLS["Close"][
+                "btnClose"
+            ]
             NavControls["btnClose"]["pos"] = [
                 lastcolumn
                 - JSForm.CONST.btnNavigationCONTROLS["Close"]["btnClose"]["size"][0],
@@ -204,10 +215,14 @@ class clsForm:
                 size=size,
             )
             formdescription["pos"] = [0, 0]
-            FORM = wx.Panel(FRAME, wx.ID_ANY, **JSForm.getcontrolparameters(formdescription))
+            FORM = wx.Panel(
+                FRAME, wx.ID_ANY, **JSForm.getcontrolparameters(formdescription)
+            )
         elif formdescription["type"] == "StaticBox":
             FORM = wx.StaticBox(
-                self.PARENT.FORM, wx.ID_ANY, **JSForm.getcontrolparameters(formdescription)
+                self.PARENT.FORM,
+                wx.ID_ANY,
+                **JSForm.getcontrolparameters(formdescription)
             )
             FRAME = FORM
         FRAME.SetFont(JSForm.FONT.Get_Current_Font())
@@ -304,7 +319,7 @@ class clsForm:
 
         self._load_DataViewListCtrl()
 
-    def update_choices(self):
+    def update_choices(self):       # defunct
         JSForm.LG.log()
         for field in self.CONTROLID:
             if self.CONTROLDESCRIPTION[field]["type"] == "ComboBox":
@@ -400,6 +415,9 @@ class clsForm:
         JSForm.LG.log()
         self.FORM.Bind(wx.EVT_CLOSE, self._on_close)
 
+        #
+        #   Bind the open Linked form to the Button field.
+        #
         if "linkedform" in self.FORMDESCRIPTON:
             for lnkdfrm in self.FORMDESCRIPTON["linkedform"]:
                 if "bindbtn" in self.FORMDESCRIPTON["linkedform"][lnkdfrm]:
@@ -411,20 +429,50 @@ class clsForm:
                         ],
                     )
 
-        for field in self.CONTROLDESCRIPTION:
-            if "bindmouse" in self.CONTROLDESCRIPTION[field]:
-                self.CONTROLID[field].Bind(
-                    self.CONTROLDESCRIPTION[field]["bindmouse"],
-                    self._capturemouse,
-                )
-            if "bindevent" in self.CONTROLDESCRIPTION[field]:
-                self.CONTROLID[field].Bind(
-                    self._translateevent(self.CONTROLDESCRIPTION[field]["bindevent"]),
-                    self._captureevent,
-                )
-            if "openbtn" in self.CONTROLDESCRIPTION[field]:
-                self.CONTROLID[field].Bind(wx.EVT_BUTTON, self._openfileevent)
+        #
+        #   Check for bound events
+        #
+        for field in self.CONTROLID:
+            # "mouse" controls not implimented
+            if "mouse" in self.CONTROLDESCRIPTION[field]:
+                match self.CONTROLDESCRIPTION[field]["mouse"]:
+                    case "left click":
+                        self.CONTROLID[field].Bind(
+                            wx.EVT_LEFT_DOWN,
+                            self._capturemouse
+                        )
+                    case "right click":
+                        self.CONTROLID[field].Bind(
+                            wx.EVT_RIGHT_DOWN,
+                            self._capturemouse
+                        )
+                    case "left double click":
+                        self.CONTROLID[field].Bind(
+                            wx.EVT_LEFT_DCLICK,
+                            self._capturemouse
+                        )
+                    case "right double click":
+                        self.CONTROLID[field].Bind(
+                            wx.EVT_LEFT_DCLICK,
+                            self._capturemouse
+                        )
 
+            if "event" in self.CONTROLDESCRIPTION[field]:
+                match self.CONTROLDESCRIPTION[field]['event']:
+                    case "refreshform":
+                        self.FORM.Bind(
+                            wx.EVT_TEXT, self._refreshforms, self.CONTROLID[field]
+                        )
+
+            if "openfile" in self.CONTROLDESCRIPTION[field]:
+                self.CONTROLID[field].Bind(
+                    wx.EVT_BUTTON, 
+                    self._openfileevent
+                )
+
+        #
+        #   Bind standard event buttons
+        #
         if self.ClosePresent:
             self.FORM.Bind(
                 wx.EVT_BUTTON, self._on_close_click, self.CONTROLID["btnClose"]
@@ -462,13 +510,6 @@ class clsForm:
                     self._on_update_record_click,
                     self.CONTROLID["btnUpdate"],
                 )
-
-        for field in self.CONTROLID:
-            if type(self.CONTROLID[field]).__name__ == "clsComboBox":
-                if self.CONTROLDESCRIPTION[field].get("refreshform") == True:
-                    self.FORM.Bind(
-                        wx.EVT_TEXT, self._captureevent, self.CONTROLID[field]
-                    )
 
     def disable_button(self, name):
         JSForm.LG.log()
@@ -555,13 +596,6 @@ class clsForm:
     #
     #   Evant Handlers
     #
-    def _translateevent(self, eventstring):
-        JSForm.LG.log()
-        evt = None
-        if eventstring == "EVT_TEXT":
-            evt = wx.EVT_TEXT
-        return evt
-
     def _buttonclick(self, event):
         JSForm.LG.log()
         btn = event.GetEventObject().GetName()
@@ -587,10 +621,13 @@ class clsForm:
                     self.open_linked_form(lnkdfrm)
 
     def _capturemouse(self, event):  # <TODO> implement.
+        #
+        # Future development
+        #
         JSForm.LG.log()
         field = event.GetEventObject().GetName()
 
-    def _captureevent(self, event):
+    def _refreshforms(self, event):
         JSForm.LG.log()
         if "table" not in self.FORMDESCRIPTON:
             return
@@ -603,27 +640,12 @@ class clsForm:
             self.RECORDS.setfieldvalue(field, self.CONTROLID[field].GetValue())
             self._display_records(self.FORMDESCRIPTON["table"])
 
-            for linkedform in self.LINKEDFORM:
-                table = self.LINKEDFORM[linkedform].FORMDESCRIPTON["table"].copy()
-                if "condition" in table:
-                    table["condition"] = self.RECORDS.sql.condition(
-                        table["condition"], self.RECORDS.current()
-                    )
-                self.LINKEDFORM[linkedform].display_form_data(table)
-
-            for subform in self.SUBFORM:
-                table = self.SUBFORM[subform].FORMDESCRIPTON["table"].copy()
-                table["condition"] = self.RECORDS.sql.condition(
-                    table["condition"], self.RECORDS.current()
-                )
-                self.SUBFORM[subform].display_form_data(table)
-
     def _openfileevent(self, event):
         JSForm.LG.log()
         file = None
         field = event.GetEventObject().GetName()
         evnttype = event.GetEventType()
-        openctrl = self.CONTROLDESCRIPTION[field]["openbtn"]
+        openctrl = self.CONTROLDESCRIPTION[field]["openfile"]
         match self.CONTROLDESCRIPTION[openctrl]["type"]:
             case "FilePickerCtrl":
                 path = JSForm.CONFIG.get_Config_Value(
@@ -684,7 +706,7 @@ class clsForm:
             if self.PARENT:
                 if self.FORM.Name in self.PARENT.LINKEDFORM:
                     self.PARENT.LINKEDFORM.pop(self.FORM.Name)
-                    self.PARENT.update_choices()
+                    #self.PARENT.update_choices()
                 if self.FORM.Name in self.PARENT.SUBFORM:
                     self.PARENT.SUBFORM.pop(self.FORM.Name)
 
@@ -788,4 +810,3 @@ class clsForm:
     def _on_last_record_click(self, event):
         JSForm.LG.log()
         self._first_prev_next_last(JSForm.CONST.FORM_LAST)
-
