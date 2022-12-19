@@ -114,7 +114,7 @@ class clsSQL:
         keys = []
         values = []
         for k in range(len(va)):  # remove all fields with None.
-            if va[k] != "":
+            if va[k] != "Null":
                 keys.append(ky[k])
                 val = va[k].replace(
                     "\\", "\\\\"
@@ -188,26 +188,11 @@ class clsSQL:
 
         record = {}
         for key in self.sqldescription:
-            if self.sqldescription[key]["type"] == "TINY":  # Check for Boolean
-                record.update({key: False})
-            elif self.sqldescription[key]["type"] == "DATE":
-                record.update(
-                    {
-                        key: datetime.datetime.now().strftime(
-                            JSForm.CONFIG.get_Config_Value("Format", "Date")
-                        )
-                    }
-                )
-            elif self.sqldescription[key]["type"] == "DATETIME":
-                record.update(
-                    {
-                        key: datetime.datetime.now().strftime(
-                            JSForm.CONFIG.get_Config_Value("Format", "DateTime")
-                        )
-                    }
-                )
-            else:
-                record.update({key: None})
+            match self.sqldescription[key]["type"]:
+                case "TINY":  # Check for Boolean
+                    record.update({key: False})
+                case _:
+                    record.update({key: None})
         if record != {}:
             return record
         return None
@@ -295,12 +280,15 @@ class clsSQL:
             #   Date and Time Types
 
             case "DATETIME":
-                value = value.strftime(JSForm.CONFIG.get_Config_Value("Format", "DateTime"))
+                if value != None:
+                    value = value.strftime(JSForm.CONFIG.get_Config_Value("Format", "DateTime"))
             case "DATE":
-                value = value.strftime(JSForm.CONFIG.get_Config_Value("Format", "Date"))
+                if value != None:
+                    value = value.strftime(JSForm.CONFIG.get_Config_Value("Format", "Date"))
             case "TIME":
-                dt = datetime.datetime(2022, 1, 1) + value
-                value = dt.strftime(JSForm.CONFIG.get_Config_Value("Format", "Time"))
+                if value != None:
+                    dt = datetime.datetime(2022, 1, 1) + value
+                    value = dt.strftime(JSForm.CONFIG.get_Config_Value("Format", "Time"))
 
             #   Default to string type
 

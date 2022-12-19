@@ -349,7 +349,6 @@ class clsForm:
                     self.CONTROLID[key].ChangeValue(record[key])
                 case "ComboBox":
                     self.CONTROLID[key].ChangeValue(record[key])
-
                 case _:
                     self.CONTROLID[key].SetValue(record[key])
 
@@ -629,15 +628,13 @@ class clsForm:
 
     def _refreshforms(self, event):
         JSForm.LG.log()
-        if "table" not in self.FORMDESCRIPTON:
-            return
-        if "name" not in self.FORMDESCRIPTON["table"]:
-            return
         field = event.GetEventObject().GetName()
         evnttype = event.GetEventType()
         if evnttype == wx.EVT_TEXT.typeId:
-            v = self.CONTROLID[field].GetValue()
-            self.RECORDS.setfieldvalue(field, self.CONTROLID[field].GetValue())
+            if "table" in self.FORMDESCRIPTON:
+                self.RECORDS.setfieldvalue(
+                    field, 
+                    self.CONTROLID[field].GetValue())
             self._display_records(self.FORMDESCRIPTON["table"])
 
     def _openfileevent(self, event):

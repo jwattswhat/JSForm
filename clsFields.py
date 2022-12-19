@@ -78,7 +78,10 @@ def setstylefield(sty):
         st = st | wx.FLP_SMALL
     if "FLPUSETEXTCTRL" in sty:
         st = st | wx.FLP_USE_TEXTCTRL
-
+    if "ALLOWNONE" in sty:
+        st = st | wx.adv.DP_ALLOWNONE
+    if "DROPDOWN" in sty:
+        st = st | wx.adv.DP_DROPDOWN
     return st
 
 
@@ -847,13 +850,18 @@ class clsField:
             # self.timefield.SetForegroundColour(fcolor)    # not supported on all platforms
 
     class clsDatePickerCtrl(wx.adv.DatePickerCtrl, clsFieldExtra):
+        nonevalue = False
+
         def __init__(self, parent, controldescription):
 
             super().init_field(parent, controldescription)
             controldescription = self.CONTROLDESCRIPTION.copy()
 
             # datepicker preprocess
-            controldescription["style"] = wx.adv.DP_DROPDOWN
+            try:
+                controldescription["stylelist"].append("DROPDOWN")
+            except:
+                controldescription["stylelist"] = ["DROPDOWN"]
 
             super().__init__(
                 parent.PARENT.FORM,
@@ -863,11 +871,15 @@ class clsField:
             self.SetNormalColor()
 
             # DatePicker postprocess
+            if "ALLOWNONE" in controldescription["stylelist"]:
+                super().SetNullText("None")
 
         def SetValue(self, value, dateformat=None):
+            self.nonevalue = False
             if value == None:
-                value = None
-                return 
+                self.nonevalue = True
+                super().SetValue(wx.DefaultDateTime)
+                return
             try:
                 if dateformat is not None:
                     value = datetime.datetime.strptime(value, dateformat)
@@ -880,8 +892,13 @@ class clsField:
             super().SetValue(value)
 
         def GetValue(self):
-            return super().GetValue().Format(JSForm.CONFIG.get_Config_Value("Format", "Date"))
-
+            try:
+                dt =  super().GetValue().Format(JSForm.CONFIG.get_Config_Value("Format", "Date"))
+                self.nonevalue = False
+            except:
+                dt = None
+                self.nonevalue = True
+            return dt
     class clsTimePickerCtrl(wx.adv.TimePickerCtrl, clsFieldExtra):
         def __init__(self, parent, controldescription):
 
