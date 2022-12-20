@@ -358,9 +358,10 @@ class clsForm:
         if "linkedform" not in self.FORMDESCRIPTON:
             return
 
-        for lnkdfrm in self.FORMDESCRIPTON["linkedform"]:
-            if "bindbtn" not in self.FORMDESCRIPTON["linkedform"][lnkdfrm]:
-                self.open_linked_form(lnkdfrm)
+        for lnkdfrm in self.FORMDESCRIPTON["linkedform"].copy():
+            if "bindbtn" in self.FORMDESCRIPTON["linkedform"][lnkdfrm]:
+                continue
+            self.open_linked_form(lnkdfrm)
 
     def open_linked_form(self, lnkdfrm, record=None):
         """
