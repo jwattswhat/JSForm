@@ -342,15 +342,26 @@ class clsForm:
                 continue
             if key not in self.CONTROLDESCRIPTION:
                 continue
+
+            #   check for default value 
+            if not record[key]:
+                try:
+                    value = self.CONTROLDESCRIPTION[key]["value"]
+                except:
+                    value = None
+            else:
+                value = record[key]
+
+            #   set the value
             match self.CONTROLDESCRIPTION[key]["type"]:
                 case "TextCtrl":
-                    self.CONTROLID[key].ChangeValue(record[key])
+                    self.CONTROLID[key].ChangeValue(value)
                 case "TextNumber":
-                    self.CONTROLID[key].ChangeValue(record[key])
+                    self.CONTROLID[key].ChangeValue(value)
                 case "ComboBox":
-                    self.CONTROLID[key].ChangeValue(record[key])
+                    self.CONTROLID[key].ChangeValue(value)
                 case _:
-                    self.CONTROLID[key].SetValue(record[key])
+                    self.CONTROLID[key].SetValue(value)
 
     def initialize_linked_forms(self):
         JSForm.LG.log()
@@ -754,7 +765,6 @@ class clsForm:
                 continue
             value = self.CONTROLID[fld].GetValue()
             if value == None:
-                print (fld,value)
                 if not self.RECORDS.sql.sqldescription[fld]["null_ok"]:
                     required.append(fld)
                     continue

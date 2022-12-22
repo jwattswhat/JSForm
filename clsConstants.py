@@ -74,6 +74,7 @@ class clsConstantsNameSpace:
             "pos",
             "size",
             "style",
+            "field",
             "validator",
         ],
         "MultiLine": [
