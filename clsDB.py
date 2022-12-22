@@ -135,6 +135,7 @@ class clsRecord:
         self._record = None
         self._position = 0
         self.sqlaspairs = None
+        self.sql = None
 
     def load_records(self, table=None, parentrecord=None):
         if table == None:

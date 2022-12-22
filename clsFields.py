@@ -965,13 +965,11 @@ class clsField:
             else:
                 filename = str(value)
                 self.path = os.path.dirname(value)
-                filename = os.path.splitext(os.path.basename(value))
-                self.SetInitialDirectory(
-                    JSForm.CONFIG.get_Config_Value(
+                if not self.path:
+                    self.path = JSForm.CONFIG.get_Config_Value(
                         self.CONTROLDESCRIPTION["directory"][0],
-                        self.CONTROLDESCRIPTION["directory"][1],
-                    )
-                )
+                        self.CONTROLDESCRIPTION["directory"][1])
+                filename = os.path.splitext(os.path.basename(value))
                 super().SetPath(filename[0] + filename[1])
 
         def GetValue(self):
@@ -979,5 +977,5 @@ class clsField:
             if value == "":
                 return None
             filename = os.path.splitext(os.path.basename(value))
-            fn = self.path + "\\" + filename[0] + filename[1]
+            fn = filename[0] + filename[1]
             return fn

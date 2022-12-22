@@ -721,6 +721,20 @@ class clsForm:
         if "readonly" not in self.FORMDESCRIPTON:
             self.update_screen_to_record()
 
+            required = self._check_required_fields()
+            if required:
+                for fld in required:
+                    self.CONTROLID[fld].SetWarningColor()
+                dlg = wx.MessageDialog(
+                    self.FORM,
+                    "Fields: "+",".join(required),
+                    "Required Fields",
+                    wx.CANCEL | wx.OK)
+                result = dlg.ShowModal()
+                dlg.Destroy()
+                if result == wx.CANCEL:
+                    return True
+
             dirtyfields = self.RECORDS.recordisdirty()
             if dirtyfields:
                 for field in dirtyfields:
@@ -732,6 +746,25 @@ class clsForm:
                     return True
 
         return False
+
+    def _check_required_fields(self):
+        required = []
+        for fld in self.RECORDS.sql.sqldescription:
+            if fld == "ID":
+                continue
+            value = self.CONTROLID[fld].GetValue()
+            if value == None:
+                print (fld,value)
+                if not self.RECORDS.sql.sqldescription[fld]["null_ok"]:
+                    required.append(fld)
+                    continue
+                try:
+                    if self.CONTROLID[fld].CONTROLDESCRIPTION["required"]:
+                        required.append(fld)
+                except:
+                    continue
+        return required
+
 
     def _on_new_record_click(self, event):
         JSForm.LG.log()
@@ -747,8 +780,8 @@ class clsForm:
                 "Deleted",
                 wx.OK,
             )
-            result = JSForm.LG.ShowModal()
-            JSForm.LG.Destroy()
+            result = dlg.ShowModal()
+            dlg.Destroy()
             self.fill_form(self.RECORDS.current())
             self._close_linked_forms()
 
@@ -761,6 +794,18 @@ class clsForm:
 
     def _on_update_record_click(self, event):
         JSForm.LG.log()
+        required = self._check_required_fields()
+        if required:
+            for fld in required:
+                self.CONTROLID[fld].SetWarningColor()
+            dlg = wx.MessageDialog(
+                self.FORM,
+                "Fields: "+",".join(required),
+                "Required Fields",
+                wx.OK)
+            result = dlg.ShowModal()
+            dlg.Destroy()
+            return
         self.update_screen_to_record()
         self.RECORDS.update_current_record_in_DB()
         self.enable_navigation_buttons()
