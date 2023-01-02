@@ -122,6 +122,6 @@ class clsChoices:
 
     def _addchoiceanddata(self, id, display, fielddata):
         self.id.append(id)
-        self.display.append(display)
+        self.display.append(display.strip())
         self.fielddata.append(fielddata)
 

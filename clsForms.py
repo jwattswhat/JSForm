@@ -58,6 +58,7 @@ class clsForm:
                 pos=(120, 100),
             )
 
+
     def __init__(
         self,
         parent,
@@ -68,6 +69,19 @@ class clsForm:
         position=None,
         parentkey=None,
     ):
+        self.create(parent,dbconnection,formname,controls,frmdescription,position,parentkey)
+
+    def create(
+        self,
+        parent,
+        dbconnection,
+        formname,
+        controls=None,
+        frmdescription=None,
+        position=None,
+        parentkey=None,
+    ):
+
         JSForm.LG.log(
             formname=formname,
             controls=controls,
@@ -314,7 +328,7 @@ class clsForm:
 
         for subfrm in self.SUBFORM:
             self.SUBFORM[subfrm].display_form_data(
-                self.FORMDESCRIPTON["subform"][subfrm]["table"], self.RECORDS.current()
+                self.SUBFORM[subfrm].FORMDESCRIPTON["table"], self.RECORDS.current()
             )
 
         self._load_DataViewListCtrl()
@@ -344,9 +358,9 @@ class clsForm:
                 continue
 
             #   check for default value 
-            if not record[key]:
+            if record[key] == None:
                 try:
-                    value = self.CONTROLDESCRIPTION[key]["value"]
+                    value = self.CONTROLDESCRIPTION[key]["defaultvalue"]
                 except:
                     value = None
             else:
@@ -387,14 +401,13 @@ class clsForm:
             pk.append(self.RECORDS._record[self.RECORDS._position][parentkey[1]])
         if pk == []:
             pk = None
-
-        LinkedForm = clsForm(
-            self,
+        LinkedForm = self.__class__(
+            self,   # as parent
             dbconnection=self.DBConnection,
             formname=lnkdfrm,
             frmdescription=self.FORMDESCRIPTON["linkedform"][lnkdfrm],
             controls=self.FORMDESCRIPTON["linkedform"][lnkdfrm]["controls"],
-            # position=pyautogui.position(),
+            position=None, #pyautogui.position(),
             parentkey=pk,
         )
         LinkedForm.display_form_data(
@@ -410,15 +423,19 @@ class clsForm:
             return
 
         for subfrm in self.FORMDESCRIPTON["subform"]:
-
-            SubForm = clsForm(
-                self,
+            SubForm = self.__class__(
+                self,       # as parent
                 dbconnection=self.DBConnection,
                 formname=subfrm,
                 controls=self.FORMDESCRIPTON["subform"][subfrm]["controls"],
-                frmdescription=self.FORMDESCRIPTON["subform"][subfrm],
+                frmdescription=self.FORMDESCRIPTON["subform"][subfrm].copy(),
+                position=None, parentkey=None
             )
 
+            SubForm.display_form_data(
+                self.FORMDESCRIPTON["subform"][subfrm].get("table", None),
+                self.RECORDS.current(),
+            )
             self.SUBFORM.update({subfrm: SubForm})
             return SubForm.show()
 
@@ -683,34 +700,12 @@ class clsForm:
 
     def _on_close(self, event):
         JSForm.LG.log()
-        if self.RECORDS == None:  # for no record forms.
-            try:
-                self.FRAME.Destroy()
-            except:
-                #            pass
-                #        finally:
-                self.FORM.Destroy()
-            return
-
-        if self.RECORDS.isempty():
-            return
 
         if not self.FORMDirty():
 
             if self.LINKEDFORM:
                 for linkedform in self.LINKEDFORM.copy().keys():
-                    if self.LINKEDFORM[linkedform].FRAME is not None:
-                        self.LINKEDFORM[linkedform].FRAME.Close()
-                    else:
-                        self.LINKEDFORM[linkedform].FORM.Close()
-                    if linkedform in self.LINKEDFORM:
-                        return
-
-            if self.SUBFORM:
-                for subform in self.SUBFORM.copy().keys():
-                    self.SUBFORM[subform].FORM.Close()
-                    if subform in self.SUBFORM:
-                        return
+                    self.LINKEDFORM[linkedform].FORM.Close()
 
             if self.PARENT:
                 if self.FORM.Name in self.PARENT.LINKEDFORM:
@@ -722,12 +717,13 @@ class clsForm:
             try:
                 self.FRAME.Destroy()
             except:
-                #            pass
-                #        finally:
                 self.FORM.Destroy()
 
     def FORMDirty(self):
         JSForm.LG.log()
+
+        if not self.RECORDS:
+            return False
 
         if "readonly" not in self.FORMDESCRIPTON:
             self.update_screen_to_record()
@@ -863,3 +859,5 @@ class clsForm:
     def _on_last_record_click(self, event):
         JSForm.LG.log()
         self._first_prev_next_last(JSForm.CONST.FORM_LAST)
+
+
