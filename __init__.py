@@ -15,3 +15,4 @@ from JSForm.clsFields import clsField, getcontrolparameters
 from JSForm.clsValidators import setvalidatorfield
 
 from JSForm.fnUtil import convertNavButtons, charactertopoint, date_to_datetime, next_weekday
+from JSForm.fnReports import RunReport

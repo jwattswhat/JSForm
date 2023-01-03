@@ -19,6 +19,7 @@ import json
 #   import framework classes
 #
 import JSForm
+import subprocess
 
 
 class clsForm:
@@ -461,7 +462,6 @@ class clsForm:
         #   Check for bound events
         #
         for field in self.CONTROLID:
-            # "mouse" controls not implimented
             if "mouse" in self.CONTROLDESCRIPTION[field]:
                 match self.CONTROLDESCRIPTION[field]["mouse"]:
                     case "left click":
@@ -498,6 +498,11 @@ class clsForm:
                     self._openfileevent
                 )
 
+            if "report" in self.CONTROLDESCRIPTION[field]:
+                self.CONTROLID[field].Bind(
+                    wx.EVT_BUTTON,
+                    self._openreportevent
+                )
         #
         #   Bind standard event buttons
         #
@@ -665,6 +670,18 @@ class clsForm:
                     field, 
                     self.CONTROLID[field].GetValue())
             self._display_records(self.FORMDESCRIPTON["table"])
+
+
+    def _openreportevent(self,event):
+        JSForm.LG.log()
+        field = event.GetEventObject().GetName()
+        report = self.CONTROLDESCRIPTION[field]["report"]
+        SQL = "SELECT * FROM tblReports WHERE Report = '{report}';".format(report=report)
+        cursor = self.DBConnection.cursor()
+        cursor.execute(SQL)
+        row = cursor.fetchone()
+        cursor.close()
+        JSForm.RunReport(row[0],self,self.DBConnection)
 
     def _openfileevent(self, event):
         JSForm.LG.log()
