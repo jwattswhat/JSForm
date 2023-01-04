@@ -91,6 +91,7 @@ class clsForm:
         )
 
         self.PARENT = parent
+        self.FORMNAME = formname
         self.DBConnection = dbconnection  # Save the Connection Locally
         self.position = position
         self.parentkey = parentkey
@@ -671,7 +672,6 @@ class clsForm:
                     self.CONTROLID[field].GetValue())
             self._display_records(self.FORMDESCRIPTON["table"])
 
-
     def _openreportevent(self,event):
         JSForm.LG.log()
         field = event.GetEventObject().GetName()
@@ -725,16 +725,12 @@ class clsForm:
                     self.LINKEDFORM[linkedform].FORM.Close()
 
             if self.PARENT:
-                if self.FORM.Name in self.PARENT.LINKEDFORM:
-                    self.PARENT.LINKEDFORM.pop(self.FORM.Name)
-                    #self.PARENT.update_choices()
-                if self.FORM.Name in self.PARENT.SUBFORM:
-                    self.PARENT.SUBFORM.pop(self.FORM.Name)
-
-            try:
-                self.FRAME.Destroy()
-            except:
-                self.FORM.Destroy()
+                if self.FORMNAME in self.PARENT.LINKEDFORM:
+                    self.PARENT.LINKEDFORM.pop(self.FORMNAME)
+                if self.FORMNAME in self.PARENT.SUBFORM:
+                    self.PARENT.SUBFORM.pop(self.FORMNAME)
+    
+            self.FRAME.Destroy()
 
     def FORMDirty(self):
         JSForm.LG.log()

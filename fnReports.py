@@ -101,4 +101,3 @@ def RunReport(reportid,frm,dbconnection):
         reportlocation=reportlocation, rptreport=rptReport
     )
     subprocess.Popen(cmdline, shell=True)
-    frm.FORM.Close()
