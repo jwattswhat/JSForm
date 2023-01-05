@@ -288,52 +288,42 @@ class clsForm:
         if "table" in formdescription:
             return JSForm.clsRecord(self.DBConnection, formdescription["table"])
 
-    def display_form_data(self, table=None, parentrecord=None):
-        JSForm.LG.log(table=table, parentrecord=parentrecord)
-        if "table" not in self.FORMDESCRIPTON:
-            return None
-
-        if table is None:
+    def display_form_data(self, table=None, record=None, parentrecord=None):
+        JSForm.LG.log(table=table, record=record, parentrecord=parentrecord)
+        try:
             table = self.FORMDESCRIPTON["table"].copy()
+        except:
+            table = None
 
-        result = self.RECORDS.load_records(table, parentrecord)
-        if result == "NewRecord":
-            if self.parentkey != None:
-                self.RECORDS._record[self.RECORDS._position][
-                    self.parentkey[0]
-                ] = self.parentkey[1]
-        self._display_records(table, parentrecord)
+        if table != None and record == None:
+            result = self.RECORDS.load_records(table, parentrecord)
+            if result == "NewRecord":
+                if self.parentkey != None:
+                    self.RECORDS._record[self.RECORDS._position][
+                        self.parentkey[0]
+                    ] = self.parentkey[1]
+        
+        try:
+            record = self.RECORDS.current()
+        except:
+            record = None
 
-    def _load_DataViewListCtrl(self):
-        for field in self.CONTROLID:
-            if self.CONTROLDESCRIPTION[field]["type"] == "DataViewListCtrl":
-                self.CONTROLID[field].SetValueTable(
-                    self.RECORDS.current(), self.CONTROLDESCRIPTION[field]["table"]
-                )
-        return None
-
-    def _display_records(self, table=None, parentrecord=None):
-        JSForm.LG.log(table=table, parentrecord=parentrecord)
-        if "table" not in self.FORMDESCRIPTON:
-            return None
-
-        if table is None:
-            table = self.FORMDESCRIPTON["table"]
-
-        self.fill_form(self.RECORDS.current())
+        self.fill_form(record)
 
         for linkedfrm in self.LINKEDFORM:
             self.LINKEDFORM[linkedfrm].display_form_data(
                 self.FORMDESCRIPTON["linkedform"][linkedfrm]["table"],
-                self.RECORDS.current(),
+                parentrecord=record,
             )
-
         for subfrm in self.SUBFORM:
             self.SUBFORM[subfrm].display_form_data(
-                self.SUBFORM[subfrm].FORMDESCRIPTON["table"], self.RECORDS.current()
+                self.SUBFORM[subfrm].FORMDESCRIPTON["table"], parentrecord=record
             )
-
-        self._load_DataViewListCtrl()
+        for field in self.CONTROLID:
+            if self.CONTROLDESCRIPTION[field]["type"] == "DataViewListCtrl":
+                self.CONTROLID[field].SetValueTable(
+                    record, self.CONTROLDESCRIPTION[field]["table"]
+                )
 
     def update_choices(self):       # defunct
         JSForm.LG.log()
@@ -353,31 +343,36 @@ class clsForm:
         fill the form with editable data from the Read record
         """
         JSForm.LG.log(record=record)
-        for key in record:
+        for key in self.CONTROLDESCRIPTION:
             if key == "ID":
                 continue
-            if key not in self.CONTROLDESCRIPTION:
-                continue
 
-            #   check for default value 
-            if record[key] == None:
-                try:
-                    value = self.CONTROLDESCRIPTION[key]["defaultvalue"]
-                except:
-                    value = None
-            else:
-                value = record[key]
+            #   get the  value 
+            try:    #   Get the Default value
+                default = self.CONTROLDESCRIPTION[key]["defaultvalue"]
+            except:
+                default = None
 
             #   set the value
-            match self.CONTROLDESCRIPTION[key]["type"]:
-                case "TextCtrl":
-                    self.CONTROLID[key].ChangeValue(value)
-                case "TextNumber":
-                    self.CONTROLID[key].ChangeValue(value)
-                case "ComboBox":
-                    self.CONTROLID[key].ChangeValue(value)
-                case _:
-                    self.CONTROLID[key].SetValue(value)
+            if record == None:
+                continue
+
+            if key in record:
+                value = record[key]
+                if value == None:
+                    value = default
+
+                match self.CONTROLDESCRIPTION[key]["type"]:
+                    case "StaticText":
+                        continue
+                    case "TextCtrl":
+                        self.CONTROLID[key].ChangeValue(value)
+                    case "TextNumber":
+                        self.CONTROLID[key].ChangeValue(value)
+                    case "ComboBox":
+                        self.CONTROLID[key].ChangeValue(value)
+                    case _:
+                        self.CONTROLID[key].SetValue(value)
 
     def initialize_linked_forms(self):
         JSForm.LG.log()
@@ -414,7 +409,7 @@ class clsForm:
         )
         LinkedForm.display_form_data(
             self.FORMDESCRIPTON["linkedform"][lnkdfrm].get("table", None),
-            self.RECORDS.current(),
+            parentrecord=self.RECORDS.current(),
         )
         self.LINKEDFORM.update({lnkdfrm: LinkedForm})
         return LinkedForm.show()
@@ -435,8 +430,8 @@ class clsForm:
             )
 
             SubForm.display_form_data(
-                self.FORMDESCRIPTON["subform"][subfrm].get("table", None),
-                self.RECORDS.current(),
+                table=self.FORMDESCRIPTON["subform"][subfrm].get("table", None),
+                parentrecord=self.RECORDS.current(),
             )
             self.SUBFORM.update({subfrm: SubForm})
             return SubForm.show()
@@ -670,7 +665,7 @@ class clsForm:
                 self.RECORDS.setfieldvalue(
                     field, 
                     self.CONTROLID[field].GetValue())
-            self._display_records(self.FORMDESCRIPTON["table"])
+                self.display_form_data(table=self.FORMDESCRIPTON["table"])
 
     def _openreportevent(self,event):
         JSForm.LG.log()
@@ -732,6 +727,12 @@ class clsForm:
     
             self.FRAME.Destroy()
 
+    #
+    #   Internal Methods
+    #
+
+
+
     def FORMDirty(self):
         JSForm.LG.log()
 
@@ -783,7 +784,6 @@ class clsForm:
                 except:
                     continue
         return required
-
 
     def _on_new_record_click(self, event):
         JSForm.LG.log()
@@ -846,16 +846,17 @@ class clsForm:
                 self.RECORDS._position
             ] = self.RECORDS.original.restore()
 
-            if firstprevnextlast == JSForm.CONST.FORM_FIRST:
-                self.RECORDS.first()
-            elif firstprevnextlast == JSForm.CONST.FORM_PREV:
-                self.RECORDS.prev()
-            elif firstprevnextlast == JSForm.CONST.FORM_NEXT:
-                self.RECORDS.next()
-            elif firstprevnextlast == JSForm.CONST.FORM_LAST:
-                self.RECORDS.last()
+            match firstprevnextlast:
+                case JSForm.CONST.FORM_FIRST:
+                    self.RECORDS.first()
+                case JSForm.CONST.FORM_PREV:
+                    self.RECORDS.prev()
+                case JSForm.CONST.FORM_NEXT:
+                    self.RECORDS.next()
+                case JSForm.CONST.FORM_LAST:
+                    self.RECORDS.last()
 
-            self._display_records(self.FORMDESCRIPTON["table"], self.RECORDS.current())
+            self.display_form_data(table=self.FORMDESCRIPTON["table"],record=self.RECORDS.current())
 
     def _on_first_record_click(self, event):
         JSForm.LG.log()

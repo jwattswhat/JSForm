@@ -696,7 +696,7 @@ class clsField:
             if table == None:
                 table = self.CONTROLDESCRIPTION["table"]
 
-            self.DLVCrecords.load_records(table, parentrecord)
+            self.DLVCrecords.load_records(table=table, parentrecord=parentrecord)
             for rec in self.DLVCrecords._record:
                 self.AppendTableRecord(rec)
             self.SelectRow(0)
