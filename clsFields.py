@@ -671,7 +671,6 @@ class clsField:
                 case JSForm.CONST.FORM_CANCEL:
                     pass
 
-
         def SetValue(self, value):
             self.Clear()
             checklist = {}
