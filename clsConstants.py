@@ -10,6 +10,7 @@ class clsConstantsNameSpace:
     # Forms Constants
 
     FORM_CONTINUE = wx.ID_OK
+    FORM_OK = wx.ID_OK
     FORM_CANCEL = wx.ID_CANCEL
     FORM_FIRST = 0
     FORM_PREV = 1

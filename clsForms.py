@@ -59,7 +59,6 @@ class clsForm:
                 pos=(120, 100),
             )
 
-
     def __init__(
         self,
         parent,
@@ -499,6 +498,13 @@ class clsForm:
                     wx.EVT_BUTTON,
                     self._openreportevent
                 )
+
+            if "editchecklist" in self.CONTROLDESCRIPTION[field]:
+                self.CONTROLID[field].Bind(
+                    wx.EVT_BUTTON,
+                    self._edit_checklist
+                )
+
         #
         #   Bind standard event buttons
         #
@@ -727,11 +733,16 @@ class clsForm:
     
             self.FRAME.Destroy()
 
+    def _edit_checklist(self,event):
+        JSForm.LG.log()
+        field = event.GetEventObject().GetName()
+        evnttype = event.GetEventType()
+        checklisttoedit = self.CONTROLDESCRIPTION[field]["editchecklist"]
+        self.CONTROLID[checklisttoedit].EditCheckList()
+
     #
     #   Internal Methods
     #
-
-
 
     def FORMDirty(self):
         JSForm.LG.log()
