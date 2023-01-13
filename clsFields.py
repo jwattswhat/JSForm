@@ -597,38 +597,6 @@ class clsField:
             return super().IsChecked()
 
     class clsCheckListBox(wx.CheckListBox, clsFieldExtra):
-        class _editchecklistdialog(wx.Dialog):
-            def __init__(self, parent, title):
-                super().__init__(parent, title=title, size=(400, 450))
-                panel = wx.Panel(self)
-                self.text = wx.StaticText(
-                    panel,
-                    wx.ID_ANY,
-                    label="Change Check Box",
-                    pos=(10, 10),
-                )
-                self.CheckList = wx.TextCtrl(
-                    panel,
-                    wx.ID_ANY,
-                    pos=[10,40],
-                    size=[300,300],
-                    style=wx.TE_MULTILINE,
-                    name="CheckList")
-                self.btnOk = wx.Button(
-                    panel,
-                    JSForm.CONST.FORM_OK,
-                    label="OK",
-                    size=[100, 30],
-                    pos=[10, 350],
-                )
-                self.btnCancel = wx.Button(
-                    panel,
-                    JSForm.CONST.FORM_CANCEL,
-                    label="Cancel",
-                    size=[100, 30],
-                    pos=[120, 350],
-                )
-
 
         def __init__(self, parent, controldescription):
 
@@ -644,32 +612,6 @@ class clsField:
             self.SetNormalColor()
 
             # checklistbox postprocess
-
-        def EditCheckList(self):
-            checklist = self.GetValue()
-            value = ""
-            if checklist != None:
-                checklist = super().GetStrings()
-                checked = super().GetCheckedStrings()
-                value = "\r\n".join(checklist)
-
-            dlg = self._editchecklistdialog(None, title="Edit Checklist")
-            dlg.CheckList.SetValue(value)
-            result = dlg.ShowModal()
-            value = dlg.CheckList.GetValue()
-            dlg.Destroy()
-            match result:
-                case JSForm.CONST.FORM_OK:
-                    li = value.split("\n")
-                    newli = []
-                    self.Clear()
-                    for l in li:
-                        newli.append(l)
-                    self.InsertItems(newli,0)
-                    for c in checked:
-                        self.Check(self.FindString(c), True)
-                case JSForm.CONST.FORM_CANCEL:
-                    pass
 
         def SetValue(self, value):
             self.Clear()

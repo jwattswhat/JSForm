@@ -77,6 +77,7 @@ class clsRecord:
         Rev. Jonathan C. Watt
         July 2021
     """
+    BlankRecord = -1
 
     class clsOriginalRecord:
         def __init__(self):
@@ -143,8 +144,8 @@ class clsRecord:
         self._record = self.read_records(table, parentrecord)
         if not self._record:
             self.add(self.sql.get_blank_record())
-            return "NewRecord"
-        self.first()
+            return self.current()
+        return self.first()
 
     def read_records(self, table=None, parentrecord=None):
         self.sql = JSForm.clsSQL(self.DBConnection, table, parentrecord)

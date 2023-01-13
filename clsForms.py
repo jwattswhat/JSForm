@@ -67,9 +67,9 @@ class clsForm:
         controls=None,
         frmdescription=None,
         position=None,
-        parentkey=None,
+        parentrecord=None,
     ):
-        self.create(parent,dbconnection,formname,controls,frmdescription,position,parentkey)
+        self.create(parent,dbconnection,formname,controls,frmdescription,position,parentrecord)
 
     def create(
         self,
@@ -79,7 +79,7 @@ class clsForm:
         controls=None,
         frmdescription=None,
         position=None,
-        parentkey=None,
+        parentrecord=None,
     ):
 
         JSForm.LG.log(
@@ -93,7 +93,7 @@ class clsForm:
         self.FORMNAME = formname
         self.DBConnection = dbconnection  # Save the Connection Locally
         self.position = position
-        self.parentkey = parentkey
+        self.parentkey = parentrecord
         self.RECORDS = None
 
         self.LINKEDFORM = {}
@@ -128,11 +128,19 @@ class clsForm:
         self.CONTROLID = self.build_form()
 
         self.RECORDS = self.initialize_data_record(self.FORMDESCRIPTON)
-
+        try:
+            self.RECORDS.load_records(self.FORMDESCRIPTON["table"],parentrecord)
+        except:
+            pass
         self.initialize_linked_forms()
         self.initialize_sub_forms()
 
         self.bind_form_controls()
+
+        try:
+            self.fill_form(self.RECORDS.current())
+        except:
+            pass
 
     def override_linked_and_sub_forms(self):
         JSForm.LG.log()
@@ -287,43 +295,6 @@ class clsForm:
         if "table" in formdescription:
             return JSForm.clsRecord(self.DBConnection, formdescription["table"])
 
-    def display_form_data(self, table=None, record=None, parentrecord=None):
-        JSForm.LG.log(table=table, record=record, parentrecord=parentrecord)
-        try:
-            table = self.FORMDESCRIPTON["table"].copy()
-        except:
-            table = None
-
-        if table != None and record == None:
-            result = self.RECORDS.load_records(table, parentrecord)
-            if result == "NewRecord":
-                if self.parentkey != None:
-                    self.RECORDS._record[self.RECORDS._position][
-                        self.parentkey[0]
-                    ] = self.parentkey[1]
-        
-        try:
-            record = self.RECORDS.current()
-        except:
-            record = None
-
-        self.fill_form(record)
-
-        for linkedfrm in self.LINKEDFORM:
-            self.LINKEDFORM[linkedfrm].display_form_data(
-                self.FORMDESCRIPTON["linkedform"][linkedfrm]["table"],
-                parentrecord=record,
-            )
-        for subfrm in self.SUBFORM:
-            self.SUBFORM[subfrm].display_form_data(
-                self.SUBFORM[subfrm].FORMDESCRIPTON["table"], parentrecord=record
-            )
-        for field in self.CONTROLID:
-            if self.CONTROLDESCRIPTION[field]["type"] == "DataViewListCtrl":
-                self.CONTROLID[field].SetValueTable(
-                    record, self.CONTROLDESCRIPTION[field]["table"]
-                )
-
     def update_choices(self):       # defunct
         JSForm.LG.log()
         for field in self.CONTROLID:
@@ -373,6 +344,28 @@ class clsForm:
                     case _:
                         self.CONTROLID[key].SetValue(value)
 
+        for linkedfrm in self.LINKEDFORM:
+            try:
+                self.LINKEDFORM[linkedfrm].fill_form(
+                    self.LINKEDFORM[linkedfrm].RECORDS.load_records(
+                        None, 
+                        self.RECORDS.current()))
+            except:
+                continue
+        for subfrm in self.SUBFORM:
+            try:
+                self.SUBFORM[subfrm].fill_form(
+                    self.SUBFORM[subfrm].RECORDS.load_records(
+                        None, 
+                        self.RECORDS.current()))
+            except:
+                continue
+        for field in self.CONTROLID:
+            if self.CONTROLDESCRIPTION[field]["type"] == "DataViewListCtrl":
+                self.CONTROLID[field].SetValueTable(
+                    record, self.CONTROLDESCRIPTION[field]["table"]
+                )
+
     def initialize_linked_forms(self):
         JSForm.LG.log()
 
@@ -404,12 +397,9 @@ class clsForm:
             frmdescription=self.FORMDESCRIPTON["linkedform"][lnkdfrm],
             controls=self.FORMDESCRIPTON["linkedform"][lnkdfrm]["controls"],
             position=None, #pyautogui.position(),
-            parentkey=pk,
+            parentrecord=self.RECORDS.current()
         )
-        LinkedForm.display_form_data(
-            self.FORMDESCRIPTON["linkedform"][lnkdfrm].get("table", None),
-            parentrecord=self.RECORDS.current(),
-        )
+        LinkedForm.fill_form(LinkedForm.RECORDS.current())
         self.LINKEDFORM.update({lnkdfrm: LinkedForm})
         return LinkedForm.show()
 
@@ -425,13 +415,10 @@ class clsForm:
                 formname=subfrm,
                 controls=self.FORMDESCRIPTON["subform"][subfrm]["controls"],
                 frmdescription=self.FORMDESCRIPTON["subform"][subfrm].copy(),
-                position=None, parentkey=None
+                position=None, 
+                parentrecord=self.RECORDS.current()
             )
 
-            SubForm.display_form_data(
-                table=self.FORMDESCRIPTON["subform"][subfrm].get("table", None),
-                parentrecord=self.RECORDS.current(),
-            )
             self.SUBFORM.update({subfrm: SubForm})
             return SubForm.show()
 
@@ -442,16 +429,16 @@ class clsForm:
         #
         #   Bind the open Linked form to the Button field.
         #
-        if "linkedform" in self.FORMDESCRIPTON:
-            for lnkdfrm in self.FORMDESCRIPTON["linkedform"]:
-                if "bindbtn" in self.FORMDESCRIPTON["linkedform"][lnkdfrm]:
-                    self.FORM.Bind(
-                        wx.EVT_BUTTON,
-                        self._buttonclick,
-                        self.CONTROLID[
-                            self.FORMDESCRIPTON["linkedform"][lnkdfrm]["bindbtn"]
-                        ],
-                    )
+#        if "linkedform" in self.FORMDESCRIPTON:
+#            for lnkdfrm in self.FORMDESCRIPTON["linkedform"]:
+#                if "bindbtn" in self.FORMDESCRIPTON["linkedform"][lnkdfrm]:
+#                    self.FORM.Bind(
+#                        wx.EVT_BUTTON,
+#                        self._buttonclick,
+#                        self.CONTROLID[
+#                            self.FORMDESCRIPTON["linkedform"][lnkdfrm]["bindbtn"]
+#                        ],
+#                    )
 
         #
         #   Check for bound events
@@ -479,32 +466,52 @@ class clsForm:
                             wx.EVT_LEFT_DCLICK,
                             self._capturemouse
                         )
-
             if "event" in self.CONTROLDESCRIPTION[field]:
                 match self.CONTROLDESCRIPTION[field]['event']:
                     case "refreshform":
                         self.FORM.Bind(
-                            wx.EVT_TEXT, self._refreshforms, self.CONTROLID[field]
+                            wx.EVT_TEXT, 
+                            self._refreshforms, 
+                            self.CONTROLID[field]
+                        )
+            if "action" in self.CONTROLDESCRIPTION[field]:
+                match self.CONTROLDESCRIPTION[field]["action"][0]:
+                    case "openlinkedform":
+                        self.CONTROLID[field].Bind(
+                            wx.EVT_BUTTON, 
+                            self._openformevent
+                        )
+                    case "openform": 
+                        self.CONTROLID[field].Bind(
+                            wx.EVT_BUTTON, 
+                            self._openformevent
+                        )
+                    case "openformfromfield":
+                        self.CONTROLID[field].Bind(
+                            wx.EVT_BUTTON, 
+                            self._openformevent
+                        )
+                    case "openfile":
+                        self.CONTROLID[field].Bind(
+                            wx.EVT_BUTTON, 
+                            self._openfileevent
+                        )
+                    case "report":
+                        self.CONTROLID[field].Bind(
+                            wx.EVT_BUTTON,
+                            self._openreportevent
                         )
 
-            if "openfile" in self.CONTROLDESCRIPTION[field]:
-                self.CONTROLID[field].Bind(
-                    wx.EVT_BUTTON, 
-                    self._openfileevent
-                )
-
-            if "report" in self.CONTROLDESCRIPTION[field]:
-                self.CONTROLID[field].Bind(
-                    wx.EVT_BUTTON,
-                    self._openreportevent
-                )
-
-            if "editchecklist" in self.CONTROLDESCRIPTION[field]:
-                self.CONTROLID[field].Bind(
-                    wx.EVT_BUTTON,
-                    self._edit_checklist
-                )
-
+        if "btnReplaceCheckList" in self.CONTROLDESCRIPTION:
+            self.CONTROLID["btnReplaceCheckList"].Bind(
+                wx.EVT_BUTTON,
+                self._replace_checklist
+            )
+        if "btnMergeCheckList" in self.CONTROLDESCRIPTION:
+            self.CONTROLID["btnMergeCheckList"].Bind(
+                wx.EVT_BUTTON,
+                self._merge_checklist
+            )
         #
         #   Bind standard event buttons
         #
@@ -633,27 +640,30 @@ class clsForm:
     #
     def _buttonclick(self, event):
         JSForm.LG.log()
-        btn = event.GetEventObject().GetName()
-        for lnkdfrm in self.FORMDESCRIPTON["linkedform"]:
-            if btn == self.FORMDESCRIPTON["linkedform"][lnkdfrm]["bindbtn"]:
-                if "linkedfield" in self.CONTROLDESCRIPTION[btn]:
-                    row = self.CONTROLID[
-                        self.CONTROLDESCRIPTION[btn]["linkedfield"]
-                    ].GetSelectedRow()
-                    returnvalue = self.open_linked_form(lnkdfrm, row)
-                    if returnvalue == wx.ID_OK:
-                        row = self.CONTROLID[
-                            self.CONTROLDESCRIPTION[btn]["linkedfield"]
-                        ].GetSelectedRowID()
-                        rec = self.LINKEDFORM[lnkdfrm].update_form_to_record()
-                        self.CONTROLID[
-                            self.CONTROLDESCRIPTION[btn]["linkedfield"]
-                        ].SetValueRecord(row, rec)
-                        self.CONTROLID[
-                            self.CONTROLDESCRIPTION[btn]["linkedfield"]
-                        ].Refresh()
-                else:
-                    self.open_linked_form(lnkdfrm)
+        field = event.GetEventObject().GetName()
+        lnkdfrm = self.CONTROLDESCRIPTION[field]["action"][1]
+        self.open_linked_form(lnkdfrm)
+        
+#        for lnkdfrm in self.FORMDESCRIPTON["linkedform"]:
+#            if btn == self.FORMDESCRIPTON["linkedform"][lnkdfrm]["bindbtn"]:
+#                if "linkedfield" in self.CONTROLDESCRIPTION[btn]:
+#                    row = self.CONTROLID[
+#                        self.CONTROLDESCRIPTION[btn]["linkedfield"]
+##                    ].GetSelectedRow()
+ ##                   returnvalue = self.open_linked_form(lnkdfrm, row)
+  ##                  if returnvalue == wx.ID_OK:
+   #                     row = self.CONTROLID[
+   #                         self.CONTROLDESCRIPTION[btn]["linkedfield"]
+   #                     ].GetSelectedRowID()
+   #                     rec = self.LINKEDFORM[lnkdfrm].update_form_to_record()
+   #                     self.CONTROLID[
+   #                         self.CONTROLDESCRIPTION[btn]["linkedfield"]
+   #                     ].SetValueRecord(row, rec)
+   #                     self.CONTROLID[
+   #                         self.CONTROLDESCRIPTION[btn]["linkedfield"]
+   #                     ].Refresh()
+   #             else:
+    #                self.open_linked_form(lnkdfrm)
 
     def _capturemouse(self, event):  # <TODO> implement.
         #
@@ -671,12 +681,12 @@ class clsForm:
                 self.RECORDS.setfieldvalue(
                     field, 
                     self.CONTROLID[field].GetValue())
-                self.display_form_data(table=self.FORMDESCRIPTON["table"])
+                self.fill_form(self.RECORDS.current())
 
     def _openreportevent(self,event):
         JSForm.LG.log()
         field = event.GetEventObject().GetName()
-        report = self.CONTROLDESCRIPTION[field]["report"]
+        report = self.CONTROLDESCRIPTION[field]["action"][1]
         SQL = "SELECT * FROM tblReports WHERE Report = '{report}';".format(report=report)
         cursor = self.DBConnection.cursor()
         cursor.execute(SQL)
@@ -689,7 +699,7 @@ class clsForm:
         file = None
         field = event.GetEventObject().GetName()
         evnttype = event.GetEventType()
-        openctrl = self.CONTROLDESCRIPTION[field]["openfile"]
+        openctrl = self.CONTROLDESCRIPTION[field]["action"][1]
         match self.CONTROLDESCRIPTION[openctrl]["type"]:
             case "FilePickerCtrl":
                 path = JSForm.CONFIG.get_Config_Value(
@@ -712,6 +722,22 @@ class clsForm:
         if file != None:
             os.startfile(file)
 
+    def _openformevent(self,event):
+        JSForm.LG.log()
+        field = event.GetEventObject().GetName()
+        evnttype = event.GetEventType()
+        openctrl = self.CONTROLDESCRIPTION[field]["action"][1]
+        match self.CONTROLDESCRIPTION[field]["action"][0]:
+            case "openform": 
+                form = JSForm.clsForms.clsForm(None, self.DBConnection, openctrl, ["Navigation", "Close"])
+                form.show()
+            case "openformfromfield":
+                form = JSForm.clsForms.clsForm(None, self.DBConnection, 
+                self.CONTROLID[openctrl].GetValue(), ["Navigation", "Close"])
+                form.show()
+            case "openlinkedform":
+                self.open_linked_form(openctrl)
+
     def _on_close_click(self, event):
         JSForm.LG.log()
         self.FORM.Close()
@@ -733,12 +759,15 @@ class clsForm:
     
             self.FRAME.Destroy()
 
-    def _edit_checklist(self,event):
+    def _replace_checklist(self, event):
         JSForm.LG.log()
         field = event.GetEventObject().GetName()
         evnttype = event.GetEventType()
-        checklisttoedit = self.CONTROLDESCRIPTION[field]["editchecklist"]
-        self.CONTROLID[checklisttoedit].EditCheckList()
+
+    def _merge_checklist(self,event):
+        JSForm.LG.log()
+        field = event.GetEventObject().GetName()
+        evnttype = event.GetEventType()
 
     #
     #   Internal Methods
@@ -867,7 +896,7 @@ class clsForm:
                 case JSForm.CONST.FORM_LAST:
                     self.RECORDS.last()
 
-            self.display_form_data(table=self.FORMDESCRIPTON["table"],record=self.RECORDS.current())
+            self.fill_form(self.RECORDS.current())
 
     def _on_first_record_click(self, event):
         JSForm.LG.log()
