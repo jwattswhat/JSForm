@@ -78,6 +78,14 @@ class clsConstantsNameSpace:
             "field",
             "validator",
         ],
+        "CheckListEdit": [
+            "name",
+            "pos",
+            "size",
+            "style",
+            "field",
+            "validator",
+        ],
         "MultiLine": [
             "name",
             "value",

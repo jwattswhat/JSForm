@@ -131,16 +131,15 @@ class clsForm:
         try:
             self.RECORDS.load_records(self.FORMDESCRIPTON["table"],parentrecord)
         except:
-            pass
+            self.RECORDS = None
+
         self.initialize_linked_forms()
         self.initialize_sub_forms()
 
         self.bind_form_controls()
 
-        try:
+        if self.RECORDS != None:
             self.fill_form(self.RECORDS.current())
-        except:
-            pass
 
     def override_linked_and_sub_forms(self):
         JSForm.LG.log()
@@ -335,11 +334,7 @@ class clsForm:
                 match self.CONTROLDESCRIPTION[key]["type"]:
                     case "StaticText":
                         continue
-                    case "TextCtrl":
-                        self.CONTROLID[key].ChangeValue(value)
-                    case "TextNumber":
-                        self.CONTROLID[key].ChangeValue(value)
-                    case "ComboBox":
+                    case "TextCtrl"|"Multiline"|"CheckListEdit"|"TextNumber"|"ComboBox":
                         self.CONTROLID[key].ChangeValue(value)
                     case _:
                         self.CONTROLID[key].SetValue(value)
@@ -365,6 +360,8 @@ class clsForm:
                 self.CONTROLID[field].SetValueTable(
                     record, self.CONTROLDESCRIPTION[field]["table"]
                 )
+        return False
+
 
     def initialize_linked_forms(self):
         JSForm.LG.log()
@@ -372,10 +369,10 @@ class clsForm:
         if "linkedform" not in self.FORMDESCRIPTON:
             return
 
-        for lnkdfrm in self.FORMDESCRIPTON["linkedform"].copy():
-            if "bindbtn" in self.FORMDESCRIPTON["linkedform"][lnkdfrm]:
-                continue
-            self.open_linked_form(lnkdfrm)
+        #for lnkdfrm in self.FORMDESCRIPTON["linkedform"].copy():
+        #    if "bindbtn" in self.FORMDESCRIPTON["linkedform"][lnkdfrm]:
+        #        continue
+        #    self.open_linked_form(lnkdfrm)
 
     def open_linked_form(self, lnkdfrm, record=None):
         """
@@ -644,27 +641,6 @@ class clsForm:
         lnkdfrm = self.CONTROLDESCRIPTION[field]["action"][1]
         self.open_linked_form(lnkdfrm)
         
-#        for lnkdfrm in self.FORMDESCRIPTON["linkedform"]:
-#            if btn == self.FORMDESCRIPTON["linkedform"][lnkdfrm]["bindbtn"]:
-#                if "linkedfield" in self.CONTROLDESCRIPTION[btn]:
-#                    row = self.CONTROLID[
-#                        self.CONTROLDESCRIPTION[btn]["linkedfield"]
-##                    ].GetSelectedRow()
- ##                   returnvalue = self.open_linked_form(lnkdfrm, row)
-  ##                  if returnvalue == wx.ID_OK:
-   #                     row = self.CONTROLID[
-   #                         self.CONTROLDESCRIPTION[btn]["linkedfield"]
-   #                     ].GetSelectedRowID()
-   #                     rec = self.LINKEDFORM[lnkdfrm].update_form_to_record()
-   #                     self.CONTROLID[
-   #                         self.CONTROLDESCRIPTION[btn]["linkedfield"]
-   #                     ].SetValueRecord(row, rec)
-   #                     self.CONTROLID[
-   #                         self.CONTROLDESCRIPTION[btn]["linkedfield"]
-   #                     ].Refresh()
-   #             else:
-    #                self.open_linked_form(lnkdfrm)
-
     def _capturemouse(self, event):  # <TODO> implement.
         #
         # Future development

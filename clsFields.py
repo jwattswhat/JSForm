@@ -111,8 +111,6 @@ class clsField:
     ID = None
     DBConnection = 0
 
-
-
     def __init__(
         self,
         parent,
@@ -151,6 +149,8 @@ class clsField:
                 self.FIELD = self.clsCheckBox(self, controldescription)
             case "CheckListBox":
                 self.FIELD = self.clsCheckListBox(self, controldescription)
+            case "CheckListEdit":
+                self.FIELD = self.clsCheckListEdit(self, controldescription)
             case "Button":
                 self.FIELD = self.clsButton(self, controldescription)
             case "DataViewListCtrl":
@@ -182,9 +182,7 @@ class clsField:
             self.DIRTY = False
             self.DBConnection = parent.DBConnection
             self.CONTROLDESCRIPTION = controldescription.copy()
-            self.choices = JSForm.clsChoices(
-                self.DBConnection, self.CONTROLDESCRIPTION
-            )
+            self.choices = JSForm.clsChoices(self.DBConnection, self.CONTROLDESCRIPTION)
 
         def SetValue(self, value):
             if value == None:
@@ -247,6 +245,40 @@ class clsField:
                 super().SetLabel(value)
             self.SetNormalColor()
 
+    class clsTextCtrl(wx.TextCtrl, clsFieldExtra):
+        def __init__(self, parent, controldescription):
+
+            super().init_field(parent, controldescription)
+
+            # textctrl preprocess
+
+            super().__init__(
+                parent.PARENT.FORM,
+                wx.ID_ANY,
+                **getcontrolparameters(self.CONTROLDESCRIPTION)
+            )
+            self.SetNormalColor()
+
+            # textctrl postprocess
+
+        def SetValue(self, value):
+            if value == None:
+                super().SetValue("")
+            else:
+                super().SetValue(str(self.choices.getchoicedisplay(value)))
+
+        def ChangeValue(self, value):
+            if value == None:
+                super().ChangeValue("")
+            else:
+                super().ChangeValue(str(self.choices.getchoicedisplay(value)))
+
+        def GetValue(self):
+            value = self.choices.getchoiceid(super().GetValue())
+            if value == "":
+                value = None
+            return value
+
     class clsMultiLine(wx.TextCtrl, clsFieldExtra):
         def __init__(self, parent, controldescription):
 
@@ -277,15 +309,15 @@ class clsField:
             if value == None:
                 super().SetValue("")
             else:
-                if type(value) == list:
-                    value = "\r\n".join(value)
-                super().SetValue(value)
+                super().SetValue("\r\n".join(value))
 
         def ChangeValue(self, value):
             if value == None:
                 super().ChangeValue("")
             else:
-                super().ChangeValue("\r\n".join(value))
+                st = "\r\n".join(value)
+                print(st,type(st))
+                super().ChangeValue(st)
 
         def GetValue(self):
             value = super().GetValue()
@@ -294,6 +326,21 @@ class clsField:
             else:
                 value = value.splitlines()
             return value
+
+    class clsCheckListEdit(clsMultiLine):
+        lst = {}
+
+        def SetValue(self, value):
+            self.lst = json.loads(value)
+            super().SetValue(list(self.lst.keys()))
+
+        def ChangeValue(self, value):
+            self.lst = json.loads(value)
+            print(self.lst, list(self.lst.keys()))
+            super().ChangeValue(list(self.lst.keys()))
+
+        def GetValue(self):
+            value = super().GetValue()
 
     class clsTextNumber(wx.TextCtrl, clsFieldExtra):
         def __init__(self, parent, controldescription):
@@ -327,40 +374,6 @@ class clsField:
 
         def GetValue(self):
             value = self.choices.getchoicedisplay(super().GetValue())
-            if value == "":
-                value = None
-            return value
-
-    class clsTextCtrl(wx.TextCtrl, clsFieldExtra):
-        def __init__(self, parent, controldescription):
-
-            super().init_field(parent, controldescription)
-
-            # textctrl preprocess
-
-            super().__init__(
-                parent.PARENT.FORM,
-                wx.ID_ANY,
-                **getcontrolparameters(self.CONTROLDESCRIPTION)
-            )
-            self.SetNormalColor()
-
-            # textctrl postprocess
-
-        def SetValue(self, value):
-            if value == None:
-                super().SetValue("")
-            else:
-                super().SetValue(self.choices_choicesID2display(value))
-
-        def ChangeValue(self, value):
-            if value == None:
-                super().ChangeValue("")
-            else:
-                super().ChangeValue(str(self.choices.getchoicedisplay(value)))
-
-        def GetValue(self):
-            value = self.choices.getchoiceid(super().GetValue())
             if value == "":
                 value = None
             return value
@@ -597,7 +610,6 @@ class clsField:
             return super().IsChecked()
 
     class clsCheckListBox(wx.CheckListBox, clsFieldExtra):
-
         def __init__(self, parent, controldescription):
 
             super().init_field(parent, controldescription)
@@ -893,12 +905,17 @@ class clsField:
 
         def GetValue(self):
             try:
-                dt =  super().GetValue().Format(JSForm.CONFIG.get_Config_Value("Format", "Date"))
+                dt = (
+                    super()
+                    .GetValue()
+                    .Format(JSForm.CONFIG.get_Config_Value("Format", "Date"))
+                )
                 self.nonevalue = False
             except:
                 dt = None
                 self.nonevalue = True
             return dt
+
     class clsTimePickerCtrl(wx.adv.TimePickerCtrl, clsFieldExtra):
         def __init__(self, parent, controldescription):
 
@@ -931,10 +948,15 @@ class clsField:
             super().SetValue(value)
 
         def GetValue(self):
-            return super().GetValue().Format(JSForm.CONFIG.get_Config_Value("Format", "Time"))
+            return (
+                super()
+                .GetValue()
+                .Format(JSForm.CONFIG.get_Config_Value("Format", "Time"))
+            )
 
     class clsFilePickerCtrl(wx.FilePickerCtrl, clsFieldExtra):
         path = ""
+
         def __init__(self, parent, controldescription):
 
             super().init_field(parent, controldescription)
@@ -968,7 +990,8 @@ class clsField:
                 if not self.path:
                     self.path = JSForm.CONFIG.get_Config_Value(
                         self.CONTROLDESCRIPTION["directory"][0],
-                        self.CONTROLDESCRIPTION["directory"][1])
+                        self.CONTROLDESCRIPTION["directory"][1],
+                    )
                 filename = os.path.splitext(os.path.basename(value))
                 super().SetPath(filename[0] + filename[1])
 
