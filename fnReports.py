@@ -81,14 +81,18 @@ def RunReport(reportid,frm,dbconnection):
 
     for param in rptParams:
         try:
-            pvalue = frm.CONTROLID[param].GetValue()
+            match param:
+                case "StartDate"|"EndDate":
+                    pvalue = frm.CONTROLID[param].GetValue(format="%Y/%m/%d")
+                case _:
+                    pvalue = frm.CONTROLID[param].GetValue()
             if pvalue == None:
                 dlg = _requiredfielddialog(frm.FORM,"Required Field",rptTitle,param)
                 result = dlg.ShowModal()
                 dlg.Destroy()
                 return None
             else:
-                cmdline = cmdline + " -p{param}={pvalue}".format(param=param,pvalue=pvalue)
+                cmdline = cmdline + ' -p{param}="{pvalue}"'.format(param=param,pvalue=pvalue)
         except:
             dlg = _requiredfielddialog(frm.FORM,"Required Field",rptTitle,param)
             result = dlg.ShowModal()

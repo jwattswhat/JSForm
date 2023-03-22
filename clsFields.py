@@ -287,19 +287,19 @@ class clsField:
             # textctrl preprocess
 
             if "stylelist" in controldescription:
-                a = ["MULTILINE", "PROCESSENTER", "DONTWRAP"]
+                a = ["MULTILINE", "PROCESSENTER"]
                 b = list(controldescription["stylelist"])
                 c = list(itertools.chain(a, b))  # only keep one of each.
                 controldescription["stylelist"] = list(set(c))
             else:
                 controldescription.update(
-                    {"stylelist": ["MULTILINE", "PROCESSENTER", "DONTWRAP"]}
+                    {"stylelist": ["MULTILINE", "PROCESSENTER"]}
                 )
 
             super().__init__(
                 parent.PARENT.FORM,
                 wx.ID_ANY,
-                **getcontrolparameters(self.CONTROLDESCRIPTION)
+                **getcontrolparameters(controldescription)
             )
             self.SetNormalColor()
 
@@ -315,9 +315,7 @@ class clsField:
             if value == None:
                 super().ChangeValue("")
             else:
-                st = "\r\n".join(value)
-                print(st,type(st))
-                super().ChangeValue(st)
+                super().ChangeValue("\r\n".join(value))
 
         def GetValue(self):
             value = super().GetValue()
@@ -335,12 +333,29 @@ class clsField:
             super().SetValue(list(self.lst.keys()))
 
         def ChangeValue(self, value):
+            if value == None:
+                return None
             self.lst = json.loads(value)
-            print(self.lst, list(self.lst.keys()))
             super().ChangeValue(list(self.lst.keys()))
 
         def GetValue(self):
             value = super().GetValue()
+            if value == None:
+                return None
+            chklst = {value[i]:"False" for i in range(0,len(value))}
+            return json.dumps(chklst)
+
+        def MergeList(self,lst):
+            chklst = json.loads(self.GetValue())
+            value = chklst | lst
+            self.ChangeValue(json.dumps(value))
+
+        def ReplaceList (self,lst):
+            value = json.dumps(lst)
+            self.ChangeValue(value)
+
+        def ClearList(self):
+            self.ChangeValue(None)
 
     class clsTextNumber(wx.TextCtrl, clsFieldExtra):
         def __init__(self, parent, controldescription):
@@ -848,6 +863,8 @@ class clsField:
 
             dt = self.datefield.GetValue()
             tm = self.timefield.GetValue()
+            if dt == None:
+                return None            
             return dt + " " + tm
 
         def SetWarningColor(self):
@@ -884,13 +901,15 @@ class clsField:
 
             # DatePicker postprocess
             if "ALLOWNONE" in controldescription["stylelist"]:
-                super().SetNullText("None")
+                super().SetNullText("")
 
         def SetValue(self, value, dateformat=None):
             self.nonevalue = False
             if value == None:
                 self.nonevalue = True
-                super().SetValue(wx.DefaultDateTime)
+                super().SetNullText("")
+                #super().SetValue(datetime.datetime.now())
+                #super().SetValue(None)
                 return
             try:
                 if dateformat is not None:
@@ -903,12 +922,12 @@ class clsField:
                 clsError.clsErrorHandler("clsFields:clsDatePickerCtrl:SetValue", Err)
             super().SetValue(value)
 
-        def GetValue(self):
+        def GetValue(self,format=None):
+            if format == None:
+              format = JSForm.CONFIG.get_Config_Value("Format", "Date")
             try:
                 dt = (
-                    super()
-                    .GetValue()
-                    .Format(JSForm.CONFIG.get_Config_Value("Format", "Date"))
+                    super().GetValue().Format(format)
                 )
                 self.nonevalue = False
             except:

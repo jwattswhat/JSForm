@@ -53,7 +53,6 @@
                         "PROCESSENTER"      - Process the <ENTER> key as part of field data.
                         "PROCESSTAB"        - process the <TAB> keystroke as part of the field data
                         "READONLY"          - form is readonly, no editing
-                    "validatorstr" : "validator" (see wx.python for more information)
                     "required" : true/false or not present - (default is false, not present)  - field is required entry
 
                 "navButton": (internal use only)
