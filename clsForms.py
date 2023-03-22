@@ -369,10 +369,17 @@ class clsForm:
         if "linkedform" not in self.FORMDESCRIPTON:
             return
 
-        #for lnkdfrm in self.FORMDESCRIPTON["linkedform"].copy():
-        #    if "bindbtn" in self.FORMDESCRIPTON["linkedform"][lnkdfrm]:
-        #        continue
-        #    self.open_linked_form(lnkdfrm)
+        for lnkdfrm in self.FORMDESCRIPTON["linkedform"].copy():
+            found = False
+            for ctrl in self.CONTROLDESCRIPTION.copy():
+                if "action" in self.CONTROLDESCRIPTION[ctrl]:
+                    if self.CONTROLDESCRIPTION[ctrl]["action"][0] == "openform":
+                        if self.CONTROLDESCRIPTION[ctrl]["action"][1] == lnkdfrm:
+                            found = True
+                            continue
+            if found:
+                continue
+            self.open_linked_form(lnkdfrm)
 
     def open_linked_form(self, lnkdfrm, record=None):
         """
@@ -473,11 +480,6 @@ class clsForm:
                         )
             if "action" in self.CONTROLDESCRIPTION[field]:
                 match self.CONTROLDESCRIPTION[field]["action"][0]:
-                    case "openlinkedform":
-                        self.CONTROLID[field].Bind(
-                            wx.EVT_BUTTON, 
-                            self._openformevent
-                        )
                     case "openform": 
                         self.CONTROLID[field].Bind(
                             wx.EVT_BUTTON, 
