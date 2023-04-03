@@ -3,7 +3,7 @@ import mysql.connector
 
 class clsConfig:
     """
-    clsConfig.py - Configuration Class for getting and setting system configuration
+    clsConfig.py - Configuration Class for getting and setting system configuration data
     Rev. Jonathan C. Watt
     July 2022
     """

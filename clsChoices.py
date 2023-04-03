@@ -8,7 +8,7 @@ class clsChoices:
     """
     clsChoiceList
 
-    This class is used to manage dropdown lists for ComboBoxes.
+    This class is used to manage autofill dropdown lists for ComboBoxes.
         display - list of dropdown display values
         fieldname - list of fieldnames in the display value
         fielddata - list of the data related to the fieldname (seperated for easy use)
@@ -65,7 +65,7 @@ class clsChoices:
         """
         this module looks for field choices for 'fieldname' in the tblChoices table
         Choices are loaded automaticlly based on the field name.
-        Return None if no choices are found.
+        Returns None if no choices are found.
         """
         choicesSQL = "SELECT Choices FROM tblChoices WHERE field='{fieldname}';".format(
             fieldname=self.fieldname
@@ -84,15 +84,17 @@ class clsChoices:
 
     def _loadchoicesfromtable(self):
         """
-        this routine loads the field choice list when it is in another table. It is used to replace the "choices" parameter
+        this routine loads the field choice list when it is in another table.
+        It is used to replace the "choices" parameter
         for wxPython calls.
 
         JSON values
 
         "lookupchoices" :{
-            "name": "tblXXXX",                 # table to use for lookup
-            "fields: ["fieldname","fieldname"]   # Display fields
-            "orderby" : "sortfield"                # field to sort lookup
+            "name": "tblXXXX",                  # table to use for lookup
+            "fields: ["fieldname","fieldname"]  # Display fields
+            "where": "valid SQL where statement" 
+            "orderby" : "sortfield"             # field to sort lookup
         """
         if "lookupchoices" not in self.controldescription:
             return None

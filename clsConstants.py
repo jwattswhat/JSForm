@@ -1,5 +1,7 @@
 import wx
-
+'''
+    Name Space Class for JSForm
+'''
 __version__ = "0.1"
 __author__ = "Rev. Jonathan C. Watt"
 
