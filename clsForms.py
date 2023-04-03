@@ -68,7 +68,7 @@ class clsForm:
         frmdescription=None,
         position=None,
         parentrecord=None,
-        fillonblank=None
+        fillonblank=None,
     ):
         self.create(parent,dbconnection,formname,controls,frmdescription,position,parentrecord,fillonblank)
 
@@ -81,7 +81,7 @@ class clsForm:
         frmdescription=None,
         position=None,
         parentrecord=None,
-        fillonblank=None
+        fillonblank=None,
     ):
 
         JSForm.LG.log(
@@ -134,7 +134,7 @@ class clsForm:
         try:
             self.RECORDS.load_records(self.FORMDESCRIPTON["table"],parentrecord)
         except:
-            pass
+            pass 
 
         self.initialize_linked_forms()
         self.initialize_sub_forms()
@@ -143,12 +143,13 @@ class clsForm:
 
         if not self.RECORDS:
             return
-        
+
         if self.fillonblank:
             for i in range(0,len(self.fillonblank),2):
                 self.RECORDS._record[self.RECORDS._position][
                     self.fillonblank[i]
                 ] = self.parentkey[self.fillonblank[i+1]]
+        
         self.fill_form(self.RECORDS.current())
 
     def override_linked_and_sub_forms(self):
@@ -246,10 +247,22 @@ class clsForm:
                 pos=formdescription["pos"],
                 size=size,
             )
-            formdescription["pos"] = [0, 0]
+            frpos = 0
+            if (formdescription["pos"][0] <= -1) and (formdescription["pos"][1] <= -1):
+                frpos = wx.BOTH
+            else:
+                if (formdescription["pos"][0] == -1):
+                    frpos = wx.HORIZONTAL
+                if (formdescription["pos"][1] == -1):
+                    frpos = wx.VERTICAL
+                    
+            #formdescription["pos"] = [0, 0]
             FORM = wx.Panel(
                 FRAME, wx.ID_ANY, **JSForm.getcontrolparameters(formdescription)
             )
+            if frpos != 0:
+                FRAME.Center(frpos)
+
         elif formdescription["type"] == "StaticBox":
             FORM = wx.StaticBox(
                 self.PARENT.FORM,
@@ -299,7 +312,7 @@ class clsForm:
             controlid.update({key: fld.FIELD})
         return controlid
 
-    def initialize_data_record(self, formdescription):
+    def initialize_data_record(self, formdescription,SQL=None):
         JSForm.LG.log(formdescription=formdescription)
         if "table" in formdescription:
             return JSForm.clsRecord(self.DBConnection, formdescription["table"])
@@ -495,6 +508,11 @@ class clsForm:
                             wx.EVT_BUTTON,
                             self._editchecklist
                         )
+                    case "process": 
+                        self.CONTROLID[field].Bind(
+                            wx.EVT_BUTTON,
+                            self._processaction
+                        )
                     case _:
                         pass
         #
@@ -584,7 +602,16 @@ class clsForm:
         for field in self.RECORDS.current().keys():
             if field == "ID":
                 continue
-            self.RECORDS.setfieldvalue(field, self.CONTROLID[field].GetValue())
+            if field in self.CONTROLID:
+                self.RECORDS.setfieldvalue(field, self.CONTROLID[field].GetValue())
+
+    def center(self):
+        pass
+        #self.FORM.centre()
+
+    def centre(self):
+        pass
+        #self.FRAME.centre()
 
     def show(self):
         JSForm.LG.log()
@@ -610,7 +637,6 @@ class clsForm:
                     self.RECORDS._record[self.RECORDS._position][
                         self.fillonblank[i]
                     ] = self.parentkey[self.fillonblank[i+1]]
-
 
             self.fill_form(self.RECORDS._record[self.RECORDS._position])
             self._close_linked_forms()
@@ -725,6 +751,11 @@ class clsForm:
             case "clearlist":
                 self.CONTROLID[ctrl].ClearList()
 
+    def _processaction(self,event):
+        field = event.GetEventObject().GetName()
+        print(self.CONTROLDESCRIPTION[field]["action"][0])
+        print(self.CONTROLDESCRIPTION[field]["action"][1])
+
     def _on_close_click(self, event):
         JSForm.LG.log()
         self.FORM.Close()
@@ -800,7 +831,10 @@ class clsForm:
         for fld in self.RECORDS.sql.sqldescription:
             if fld == "ID":
                 continue
-            value = self.CONTROLID[fld].GetValue()
+            if fld in self.CONTROLID:
+                value = self.CONTROLID[fld].GetValue()
+            else:
+                value = None
             if value == None:
                 if not self.RECORDS.sql.sqldescription[fld]["null_ok"]:
                     required.append(fld)

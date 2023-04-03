@@ -18,6 +18,7 @@ import sys
 import wx
 import wx.adv
 import wx.dataview
+import wx.html
 
 # import framwork
 
@@ -82,6 +83,9 @@ def setstylefield(sty):
         st = st | wx.adv.DP_ALLOWNONE
     if "DROPDOWN" in sty:
         st = st | wx.adv.DP_DROPDOWN
+    if "MULTIPLE" in sty:
+        st = st | wx.LB_MULTIPLE
+     
     return st
 
 
@@ -163,6 +167,8 @@ class clsField:
                 self.FIELD = self.clsTimePickerCtrl(self, controldescription)
             case "FilePickerCtrl":
                 self.FIELD = self.clsFilePickerCtrl(self, controldescription)
+            case "HTMLCtrl":
+                self.FIELD = self.clsHTMLCtrl(self, controldescription)
 
         #  all fields post process
 
@@ -636,6 +642,11 @@ class clsField:
                 wx.ID_ANY,
                 **getcontrolparameters(self.CONTROLDESCRIPTION)
             )
+
+            choices = self.choices.Load_Choices(controldescription)
+            if choices:
+                self.InsertItems(choices,0)
+
             self.SetNormalColor()
 
             # checklistbox postprocess
@@ -659,6 +670,7 @@ class clsField:
         def GetValue(self):
             checklist = super().GetStrings()
             checked = super().GetCheckedStrings()
+            selected = super().GetSelections()
             di = {}
             for c in checklist:
                 if c in checked:
@@ -1021,3 +1033,17 @@ class clsField:
             filename = os.path.splitext(os.path.basename(value))
             fn = filename[0] + filename[1]
             return fn
+
+    class clsHTMLCtrl(wx.html.HtmlWindow, clsFieldExtra):
+        def __init__(self, parent, controldescription):
+            super().__init__(
+                parent.PARENT.FORM,
+                wx.ID_ANY,
+                **getcontrolparameters(controldescription)
+            )
+        def SetValue(self,value):
+            self.htmlvalue = value
+            super().SetPage(value)
+
+        def GetValue(self):
+            return self.htmlvalue

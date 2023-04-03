@@ -191,17 +191,22 @@ class clsRecord:
             self.original.saverecord(self._record[self._position])
             return self._record[self._position]
 
-    def prev(self):
+    def prev(self,loop=False):
         if self._position > 0:
             self._position -= 1
+        else:
+            if loop:
+                return self.last()
         self.original.saverecord(self._record[self._position])
         return self._record[self._position]
 
-    def next(self):
+    def next(self,loop=False):
         if self._position < len(self._record) - 1:
             self._position += 1
             self.original.saverecord(self._record[self._position])
             return self._record[self._position]
+        if loop:
+            return self.first()
 
     def last(self):
         self._position = len(self._record) - 1

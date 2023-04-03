@@ -177,6 +177,13 @@ class clsConstantsNameSpace:
             "size",
             "style",
         ],
+        "HTMLCtrl": [
+            "id",
+            "pos",
+            "size",
+            "style",
+            "name"
+        ]
     }
 
     btnNavigationCONTROLS = {

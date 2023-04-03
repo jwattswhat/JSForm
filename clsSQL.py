@@ -41,7 +41,6 @@ class clsSQL:
         self.dbconnection = dbconnection
         self.table = table
         self.parentrecord = parentrecord
-
         self.aspairs = self.clsAsPairs(self.table["fields"])
         self.sqldescription = self._build_sql_record_description()
 

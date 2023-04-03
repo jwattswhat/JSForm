@@ -94,8 +94,7 @@ def next_weekday(d, weekday):
 
 
 def date_to_datetime(dt):
-    tm = time(0, 0, 0)
-    return datetime.combine(dt, tm)
+    return datetime.combine(dt, datetime.min.time())
 
 
 # print("{:02x}".format(ord("\r")))
