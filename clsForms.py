@@ -247,21 +247,12 @@ class clsForm:
                 pos=formdescription["pos"],
                 size=size,
             )
-            frpos = 0
-            if (formdescription["pos"][0] <= -1) and (formdescription["pos"][1] <= -1):
-                frpos = wx.BOTH
-            else:
-                if (formdescription["pos"][0] == -1):
-                    frpos = wx.HORIZONTAL
-                if (formdescription["pos"][1] == -1):
-                    frpos = wx.VERTICAL
                     
             #formdescription["pos"] = [0, 0]
             FORM = wx.Panel(
                 FRAME, wx.ID_ANY, **JSForm.getcontrolparameters(formdescription)
             )
-            if frpos != 0:
-                FRAME.Center(frpos)
+
 
         elif formdescription["type"] == "StaticBox":
             FORM = wx.StaticBox(
@@ -270,6 +261,16 @@ class clsForm:
                 **JSForm.getcontrolparameters(formdescription)
             )
             FRAME = FORM
+
+        if (formdescription["pos"][0] <= -1) and (formdescription["pos"][1] <= -1):
+            FRAME.Center(wx.BOTH)
+        else:
+            if (formdescription["pos"][0] <= -1):
+                FRAME.Center(wx.HORIZONTAL)
+            if (formdescription["pos"][1] <= -1):
+                FRAME.Center(wx.VERTICAL)
+
+
         FRAME.SetFont(JSForm.FONT.Get_Current_Font())
         FORM.SetFont(JSForm.FONT.Get_Current_Font())
 
