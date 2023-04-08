@@ -19,7 +19,13 @@ import json
 #   import framework classes
 #
 import JSForm
+
+#
+#   import system classes
+#
 import subprocess
+from jsonschema import validate
+
 
 
 class clsForm:
@@ -289,6 +295,14 @@ class clsForm:
             formname,
         )
         jsonfrm = json.load(f)
+
+        if JSForm.OPTION.get_Option_Value("JSONSchema","CheckForms") == "Yes":
+            SchemaLocation = JSForm.CONFIG.get_Config_Value("Location","JSONSchema")
+            jsonschema = SchemaLocation + "jsformschema.json"
+            f = open(jsonschema)
+            schema = json.load(f)
+            validate(instance=jsonfrm,schema=schema)
+
         return jsonfrm[Form + "FORM"]["FORM"], jsonfrm[Form + "FORM"]["CONTROLS"]
 
     def build_form(self):

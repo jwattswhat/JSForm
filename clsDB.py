@@ -41,7 +41,7 @@ class clsDB:
 
     def __init__(self, host=None, databasename=None, username=None, password=None):
         global CONFIG,OPTION,FONT
-        if username == None:
+        if username == None or password  == None:
                 dlg = self._getcredentials(self, title="Enter DB Login info")
                 if host:
                     dlg.host.SetValue(host)
@@ -60,8 +60,6 @@ class clsDB:
                 dlg.Destroy()
                 if result == JSForm.CONST.FORM_CANCEL:
                     return True
-        if password == None:
-            pass    
         self.DBCredintials = {
             "user": username,
             "password": password,
