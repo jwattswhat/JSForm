@@ -38,16 +38,6 @@ def RunReport(reportid,frm,dbconnection):
     reportlocation = JSForm.CONFIG.get_Config_Value("Location", "Report")
     limedir = JSForm.CONFIG.get_Config_Value("Location", "LimeReport")
 
-    #   Delete the current pdf report
-    try:
-        os.remove(
-            "{reportlocation}{rptreport}.pdf".format(
-                report=reportlocation, rptreport=rptReport
-            )
-        )
-    except:
-        pass
-
     #   Read the Report Record from DB
     SQL = "SELECT * FROM tblReports WHERE ID = {ID};".format(ID=reportid)
     cursor = dbconnection.cursor()
@@ -70,38 +60,59 @@ def RunReport(reportid,frm,dbconnection):
         rptParams = rptParams.splitlines()
     else:
         rptParams = []
-    rptNote = row[4]
 
-    cmdline = "{limedir}limereport -s{reportpattern}{rptreport}.lrxml -d{reportlocation}{rptreport}.pdf".format(
-        limedir=limedir,
-        reportpattern=reportpattern,
-        reportlocation=reportlocation,
-        rptreport=rptReport,
-    )
+    if row[4]:
+        rptBatch = row[4].replace("[", "")
+        rptBatch = rptBatch.replace("]", "")
+        rptBatch = rptBatch.replace(",", "")
+        rptBatch = rptBatch.splitlines()
+    else:
+        rptBatch = rptReport
+    rptNote = row[5]
 
-    for param in rptParams:
+    for rptReport in rptBatch:
+        #   Delete the current pdf report
         try:
-            match param:
-                case "StartDate"|"EndDate":
-                    pvalue = frm.CONTROLID[param].GetValue(format="%Y/%m/%d")
-                case _:
-                    pvalue = frm.CONTROLID[param].GetValue()
-            if pvalue == None:
+            os.remove(
+                "{reportlocation}{rptreport}.pdf".format(
+                    report=reportlocation, rptreport=rptReport
+                )
+            )
+        except:
+            pass
+
+        #   build the commandline
+        cmdline = "{limedir}limereport -s{reportpattern}{rptreport}.lrxml -d{reportlocation}{rptreport}.pdf".format(
+            limedir=limedir,
+            reportpattern=reportpattern,
+            reportlocation=reportlocation,
+            rptreport=rptReport,
+        )
+
+        for param in rptParams:
+            try:
+                match param:
+                    case "StartDate"|"EndDate":
+                        pvalue = frm.CONTROLID[param].GetValue(format="%Y/%m/%d")
+                    case _:
+                        pvalue = frm.CONTROLID[param].GetValue()
+                if pvalue == None:
+                    dlg = _requiredfielddialog(frm.FORM,"Required Field",rptTitle,param)
+                    result = dlg.ShowModal()
+                    dlg.Destroy()
+                    return None
+                else:
+                    cmdline = cmdline + ' -p{param}="{pvalue}"'.format(param=param,pvalue=pvalue)
+            except:
                 dlg = _requiredfielddialog(frm.FORM,"Required Field",rptTitle,param)
                 result = dlg.ShowModal()
                 dlg.Destroy()
                 return None
-            else:
-                cmdline = cmdline + ' -p{param}="{pvalue}"'.format(param=param,pvalue=pvalue)
-        except:
-            dlg = _requiredfielddialog(frm.FORM,"Required Field",rptTitle,param)
-            result = dlg.ShowModal()
-            dlg.Destroy()
-            return None
 
-    sb = subprocess.Popen(cmdline)
-    sb.wait()
-    cmdline = "{reportlocation}{rptreport}.pdf".format(
-        reportlocation=reportlocation, rptreport=rptReport
-    )
-    subprocess.Popen(cmdline, shell=True)
+        #   Process the report
+        sb = subprocess.Popen(cmdline)
+        sb.wait()
+        cmdline = "{reportlocation}{rptreport}.pdf".format(
+            reportlocation=reportlocation, rptreport=rptReport
+        )
+        subprocess.Popen(cmdline, shell=True)
