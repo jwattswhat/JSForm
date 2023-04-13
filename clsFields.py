@@ -141,6 +141,8 @@ class clsField:
                 self.FIELD = self.clsTextCtrl(self, controldescription)
             case "TextNumber":
                 self.FIELD = self.clsTextNumber(self, controldescription)
+            case "Float":
+                self.FIELD = self.clsFloat(self,controldescription)
             case "JSON":
                 self.FIELD = self.clsJSON(self, controldescription)
             case "ComboBox":
@@ -394,11 +396,15 @@ class clsField:
                 )
 
         def GetValue(self):
-            value = self.choices.getchoicedisplay(super().GetValue())
+            value = self.choices.getchoicedisplay(super().GetValue()).replace(",","")
             if value == "":
                 value = None
             return value
-
+        
+    class clsFloat(clsTextNumber):
+        def GetValue(self):
+            return float(super().GetValue())
+      
     class clsJSON(wx.TextCtrl, clsFieldExtra):
         def __init__(self, parent, controldescription):
 
@@ -718,9 +724,10 @@ class clsField:
 
             self.columnnames = []
             for i in range(len(self.CONTROLDESCRIPTION["column"])):
+                width = JSForm.FONT.chtopt(self.CONTROLDESCRIPTION["column"][i]["widthch"])
                 self.AppendTextColumn(
                     label=self.CONTROLDESCRIPTION["column"][i]["label"],
-                    width=self.CONTROLDESCRIPTION["column"][i]["width"],
+                    width=width,
                 )
                 self.columnnames.append(self.CONTROLDESCRIPTION["column"][i]["name"])
 

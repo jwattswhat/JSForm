@@ -128,9 +128,12 @@ class clsSQL:
         keys, values = self._prepare_keys_values(record)
         valuestrings = []
         for k in range(len(keys)):
-            value = values[k].replace(
-                "\\", "\\\\"
-            )  # replace all \\ with \\\\ for SQL Execute Statement.
+            if type(values[k])==str:
+                value = values[k].replace(
+                    "\\", "\\\\"
+                )  # replace all \\ with \\\\ for SQL Execute Statement.
+            else:
+                value = values[k]
             valuestrings.append("{key}={value}".format(key=keys[k], value=value))
 
         sql = "UPDATE {table} SET {values} WHERE ID={id};".format(

@@ -528,6 +528,11 @@ class clsForm:
                             wx.EVT_BUTTON,
                             self._processaction
                         )
+                    case "onchange":
+                        self.CONTROLID[field].Bind(
+                            wx.EVT_COMBOBOX,
+                            self._processaction
+                        )
                     case _:
                         pass
         #
@@ -577,7 +582,15 @@ class clsForm:
 
     def enable_button(self, name):
         JSForm.LG.log()
-        self.CONTROLID[name].Enbable()
+        self.CONTROLID[name].Enable()
+
+    def enable_buttons(self,buttonlist):
+        for b in buttonlist:
+            self.enable_button(b)
+
+    def disable_all_buttons(self):
+        for b in self.CONTROLID:
+            self.disable_button(b)
 
     def enable_navigation_buttons(self):
         JSForm.LG.log()

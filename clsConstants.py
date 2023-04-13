@@ -65,6 +65,13 @@ class clsConstantsNameSpace:
             "size",
             "style",
         ],
+        "Float":[
+            "name",
+            "label",
+            "pos",
+            "size",
+            "styel"
+        ],
         "StaticBox": [
             "name",
             "label",
