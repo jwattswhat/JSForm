@@ -27,7 +27,6 @@ import subprocess
 from jsonschema import validate
 
 
-
 class clsForm:
     """
     clsBASEForm: Process a form
@@ -76,7 +75,16 @@ class clsForm:
         parentrecord=None,
         fillonblank=None,
     ):
-        self.create(parent,dbconnection,formname,controls,frmdescription,position,parentrecord,fillonblank)
+        self.create(
+            parent,
+            dbconnection,
+            formname,
+            controls,
+            frmdescription,
+            position,
+            parentrecord,
+            fillonblank,
+        )
 
     def create(
         self,
@@ -89,7 +97,6 @@ class clsForm:
         parentrecord=None,
         fillonblank=None,
     ):
-
         JSForm.LG.log(
             formname=formname,
             controls=controls,
@@ -138,9 +145,9 @@ class clsForm:
 
         self.RECORDS = self.initialize_data_record(self.FORMDESCRIPTON)
         try:
-            self.RECORDS.load_records(self.FORMDESCRIPTON["table"],parentrecord)
+            self.RECORDS.load_records(self.FORMDESCRIPTON["table"], parentrecord)
         except:
-            pass 
+            pass
 
         self.initialize_linked_forms()
         self.initialize_sub_forms()
@@ -151,11 +158,11 @@ class clsForm:
             return
 
         if self.fillonblank:
-            for i in range(0,len(self.fillonblank),2):
+            for i in range(0, len(self.fillonblank), 2):
                 self.RECORDS._record[self.RECORDS._position][
                     self.fillonblank[i]
-                ] = self.parentkey[self.fillonblank[i+1]]
-        
+                ] = self.parentkey[self.fillonblank[i + 1]]
+
         self.fill_form(self.RECORDS.current())
 
     def override_linked_and_sub_forms(self):
@@ -253,29 +260,27 @@ class clsForm:
                 pos=formdescription["pos"],
                 size=size,
             )
-                    
-            #formdescription["pos"] = [0, 0]
+
+            # formdescription["pos"] = [0, 0]
             FORM = wx.Panel(
                 FRAME, wx.ID_ANY, **JSForm.getcontrolparameters(formdescription)
             )
-
 
         elif formdescription["type"] == "StaticBox":
             FORM = wx.StaticBox(
                 self.PARENT.FORM,
                 wx.ID_ANY,
-                **JSForm.getcontrolparameters(formdescription)
+                **JSForm.getcontrolparameters(formdescription),
             )
             FRAME = FORM
 
         if (formdescription["pos"][0] <= -1) and (formdescription["pos"][1] <= -1):
             FRAME.Center(wx.BOTH)
         else:
-            if (formdescription["pos"][0] <= -1):
+            if formdescription["pos"][0] <= -1:
                 FRAME.Center(wx.HORIZONTAL)
-            if (formdescription["pos"][1] <= -1):
+            if formdescription["pos"][1] <= -1:
                 FRAME.Center(wx.VERTICAL)
-
 
         FRAME.SetFont(JSForm.FONT.Get_Current_Font())
         FORM.SetFont(JSForm.FONT.Get_Current_Font())
@@ -296,12 +301,12 @@ class clsForm:
         )
         jsonfrm = json.load(f)
 
-        if JSForm.OPTION.get_Option_Value("JSONSchema","CheckForms") == "Yes":
-            SchemaLocation = JSForm.CONFIG.get_Config_Value("Location","JSONSchema")
+        if JSForm.OPTION.get_Option_Value("JSONSchema", "CheckForms") == "Yes":
+            SchemaLocation = JSForm.CONFIG.get_Config_Value("Location", "JSONSchema")
             jsonschema = SchemaLocation + "jsformschema.json"
             f = open(jsonschema)
             schema = json.load(f)
-            validate(instance=jsonfrm,schema=schema)
+            validate(instance=jsonfrm, schema=schema)
 
         return jsonfrm[Form + "FORM"]["FORM"], jsonfrm[Form + "FORM"]["CONTROLS"]
 
@@ -313,7 +318,6 @@ class clsForm:
         else:
             readonly = False
         for key in self.CONTROLDESCRIPTION.copy():
-
             if readonly:
                 self.CONTROLDESCRIPTION[key].update({"readonly": True})
 
@@ -327,16 +331,16 @@ class clsForm:
             controlid.update({key: fld.FIELD})
         return controlid
 
-    def initialize_data_record(self, formdescription,SQL=None):
+    def initialize_data_record(self, formdescription, SQL=None):
         JSForm.LG.log(formdescription=formdescription)
         if "table" in formdescription:
             return JSForm.clsRecord(self.DBConnection, formdescription["table"])
 
-    def update_choices(self):       # defunct
+    def update_choices(self):  # defunct
         JSForm.LG.log()
         for field in self.CONTROLID:
             if self.CONTROLDESCRIPTION[field]["type"] == "ComboBox":
-                choices = self.CONTROLID[field].choices.Load_Choices(
+                choices = self.CONTROLID[field].choices.load_choices(
                     self.CONTROLDESCRIPTION[field]
                 )
                 if choices != None:
@@ -354,8 +358,8 @@ class clsForm:
             if key == "ID":
                 continue
 
-            #   get the  value 
-            try:    #   Get the Default value
+            #   get the  value
+            try:  #   Get the Default value
                 default = self.CONTROLDESCRIPTION[key]["defaultvalue"]
             except:
                 default = None
@@ -372,7 +376,7 @@ class clsForm:
                 match self.CONTROLDESCRIPTION[key]["type"]:
                     case "StaticText":
                         continue
-                    case "TextCtrl"|"Multiline"|"CheckListEdit"|"TextNumber"|"ComboBox":
+                    case "TextCtrl" | "Multiline" | "CheckListEdit" | "TextNumber" | "ComboBox":
                         self.CONTROLID[key].ChangeValue(value)
                     case _:
                         self.CONTROLID[key].SetValue(value)
@@ -381,16 +385,18 @@ class clsForm:
             try:
                 self.LINKEDFORM[linkedfrm].fill_form(
                     self.LINKEDFORM[linkedfrm].RECORDS.load_records(
-                        None, 
-                        self.RECORDS.current()))
+                        None, self.RECORDS.current()
+                    )
+                )
             except:
                 continue
         for subfrm in self.SUBFORM:
             try:
                 self.SUBFORM[subfrm].fill_form(
                     self.SUBFORM[subfrm].RECORDS.load_records(
-                        None, 
-                        self.RECORDS.current()))
+                        None, self.RECORDS.current()
+                    )
+                )
             except:
                 continue
         for field in self.CONTROLID:
@@ -415,7 +421,7 @@ class clsForm:
                             found = True
                             break
             if not found:
-                self.open_linked_form(lnkdfrm,self.RECORDS.current())
+                self.open_linked_form(lnkdfrm, self.RECORDS.current())
 
     def open_linked_form(self, lnkdfrm, record=None):
         """
@@ -427,19 +433,19 @@ class clsForm:
         if "fillonblank" in self.FORMDESCRIPTON["linkedform"][lnkdfrm]:
             fob = self.FORMDESCRIPTON["linkedform"][lnkdfrm]["fillonblank"]
         else:
-            fob = None 
+            fob = None
 
         LinkedForm = self.__class__(
-            self,   # as parent
+            self,  # as parent
             dbconnection=self.DBConnection,
             formname=lnkdfrm,
             frmdescription=self.FORMDESCRIPTON["linkedform"][lnkdfrm],
             controls=self.FORMDESCRIPTON["linkedform"][lnkdfrm]["controls"],
-            position=None, #pyautogui.position(),
+            position=None,  # pyautogui.position(),
             parentrecord=record,
-            fillonblank=fob
+            fillonblank=fob,
         )
-        try: 
+        try:
             LinkedForm.fill_form(LinkedForm.RECORDS.current())
         except:
             pass
@@ -453,13 +459,13 @@ class clsForm:
 
         for subfrm in self.FORMDESCRIPTON["subform"]:
             SubForm = self.__class__(
-                self,       # as parent
+                self,  # as parent
                 dbconnection=self.DBConnection,
                 formname=subfrm,
                 controls=self.FORMDESCRIPTON["subform"][subfrm]["controls"],
                 frmdescription=self.FORMDESCRIPTON["subform"][subfrm].copy(),
-                position=None, 
-                parentrecord=self.RECORDS.current()
+                position=None,
+                parentrecord=self.RECORDS.current(),
             )
 
             self.SUBFORM.update({subfrm: SubForm})
@@ -479,60 +485,36 @@ class clsForm:
                         match self.CONTROLDESCRIPTION[field][1]:
                             case "left click":
                                 self.CONTROLID[field].Bind(
-                                    wx.EVT_LEFT_DOWN,
-                                    self._capturemouse
+                                    wx.EVT_LEFT_DOWN, self._capturemouse
                                 )
                             case "right click":
                                 self.CONTROLID[field].Bind(
-                                    wx.EVT_RIGHT_DOWN,
-                                    self._capturemouse
+                                    wx.EVT_RIGHT_DOWN, self._capturemouse
                                 )
                             case "left double click":
                                 self.CONTROLID[field].Bind(
-                                    wx.EVT_LEFT_DCLICK,
-                                    self._capturemouse
+                                    wx.EVT_LEFT_DCLICK, self._capturemouse
                                 )
                             case "right double click":
                                 self.CONTROLID[field].Bind(
-                                    wx.EVT_LEFT_DCLICK,
-                                    self._capturemouse
+                                    wx.EVT_LEFT_DCLICK, self._capturemouse
                                 )
                     case "refreshform":
                         self.FORM.Bind(
-                            wx.EVT_TEXT, 
-                            self._refreshforms, 
-                            self.CONTROLID[field]
+                            wx.EVT_TEXT, self._refreshforms, self.CONTROLID[field]
                         )
                     case "openform" | "openlinkedform" | "openformfromfield":
-                        self.CONTROLID[field].Bind(
-                            wx.EVT_BUTTON, 
-                            self._openformevent
-                        )
+                        self.CONTROLID[field].Bind(wx.EVT_BUTTON, self._openformevent)
                     case "openfile":
-                        self.CONTROLID[field].Bind(
-                            wx.EVT_BUTTON, 
-                            self._openfileevent
-                        )
+                        self.CONTROLID[field].Bind(wx.EVT_BUTTON, self._openfileevent)
                     case "openreport":
-                        self.CONTROLID[field].Bind(
-                            wx.EVT_BUTTON,
-                            self._openreportevent
-                        )
+                        self.CONTROLID[field].Bind(wx.EVT_BUTTON, self._openreportevent)
                     case "editchecklist":
-                        self.CONTROLID[field].Bind(
-                            wx.EVT_BUTTON,
-                            self._editchecklist
-                        )
-                    case "process": 
-                        self.CONTROLID[field].Bind(
-                            wx.EVT_BUTTON,
-                            self._processaction
-                        )
+                        self.CONTROLID[field].Bind(wx.EVT_BUTTON, self._editchecklist)
+                    case "process":
+                        self.CONTROLID[field].Bind(wx.EVT_BUTTON, self._processaction)
                     case "onchange":
-                        self.CONTROLID[field].Bind(
-                            wx.EVT_COMBOBOX,
-                            self._processaction
-                        )
+                        self.CONTROLID[field].Bind(wx.EVT_COMBOBOX, self._processaction)
                     case _:
                         pass
         #
@@ -584,7 +566,7 @@ class clsForm:
         JSForm.LG.log()
         self.CONTROLID[name].Enable()
 
-    def enable_buttons(self,buttonlist):
+    def enable_buttons(self, buttonlist):
         for b in buttonlist:
             self.enable_button(b)
 
@@ -635,11 +617,11 @@ class clsForm:
 
     def center(self):
         pass
-        #self.FORM.centre()
+        # self.FORM.centre()
 
     def centre(self):
         pass
-        #self.FRAME.centre()
+        # self.FRAME.centre()
 
     def show(self):
         JSForm.LG.log()
@@ -661,10 +643,10 @@ class clsForm:
         if not self.FORMDirty():
             self.RECORDS.add(self.RECORDS.sql.get_blank_record())
             if self.fillonblank:
-                for i in range(0,len(self.fillonblank),2):
+                for i in range(0, len(self.fillonblank), 2):
                     self.RECORDS._record[self.RECORDS._position][
                         self.fillonblank[i]
-                    ] = self.parentkey[self.fillonblank[i+1]]
+                    ] = self.parentkey[self.fillonblank[i + 1]]
 
             self.fill_form(self.RECORDS._record[self.RECORDS._position])
             self._close_linked_forms()
@@ -677,10 +659,46 @@ class clsForm:
         for field in self.CONTROLID:
             self.CONTROLID[field].SetNormalColor()
 
+    def FORMDirty(self):
+        JSForm.LG.log()
+
+        if not self.RECORDS:
+            return False
+
+        if "readonly" not in self.FORMDESCRIPTON:
+            self.update_screen_to_record()
+
+            required = self._check_required_fields()
+            if required:
+                for fld in required:
+                    self.CONTROLID[fld].SetWarningColor()
+                dlg = wx.MessageDialog(
+                    self.FORM,
+                    "Fields: " + ",".join(required),
+                    "Required Fields",
+                    wx.CANCEL | wx.OK,
+                )
+                result = dlg.ShowModal()
+                dlg.Destroy()
+                if result == wx.CANCEL:
+                    return True
+
+            dirtyfields = self.RECORDS.recordisdirty()
+            if dirtyfields:
+                for field in dirtyfields:
+                    self.CONTROLID[field].SetWarningColor()
+                dlg = self._dirtydialog(self.FORM, title="Form Modified(dirty)")
+                result = dlg.ShowModal()
+                dlg.Destroy()
+                if result == JSForm.CONST.FORM_CANCEL:
+                    return True
+
+        return False
+
     #
-    #   Evant Handlers
+    #   Event Handlers
     #
-       
+
     def _capturemouse(self, event):  # <TODO> implement.
         #
         # Future development
@@ -694,21 +712,21 @@ class clsForm:
         evnttype = event.GetEventType()
         if evnttype == wx.EVT_TEXT.typeId:
             if "table" in self.FORMDESCRIPTON:
-                self.RECORDS.setfieldvalue(
-                    field, 
-                    self.CONTROLID[field].GetValue())
+                self.RECORDS.setfieldvalue(field, self.CONTROLID[field].GetValue())
                 self.fill_form(self.RECORDS.current())
 
-    def _openreportevent(self,event):
+    def _openreportevent(self, event):
         JSForm.LG.log()
         field = event.GetEventObject().GetName()
         report = self.CONTROLDESCRIPTION[field]["action"][1]
-        SQL = "SELECT * FROM tblReports WHERE Report = '{report}';".format(report=report)
+        SQL = "SELECT * FROM tblReports WHERE Report = '{report}';".format(
+            report=report
+        )
         cursor = self.DBConnection.cursor()
         cursor.execute(SQL)
         row = cursor.fetchone()
         cursor.close()
-        JSForm.RunReport(row[0],self,self.DBConnection)
+        JSForm.RunReport(row[0], self, self.DBConnection)
 
     def _openfileevent(self, event):
         JSForm.LG.log()
@@ -738,27 +756,33 @@ class clsForm:
         if file != None:
             os.startfile(file)
 
-    def _openformevent(self,event):
+    def _openformevent(self, event):
         JSForm.LG.log()
         field = event.GetEventObject().GetName()
         evnttype = event.GetEventType()
         openctrl = self.CONTROLDESCRIPTION[field]["action"][1]
         match self.CONTROLDESCRIPTION[field]["action"][0]:
-            case "openform": 
-                form = JSForm.clsForms.clsForm(None, self.DBConnection, openctrl, ["Navigation", "Close"])
+            case "openform":
+                form = JSForm.clsForms.clsForm(
+                    None, self.DBConnection, openctrl, ["Navigation", "Close"]
+                )
                 form.show()
             case "openformfromfield":
-                form = JSForm.clsForms.clsForm(None, self.DBConnection, 
-                self.CONTROLID[openctrl].GetValue(), ["Navigation", "Close"])
+                form = JSForm.clsForms.clsForm(
+                    None,
+                    self.DBConnection,
+                    self.CONTROLID[openctrl].GetValue(),
+                    ["Navigation", "Close"],
+                )
                 form.show()
             case "openlinkedform":
                 try:
                     record = self.RECORDS.current()
                 except:
                     record = None
-                self.open_linked_form(openctrl,record)
+                self.open_linked_form(openctrl, record)
 
-    def _editchecklist(self,event):
+    def _editchecklist(self, event):
         JSForm.LG.log()
         field = event.GetEventObject().GetName()
         evnttype = event.GetEventType()
@@ -766,7 +790,11 @@ class clsForm:
         newlist = self.CONTROLDESCRIPTION[field]["action"][3]
         cursor = self.DBConnection.cursor()
         try:
-            cursor.execute("SELECT CheckList FROM tblCheckList WHERE ID = {ID}".format(ID=self.CONTROLID[newlist].GetValue()))
+            cursor.execute(
+                "SELECT CheckList FROM tblCheckList WHERE ID = {ID}".format(
+                    ID=self.CONTROLID[newlist].GetValue()
+                )
+            )
         except:
             return None
         row = cursor.fetchone()
@@ -779,7 +807,7 @@ class clsForm:
             case "clearlist":
                 self.CONTROLID[ctrl].ClearList()
 
-    def _processaction(self,event):
+    def _processaction(self, event):
         field = event.GetEventObject().GetName()
         print(self.CONTROLDESCRIPTION[field]["action"][0])
         print(self.CONTROLDESCRIPTION[field]["action"][1])
@@ -792,7 +820,6 @@ class clsForm:
         JSForm.LG.log()
 
         if not self.FORMDirty():
-
             if self.LINKEDFORM:
                 for linkedform in self.LINKEDFORM.copy().keys():
                     self.LINKEDFORM[linkedform].FORM.Close()
@@ -802,7 +829,7 @@ class clsForm:
                     self.PARENT.LINKEDFORM.pop(self.FORMNAME)
                 if self.FORMNAME in self.PARENT.SUBFORM:
                     self.PARENT.SUBFORM.pop(self.FORMNAME)
-    
+
             self.FRAME.Destroy()
 
     def _replace_checklist(self, event):
@@ -810,7 +837,7 @@ class clsForm:
         field = event.GetEventObject().GetName()
         evnttype = event.GetEventType()
 
-    def _merge_checklist(self,event):
+    def _merge_checklist(self, event):
         JSForm.LG.log()
         field = event.GetEventObject().GetName()
         evnttype = event.GetEventType()
@@ -818,41 +845,6 @@ class clsForm:
     #
     #   Internal Methods
     #
-
-    def FORMDirty(self):
-        JSForm.LG.log()
-
-        if not self.RECORDS:
-            return False
-
-        if "readonly" not in self.FORMDESCRIPTON:
-            self.update_screen_to_record()
-
-            required = self._check_required_fields()
-            if required:
-                for fld in required:
-                    self.CONTROLID[fld].SetWarningColor()
-                dlg = wx.MessageDialog(
-                    self.FORM,
-                    "Fields: "+",".join(required),
-                    "Required Fields",
-                    wx.CANCEL | wx.OK)
-                result = dlg.ShowModal()
-                dlg.Destroy()
-                if result == wx.CANCEL:
-                    return True
-
-            dirtyfields = self.RECORDS.recordisdirty()
-            if dirtyfields:
-                for field in dirtyfields:
-                    self.CONTROLID[field].SetWarningColor()
-                dlg = self._dirtydialog(self.FORM, title="Form Modified(dirty)")
-                result = dlg.ShowModal()
-                dlg.Destroy()
-                if result == JSForm.CONST.FORM_CANCEL:
-                    return True
-
-        return False
 
     def _check_required_fields(self):
         required = []
@@ -907,10 +899,8 @@ class clsForm:
             for fld in required:
                 self.CONTROLID[fld].SetWarningColor()
             dlg = wx.MessageDialog(
-                self.FORM,
-                "Fields: "+",".join(required),
-                "Required Fields",
-                wx.OK)
+                self.FORM, "Fields: " + ",".join(required), "Required Fields", wx.OK
+            )
             result = dlg.ShowModal()
             dlg.Destroy()
             return
@@ -930,7 +920,6 @@ class clsForm:
     def _first_prev_next_last(self, firstprevnextlast):
         JSForm.LG.log()
         if not self.FORMDirty():
-
             self.RECORDS._record[
                 self.RECORDS._position
             ] = self.RECORDS.original.restore()
@@ -962,5 +951,3 @@ class clsForm:
     def _on_last_record_click(self, event):
         JSForm.LG.log()
         self._first_prev_next_last(JSForm.CONST.FORM_LAST)
-
-

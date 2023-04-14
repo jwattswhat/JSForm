@@ -15,7 +15,6 @@ class clsChoices:
     """
 
     def __init__(self, dbconnection, controldescription):
-
         self.dbconnection = dbconnection
         self.controldescription = controldescription
 
@@ -25,7 +24,7 @@ class clsChoices:
 
         self.fielddata = []  # list of fielddata
 
-    def Load_Choices(self, controldescription):
+    def load_choices(self, controldescription):
         if controldescription != None:
             controldescription = self.controldescription
 
@@ -93,7 +92,7 @@ class clsChoices:
         "lookupchoices" :{
             "name": "tblXXXX",                  # table to use for lookup
             "fields: ["fieldname","fieldname"]  # Display fields
-            "where": "valid SQL where statement" 
+            "where": "valid SQL where statement"
             "orderby" : "sortfield"             # field to sort lookup
         """
         if "lookupchoices" not in self.controldescription:
@@ -126,4 +125,3 @@ class clsChoices:
         self.id.append(id)
         self.display.append(display.strip())
         self.fielddata.append(fielddata)
-

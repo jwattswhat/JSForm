@@ -67,7 +67,7 @@ def RunReport(reportid,frm,dbconnection):
         rptBatch = rptBatch.replace(",", "")
         rptBatch = rptBatch.splitlines()
     else:
-        rptBatch = rptReport
+        rptBatch = [rptReport]
     rptNote = row[5]
 
     for rptReport in rptBatch:

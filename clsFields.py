@@ -85,7 +85,7 @@ def setstylefield(sty):
         st = st | wx.adv.DP_DROPDOWN
     if "MULTIPLE" in sty:
         st = st | wx.LB_MULTIPLE
-     
+
     return st
 
 
@@ -122,7 +122,6 @@ class clsField:
         controldescription,
         dbconnection,
     ):
-
         self.PARENT = parent
         self.ID = id
         self.DBConnection = dbconnection
@@ -142,7 +141,7 @@ class clsField:
             case "TextNumber":
                 self.FIELD = self.clsTextNumber(self, controldescription)
             case "Float":
-                self.FIELD = self.clsFloat(self,controldescription)
+                self.FIELD = self.clsFloat(self, controldescription)
             case "JSON":
                 self.FIELD = self.clsJSON(self, controldescription)
             case "ComboBox":
@@ -222,20 +221,18 @@ class clsField:
 
     class clsStaticBox(wx.StaticBox, clsFieldExtra):
         def __init__(self, parent, controldescription):
-
             super().init_field(parent, controldescription)
             # statictext preprocess
 
             super().__init__(
                 parent.PARENT.FORM,
                 wx.ID_ANY,
-                **getcontrolparameters(self.CONTROLDESCRIPTION)
+                **getcontrolparameters(self.CONTROLDESCRIPTION),
             )
             # self.SetNormalColor()
 
     class clsStaticText(wx.StaticText, clsFieldExtra):
         def __init__(self, parent, controldescription):
-
             super().init_field(parent, controldescription)
 
             # statictext preprocess
@@ -243,7 +240,7 @@ class clsField:
             super().__init__(
                 parent.PARENT.FORM,
                 wx.ID_ANY,
-                **getcontrolparameters(self.CONTROLDESCRIPTION)
+                **getcontrolparameters(self.CONTROLDESCRIPTION),
             )
 
             # statictext postprocess
@@ -255,7 +252,6 @@ class clsField:
 
     class clsTextCtrl(wx.TextCtrl, clsFieldExtra):
         def __init__(self, parent, controldescription):
-
             super().init_field(parent, controldescription)
 
             # textctrl preprocess
@@ -263,7 +259,7 @@ class clsField:
             super().__init__(
                 parent.PARENT.FORM,
                 wx.ID_ANY,
-                **getcontrolparameters(self.CONTROLDESCRIPTION)
+                **getcontrolparameters(self.CONTROLDESCRIPTION),
             )
             self.SetNormalColor()
 
@@ -289,7 +285,6 @@ class clsField:
 
     class clsMultiLine(wx.TextCtrl, clsFieldExtra):
         def __init__(self, parent, controldescription):
-
             super().init_field(parent, controldescription)
 
             # textctrl preprocess
@@ -300,14 +295,12 @@ class clsField:
                 c = list(itertools.chain(a, b))  # only keep one of each.
                 controldescription["stylelist"] = list(set(c))
             else:
-                controldescription.update(
-                    {"stylelist": ["MULTILINE", "PROCESSENTER"]}
-                )
+                controldescription.update({"stylelist": ["MULTILINE", "PROCESSENTER"]})
 
             super().__init__(
                 parent.PARENT.FORM,
                 wx.ID_ANY,
-                **getcontrolparameters(controldescription)
+                **getcontrolparameters(controldescription),
             )
             self.SetNormalColor()
 
@@ -350,15 +343,15 @@ class clsField:
             value = super().GetValue()
             if value == None:
                 return None
-            chklst = {value[i]:"False" for i in range(0,len(value))}
+            chklst = {value[i]: "False" for i in range(0, len(value))}
             return json.dumps(chklst)
 
-        def MergeList(self,lst):
+        def MergeList(self, lst):
             chklst = json.loads(self.GetValue())
             value = chklst | lst
             self.ChangeValue(json.dumps(value))
 
-        def ReplaceList (self,lst):
+        def ReplaceList(self, lst):
             value = json.dumps(lst)
             self.ChangeValue(value)
 
@@ -367,7 +360,6 @@ class clsField:
 
     class clsTextNumber(wx.TextCtrl, clsFieldExtra):
         def __init__(self, parent, controldescription):
-
             super().init_field(parent, controldescription)
             self.controldescription = controldescription
             # textctrl preprocess
@@ -375,7 +367,7 @@ class clsField:
             super().__init__(
                 parent.PARENT.FORM,
                 wx.ID_ANY,
-                **getcontrolparameters(controldescription)
+                **getcontrolparameters(controldescription),
             )
             self.SetNormalColor()
 
@@ -396,18 +388,17 @@ class clsField:
                 )
 
         def GetValue(self):
-            value = self.choices.getchoicedisplay(super().GetValue()).replace(",","")
+            value = self.choices.getchoicedisplay(super().GetValue()).replace(",", "")
             if value == "":
                 value = None
             return value
-        
+
     class clsFloat(clsTextNumber):
         def GetValue(self):
             return float(super().GetValue())
-      
+
     class clsJSON(wx.TextCtrl, clsFieldExtra):
         def __init__(self, parent, controldescription):
-
             super().init_field(parent, controldescription)
 
             # JSON preprocess
@@ -415,7 +406,7 @@ class clsField:
             super().__init__(
                 parent.PARENT.FORM,
                 wx.ID_ANY,
-                **getcontrolparameters(self.CONTROLDESCRIPTION)
+                **getcontrolparameters(self.CONTROLDESCRIPTION),
             )
             self.SetNormalColor()
 
@@ -423,20 +414,19 @@ class clsField:
 
     class clsComboBox(wx.ComboBox, clsFieldExtra):
         def __init__(self, parent, controldesc):
-
             super().init_field(parent, controldesc)
 
             controldescription = self.CONTROLDESCRIPTION.copy()
 
             # combobox preproces
-            choices = self.choices.Load_Choices(controldescription)
+            choices = self.choices.load_choices(controldescription)
             if choices != None:
                 controldescription.update({"choices": choices})
 
             super().__init__(
                 parent.PARENT.FORM,
                 wx.ID_ANY,
-                **getcontrolparameters(controldescription)
+                **getcontrolparameters(controldescription),
             )
             self.SetNormalColor()
 
@@ -488,13 +478,12 @@ class clsField:
 
     class clsListCtrl(wx.ListCtrl, clsFieldExtra):
         def __init__(self, parent, controldesc):
-
             super().init_field(parent, controldesc)
 
             controldescription = self.CONTROLDESCRIPTION.copy()
 
             # combobox preproces
-            choices = self.choices.Load_Choices(controldescription)
+            choices = self.choices.load_choices(controldescription)
             if choices != None:
                 controldescription.update({"choices": choices})
 
@@ -503,7 +492,7 @@ class clsField:
             super().__init__(
                 parent.PARENT.FORM,
                 wx.ID_ANY,
-                **getcontrolparameters(controldescription)
+                **getcontrolparameters(controldescription),
             )
 
             self.InsertColumn(
@@ -521,7 +510,6 @@ class clsField:
             # clsListCtrl postprocess
 
         def SetValue(self, value):
-
             #   clear all the selections
             for item in range(self.GetItemCount()):
                 self.SetItemState(item, 0, wx.LIST_STATE_SELECTED)
@@ -549,13 +537,12 @@ class clsField:
 
     class clsListCtrlID(wx.ListCtrl, clsFieldExtra):
         def __init__(self, parent, controldesc):
-
             super().init_field(parent, controldesc)
 
             controldescription = self.CONTROLDESCRIPTION.copy()
 
             # combobox preproces
-            choices = self.choices.Load_Choices(controldescription)
+            choices = self.choices.load_choices(controldescription)
             if choices != None:
                 controldescription.update({"choices": choices})
 
@@ -564,7 +551,7 @@ class clsField:
             super().__init__(
                 parent.PARENT.FORM,
                 wx.ID_ANY,
-                **getcontrolparameters(controldescription)
+                **getcontrolparameters(controldescription),
             )
 
             self.InsertColumn(
@@ -582,7 +569,6 @@ class clsField:
             # clsListCtrl postprocess
 
         def SetValue(self, value):
-
             #   clear all the selections
             for item in range(self.GetItemCount()):
                 self.SetItemState(item, 0, wx.LIST_STATE_SELECTED)
@@ -613,7 +599,6 @@ class clsField:
 
     class clsCheckBox(wx.CheckBox, clsFieldExtra):
         def __init__(self, parent, controldescription):
-
             super().init_field(parent, controldescription)
 
             # checkbox preprocess
@@ -621,7 +606,7 @@ class clsField:
             super().__init__(
                 parent.PARENT.FORM,
                 wx.ID_ANY,
-                **getcontrolparameters(self.CONTROLDESCRIPTION)
+                **getcontrolparameters(self.CONTROLDESCRIPTION),
             )
             self.SetNormalColor()
 
@@ -638,7 +623,6 @@ class clsField:
 
     class clsCheckListBox(wx.CheckListBox, clsFieldExtra):
         def __init__(self, parent, controldescription):
-
             super().init_field(parent, controldescription)
 
             # checklistbox preprocess
@@ -646,12 +630,12 @@ class clsField:
             super().__init__(
                 parent.PARENT.FORM,
                 wx.ID_ANY,
-                **getcontrolparameters(self.CONTROLDESCRIPTION)
+                **getcontrolparameters(self.CONTROLDESCRIPTION),
             )
 
-            choices = self.choices.Load_Choices(controldescription)
+            choices = self.choices.load_choices(controldescription)
             if choices:
-                self.InsertItems(choices,0)
+                self.InsertItems(choices, 0)
 
             self.SetNormalColor()
 
@@ -689,7 +673,6 @@ class clsField:
 
     class clsButton(wx.Button, clsFieldExtra):
         def __init__(self, parent, controldescription):
-
             super().init_field(parent, controldescription)
 
             if "id" in controldescription:
@@ -704,7 +687,6 @@ class clsField:
 
     class clsDataListViewCtrl(wx.dataview.DataViewListCtrl, clsFieldExtra):
         def __init__(self, parent, controldescription):
-
             super().init_field(parent, controldescription)
 
             # preprocess
@@ -716,7 +698,7 @@ class clsField:
             super().__init__(
                 parent.PARENT.FORM,
                 wx.ID_ANY,
-                **getcontrolparameters(self.CONTROLDESCRIPTION)
+                **getcontrolparameters(self.CONTROLDESCRIPTION),
             )
             self.SetNormalColor()
 
@@ -724,7 +706,9 @@ class clsField:
 
             self.columnnames = []
             for i in range(len(self.CONTROLDESCRIPTION["column"])):
-                width = JSForm.FONT.chtopt(self.CONTROLDESCRIPTION["column"][i]["widthch"])
+                width = JSForm.FONT.chtopt(
+                    self.CONTROLDESCRIPTION["column"][i]["widthch"]
+                )
                 self.AppendTextColumn(
                     label=self.CONTROLDESCRIPTION["column"][i]["label"],
                     width=width,
@@ -850,7 +834,6 @@ class clsField:
 
     class clsDateTime(wx.TextCtrl, clsFieldExtra):
         def __init__(self, parent, controldescription):
-
             super().init_field(parent, controldescription)
 
             # Datetime preprocess
@@ -872,18 +855,16 @@ class clsField:
             self.timefield.Disable()
 
         def SetValue(self, value):
-
             if value is not None:
                 dtfmt = JSForm.CONFIG.get_Config_Value("Format", "DateTime")
                 self.datefield.SetValue(value, dtfmt)
                 self.timefield.SetValue(value, dtfmt)
 
         def GetValue(self):
-
             dt = self.datefield.GetValue()
             tm = self.timefield.GetValue()
             if dt == None:
-                return None            
+                return None
             return dt + " " + tm
 
         def SetWarningColor(self):
@@ -901,7 +882,6 @@ class clsField:
         nonevalue = False
 
         def __init__(self, parent, controldescription):
-
             super().init_field(parent, controldescription)
             controldescription = self.CONTROLDESCRIPTION.copy()
 
@@ -914,7 +894,7 @@ class clsField:
             super().__init__(
                 parent.PARENT.FORM,
                 wx.ID_ANY,
-                **getcontrolparameters(controldescription)
+                **getcontrolparameters(controldescription),
             )
             self.SetNormalColor()
 
@@ -927,8 +907,8 @@ class clsField:
             if value == None:
                 self.nonevalue = True
                 super().SetNullText("")
-                #super().SetValue(datetime.datetime.now())
-                #super().SetValue(None)
+                # super().SetValue(datetime.datetime.now())
+                # super().SetValue(None)
                 return
             try:
                 if dateformat is not None:
@@ -941,13 +921,11 @@ class clsField:
                 clsError.clsErrorHandler("clsFields:clsDatePickerCtrl:SetValue", Err)
             super().SetValue(value)
 
-        def GetValue(self,format=None):
+        def GetValue(self, format=None):
             if format == None:
-              format = JSForm.CONFIG.get_Config_Value("Format", "Date")
+                format = JSForm.CONFIG.get_Config_Value("Format", "Date")
             try:
-                dt = (
-                    super().GetValue().Format(format)
-                )
+                dt = super().GetValue().Format(format)
                 self.nonevalue = False
             except:
                 dt = None
@@ -956,7 +934,6 @@ class clsField:
 
     class clsTimePickerCtrl(wx.adv.TimePickerCtrl, clsFieldExtra):
         def __init__(self, parent, controldescription):
-
             super().init_field(parent, controldescription)
 
             # timepicker preprocess
@@ -964,7 +941,7 @@ class clsField:
             super().__init__(
                 parent.PARENT.FORM,
                 wx.ID_ANY,
-                **getcontrolparameters(self.CONTROLDESCRIPTION)
+                **getcontrolparameters(self.CONTROLDESCRIPTION),
             )
             self.SetNormalColor()
 
@@ -996,7 +973,6 @@ class clsField:
         path = ""
 
         def __init__(self, parent, controldescription):
-
             super().init_field(parent, controldescription)
 
             # filepickerctrl preprocess
@@ -1004,7 +980,7 @@ class clsField:
             super().__init__(
                 parent.PARENT.FORM,
                 wx.ID_ANY,
-                **getcontrolparameters(self.CONTROLDESCRIPTION)
+                **getcontrolparameters(self.CONTROLDESCRIPTION),
             )
 
             # filepickerctrl postprocess
@@ -1046,9 +1022,10 @@ class clsField:
             super().__init__(
                 parent.PARENT.FORM,
                 wx.ID_ANY,
-                **getcontrolparameters(controldescription)
+                **getcontrolparameters(controldescription),
             )
-        def SetValue(self,value):
+
+        def SetValue(self, value):
             self.htmlvalue = value
             super().SetPage(value)
 
