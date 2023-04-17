@@ -7,7 +7,7 @@ import mysql
 import mysql.connector
 
 import clsBASEForms
-from clsFields import getcontrolparameters
+from clsField import getcontrolparameters
 import clsDB
 
 class clsForm(clsBASEForms.clsBASEForm):

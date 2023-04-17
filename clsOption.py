@@ -23,11 +23,17 @@ class clsOption:
             optionfor=optionfor, optiontype=optiontype
         )
         cursor = self.DBConnection.cursor()
-        cursor.execute(SQL)
-        row = cursor.fetchone()
+        try:
+            cursor.execute(SQL)
+            row = cursor.fetchone()
+        except:
+            row = None
         cursor.close()
-        if row==None:
-            return None
+        if not row:
+            cursor = JSFORMOPTION.DBConnection.cursor()
+            cursor.execute(SQL)
+            row = cursor.fetchall()
+            cursor.close()
         return row[0]
 
     def set_Option_Value(self, optionfor, optiontype, optionvalue):
@@ -40,4 +46,5 @@ class clsOption:
         cursor.execute(SQL)
         cursor.close()
 
+JSFORMOPTION = clsOption()
 OPTION = clsOption()

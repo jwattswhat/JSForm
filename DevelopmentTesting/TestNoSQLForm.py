@@ -1,7 +1,7 @@
 import wx
 import mysql
 import clsDB
-import clsFields
+import clsField
 import clsConfig
 from clsForms import clsNoSQLForm
 from clsConfig import CONFIG

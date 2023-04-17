@@ -4,7 +4,7 @@ import mysql.connector
 import JSForm
 
 
-class clsChoices:
+class clsChoice:
     """
     clsChoiceList
 

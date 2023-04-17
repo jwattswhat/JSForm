@@ -11,7 +11,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": ["--Form","formname"]
+            "args": ["--database","JSForm","--user","church","--password","Church99"]
         }
     ]
 }

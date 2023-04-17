@@ -37,10 +37,10 @@ def getcontrolparameters(controldictionary):
     newdict = {}
     if "stylelist" in controldictionary:
         newdict.update({"style": setstylefield(controldictionary["stylelist"])})
-    if "validatorstr" in controldictionary:
-        newdict.update(
-            {"validator": JSForm.setvalidatorfield(controldictionary["validatorstr"])}
-        )
+    #if "validatorstr" in controldictionary:
+    #    newdict.update(
+    #        {"validator": JSForm.setvalidatorfield(controldictionary["validatorstr"])}
+    #    )
 
     for key in JSForm.CONST.wxpythoncallparmameters[controldictionary["type"]]:
         if key in controldictionary.keys():
@@ -189,7 +189,7 @@ class clsField:
             self.DIRTY = False
             self.DBConnection = parent.DBConnection
             self.CONTROLDESCRIPTION = controldescription.copy()
-            self.choices = JSForm.clsChoices(self.DBConnection, self.CONTROLDESCRIPTION)
+            self.choices = JSForm.clsChoice(self.DBConnection, self.CONTROLDESCRIPTION)
 
         def SetValue(self, value):
             if value == None:

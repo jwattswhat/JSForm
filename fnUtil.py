@@ -96,6 +96,18 @@ def next_weekday(d, weekday):
 def date_to_datetime(dt):
     return datetime.combine(dt, datetime.min.time())
 
+def sql_table_exists(dbconnection, tablename):
+    SQL = "SELECT 1 FROM {tablename} LIMIT 1;".format(tablename=tablename)
+    cursor = dbconnection.cursor()
+    try:
+        cursor.execute(SQL)
+        row = cursor.fetchone()
+        cursor.close()
+    except:
+        return False
+    return True
+
+
 
 # print("{:02x}".format(ord("\r")))
 # print("{:02x}".format(ord("\n")))
