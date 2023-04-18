@@ -295,10 +295,18 @@ class clsForm:
 
         FormLocation = JSForm.CONFIG.get_Config_Value("Location", "Form")
 
-        formname = FormLocation + Form + ".json"
-        f = open(
-            formname,
-        )
+        #   if the form doesn't exist locally check in JSForm
+        try:
+            formname = FormLocation + Form + ".json"
+            f = open(
+                formname,
+            )
+        except:
+            FormLocation = os.path.dirname(JSForm.__file__) + "\\Forms\\"
+            formname = FormLocation + Form + ".json"
+            f = open(
+                formname,
+            )
         jsonfrm = json.load(f)
 
         if JSForm.OPTION.get_Option_Value("JSONSchema", "CheckForms") == "Yes":
