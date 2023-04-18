@@ -26,7 +26,17 @@
                 "type":"StaticText",
                 "label":"Config",
                 "posch":[1,5]
+            },
+            "lblReports": {
+                "name": "lblReports",
+                "type": "StaticText",
+                "posch": [
+                    1,
+                    7
+                ],
+                "label": "Reports"
             }
+
         }
     }
 }
