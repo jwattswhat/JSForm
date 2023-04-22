@@ -163,7 +163,7 @@ class clsSQL:
         match self.sqldescription[field]["type"]:
             case "TINY":
                 return value == 1
-            case "LONG":
+            case "LONG"|"FLOAT":
                 return value
             case "TIME":
                 return value.strftime(JSForm.CONFIG.get_Config_Value("Format", "Time"))
@@ -255,13 +255,7 @@ class clsSQL:
 
             #   string types
 
-            case "VAR_STRING":
-                value = self._string_to_list(value)
-
-            case "STRING":
-                value = self._string_to_list(value)
-
-            case "BLOB":
+            case "VAR_STRING"|"STRING"|"BLOB":
                 value = self._string_to_list(value)
 
             #   Boolean types
@@ -273,10 +267,8 @@ class clsSQL:
                     value = False
 
             #   Numeric
-            case "FLOAT":
-                value = value
 
-            case "LONG":
+            case "LONG"|"FLOAT":
                 value = value
 
             #   Date and Time Types

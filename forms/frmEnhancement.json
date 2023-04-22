@@ -20,7 +20,7 @@
             ],
             "sizech": [
                 45,
-                37
+                30
             ]
         },
         "CONTROLS": {
@@ -194,10 +194,6 @@
                 "posch": [
                     8,
                     15
-                ],
-                "sizech": [
-                    24,
-                    2
                 ]
             },
             "lblCompleteDate": {

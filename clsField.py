@@ -395,7 +395,10 @@ class clsField:
 
     class clsFloat(clsTextNumber):
         def GetValue(self):
-            return float(super().GetValue())
+            value = super().GetValue()
+            if value == None:
+                value = 0.0
+            return float(value)
 
     class clsJSON(wx.TextCtrl, clsFieldExtra):
         def __init__(self, parent, controldescription):
@@ -899,17 +902,19 @@ class clsField:
             self.SetNormalColor()
 
             # DatePicker postprocess
-            if "ALLOWNONE" in controldescription["stylelist"]:
-                super().SetNullText("")
+            if "stylelist" in controldescription:
+                if "ALLOWNONE" in controldescription["stylelist"]:
+                    super().SetNullText("")
+                    super().SetValue(wx.DateTime())
 
         def SetValue(self, value, dateformat=None):
-            self.nonevalue = False
-            if value == None:
-                self.nonevalue = True
-                super().SetNullText("")
-                # super().SetValue(datetime.datetime.now())
-                # super().SetValue(None)
-                return
+            if "stylelist" in self.CONTROLDESCRIPTION:
+                if (not value) and "ALLOWNONE" in self.CONTROLDESCRIPTION["stylelist"]:
+                    super().SetNullText("")
+                    super().SetValue(wx.DateTime())
+                    # super().SetValue(datetime.datetime.now())
+                    # super().SetValue(None)
+                    return
             try:
                 if dateformat is not None:
                     value = datetime.datetime.strptime(value, dateformat)
