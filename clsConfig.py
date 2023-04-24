@@ -6,6 +6,23 @@ class clsConfig:
     clsConfig.py - Configuration Class for getting and setting system configuration data
     Rev. Jonathan C. Watt
     July 2022
+
+    this class gives the tools to manager system configuration.
+    it first looks in the application configuration table.
+    if config value is not found it looks in the JSForm configuration table.
+
+    ConfigFamily - Group for the configuration value (all may be read at once)
+    ConfigType - Individual configuration key
+
+    CREATE TABLE IF NOT EXISTS `tblconfig` (
+        `ID` int(11) NOT NULL AUTO_INCREMENT,
+        `ConfigFamily` varchar(255) NOT NULL,
+        `ConfigType` varchar(100) NOT NULL,
+        `ConfigValue` varchar(255) NOT NULL,
+        `Note` longtext DEFAULT NULL,
+    PRIMARY KEY (`ID`),
+    )
+
     """
 
     def __init__(self, DBConnection=None):
@@ -63,6 +80,5 @@ class clsConfig:
             cursor.close()
         return rows
 
-JSFORMCONFIG = clsConfig()
-CONFIG = clsConfig()
-
+JSFORMCONFIG = clsConfig()      #   Forms Configuragion
+CONFIG = clsConfig()            #   Application Configuration

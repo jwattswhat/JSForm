@@ -140,6 +140,8 @@ class clsField:
                 self.FIELD = self.clsTextCtrl(self, controldescription)
             case "TextNumber":
                 self.FIELD = self.clsTextNumber(self, controldescription)
+            case "Currency":
+                self.FIELD = self.clsCurrency(self, controldescription)
             case "Float":
                 self.FIELD = self.clsFloat(self, controldescription)
             case "JSON":
@@ -392,6 +394,9 @@ class clsField:
             if value == "":
                 value = None
             return value
+
+    class clsCurrency(clsTextNumber):
+        pass
 
     class clsFloat(clsTextNumber):
         def GetValue(self):
@@ -908,22 +913,15 @@ class clsField:
                     super().SetValue(wx.DateTime())
 
         def SetValue(self, value, dateformat=None):
-            if "stylelist" in self.CONTROLDESCRIPTION:
-                if (not value) and "ALLOWNONE" in self.CONTROLDESCRIPTION["stylelist"]:
+            if not dateformat:
+                dateformat = JSForm.CONFIG.get_Config_Value("Format", "Date")
+            if (not value):
+                if "stylelist" in self.CONTROLDESCRIPTION and "ALLOWNONE" in self.CONTROLDESCRIPTION["stylelist"]:
                     super().SetNullText("")
                     super().SetValue(wx.DateTime())
-                    # super().SetValue(datetime.datetime.now())
-                    # super().SetValue(None)
-                    return
-            try:
-                if dateformat is not None:
-                    value = datetime.datetime.strptime(value, dateformat)
-                else:
-                    value = datetime.datetime.strptime(
-                        value, JSForm.CONFIG.get_Config_Value("Format", "Date")
-                    )
-            except Exception as Err:
-                clsError.clsErrorHandler("clsFields:clsDatePickerCtrl:SetValue", Err)
+                    return None
+                value = datetime.date.today().strftime(dateformat) 
+            value = datetime.datetime.strptime(value, dateformat)
             super().SetValue(value)
 
         def GetValue(self, format=None):
@@ -953,18 +951,15 @@ class clsField:
             # timepicker postprocess
 
         def SetValue(self, value, timeformat=None):
-            if value == None:
-                return
-                # value = datetime.datetime.now().time()
-            try:
-                if timeformat is not None:
-                    value = datetime.datetime.strptime(value, timeformat)
-                else:
-                    value = datetime.datetime.strptime(
-                        value, JSForm.CONFIG.get_Config_Value("Format", "Time")
-                    )
-            except Exception as Err:
-                JSForm.clsErrorHandler(9999, Err)
+            if not timeformat:
+                timeformat = JSForm.CONFIG.get_Config_Value("Format", "Time")
+            if (not value):
+                if "stylelist" in self.CONTROLDESCRIPTION and "ALLOWNONE" in self.CONTROLDESCRIPTION["stylelist"]:
+                    super().SetNullText("")
+                    super().SetValue(wx.DateTime())
+                    return None
+                value = datetime.date.today().strftime(timeformat) 
+            value = datetime.datetime.strptime(value, timeformat)
             super().SetValue(value)
 
         def GetValue(self):

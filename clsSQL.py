@@ -12,6 +12,24 @@ import JSForm
 
 
 class clsSQL:
+    """
+    clsSQL - Manages SQL Statements
+
+    dbConnection - SQL Database connection
+    table - python dictionary describing the SQL Table
+    parentrecord - calling parent record
+
+    table {
+        "name":"{tablename}"
+        "fields:["fieldname","fieldname"] - ex.  ["lastname","FirstName"]
+        "condition":"{valid sql condition}" - ex, "ID = {parentrecord[ID]}
+        "orderby":"{valid sql orderby statement}" - ex. "lastname, firstname DESC"
+    }
+
+    data may be incorporated in "condition" statment which includes values from tblOptions
+        format is {OPTION:{optionfor}:{optiontype}}  ex. "condition":"Lectionary = {OPTION:Lectionary:Current}"
+
+    """
     class clsAsPairs:
         def __init__(self, sqlcolumns):
             self.find(sqlcolumns)
@@ -274,15 +292,24 @@ class clsSQL:
             #   Date and Time Types
 
             case "DATETIME":
-                if value != None:
+                if value:
+                    value = value.strftime(JSForm.CONFIG.get_Config_Value("Format", "DateTime"))
+                else:
+                    value = datetime.datetime.now()
                     value = value.strftime(JSForm.CONFIG.get_Config_Value("Format", "DateTime"))
             case "DATE":
-                if value != None:
+                if value:
+                    value = value.strftime(JSForm.CONFIG.get_Config_Value("Format", "Date"))
+                else:
+                    value = datetime.datetime.now()
                     value = value.strftime(JSForm.CONFIG.get_Config_Value("Format", "Date"))
             case "TIME":
-                if value != None:
+                if value:
                     dt = datetime.datetime(2022, 1, 1) + value
                     value = dt.strftime(JSForm.CONFIG.get_Config_Value("Format", "Time"))
+                else:
+                    value = datetime.datetime.now()
+                    value = value.strftime(JSForm.CONFIG.get_Config_Value("Format", "Time"))
 
             #   Default to string type
 

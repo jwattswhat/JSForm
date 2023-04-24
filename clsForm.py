@@ -33,9 +33,16 @@ class clsForm:
     Rev. Jonathan C. Watt
     July 2021
 
-       Class Variables.
+        Parameters
+            parent - Parent form or None
+            dbconnection - dbConnection for records displayed in form
+            formname - name of the form corrisponds to json form file
+            controls - standard form controls. (see btnNavigationCONTROLS clsConstant.py)
+            frmdescription - dictionary containing json form informaion
+            position - position on screen (upper right corner), overrides json "posch" value
+            parentrecord - Parent record from calling form
+            fillonblank - Fields to fill when new record is generated.
 
-       Parameters
 
     """
 
@@ -863,7 +870,7 @@ class clsForm:
                 value = self.CONTROLID[fld].GetValue()
             else:
                 value = None
-            if value == None:
+            if value is None:
                 if not self.RECORDS.sql.sqldescription[fld]["null_ok"]:
                     required.append(fld)
                     continue

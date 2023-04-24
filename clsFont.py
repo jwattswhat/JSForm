@@ -10,6 +10,13 @@ import wx
 
 import JSForm
 class clsFont:
+    """
+        clsFont - Manages Font settings for display.
+        reads 
+            PointSize, Family, Style, Weight, Face, Underline from tblConfig table.
+            see wx.Font wxPython for more information.
+
+    """
     def __init__(self, DBConnection=None):
         self.fontdict = {}
         self._currentfont = wx.Font()
@@ -81,6 +88,5 @@ class clsFont:
         dlg.Destroy()
 
         return self._currentfont
-
 
 FONT = clsFont()

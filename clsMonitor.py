@@ -3,6 +3,9 @@ import pprint
 
 
 class clsMonitor:
+    """
+    clsMonitor - Manages data for the display.
+    """
     fontsize = 1
     monitor = {}
 

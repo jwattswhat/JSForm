@@ -7,6 +7,18 @@ class clsOption:
     clsOption.py - Option Class for Getting and Setting System Options
     Rev. Jonathan C. Watt
     August 9, 2022
+
+    Manages data for local application.
+
+    CREATE TABLE IF NOT EXISTS `tbloptions` (
+        `ID` int(11) NOT NULL AUTO_INCREMENT,
+        `OptionFor` varchar(255) NOT NULL,
+        `OptionType` varchar(255) NOT NULL,
+        `OptionValue` longtext NOT NULL,
+        `Note` longtext DEFAULT NULL,
+    PRIMARY KEY (`ID`)
+    )
+
     """
 
 

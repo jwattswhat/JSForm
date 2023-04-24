@@ -19,6 +19,11 @@ class clsConstantsNameSpace:
     FORM_NEXT = 2
     FORM_LAST = 3
 
+    """
+    wxpythoncallparameters
+        Used to sort out actual parameters for wxpython calls. 
+        if the value isn't in the list it is ignored for wxpython purposes and not passed in calls.
+    """
     wxpythoncallparmameters = {
         #   screen types
         "Dialog": [
@@ -61,6 +66,12 @@ class clsConstantsNameSpace:
         "TextNumber": [
             "name",
             "label",
+            "pos",
+            "size",
+            "style",
+        ],
+        "Currency": [
+            "name",
             "pos",
             "size",
             "style",

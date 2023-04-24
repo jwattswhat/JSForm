@@ -4,6 +4,10 @@ import JSForm
 
 
 class clsSMTP:
+    """
+        clsSMTP - Manages SMTP connection and allows sending eMail
+            see yagmail Python library
+    """
     def __init__(self):
         smtprows = JSForm.CONFIG.get_Config_Family("SMTP")
         for smtp in range(len(smtprows)):

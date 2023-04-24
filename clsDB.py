@@ -17,12 +17,20 @@ import JSForm
 
 class clsDB:
     """
-    clsDB -
+    clsDB - Database Class
     Rev. Jonathan C. Watt
     July 2021
 
+    to manager connections and credentials for sql databases
+    
     DB = dictionary description of username, password, host, database
     DBconnection = connection to database
+
+        host - DB Host
+        databasename - database name
+        username - user id
+        password - user password
+            if username or password are unspecified a dalog box will open for input
     """
     class _getcredentials(wx.Dialog):
         def __init__(self, parent, title):
@@ -70,10 +78,20 @@ class clsDB:
 
 class clsRecord:
     """
-    <TODO> Add comments for clsRecord
         clsRecord -
         Rev. Jonathan C. Watt
         July 2021
+
+        Manages the loading of records from the specified database
+        loads all records specified with valid sql select into a dictionary
+        setting the first one as current. 
+        first,next,prev,last step through the records.
+        it allows for updates and deletion of the current record.
+
+        also manages "dirty" records and fields.
+            as a new record becomes current the value is saved for comparision
+            recordisdirty returns true if the old value doesn't match the current.
+
     """
     BlankRecord = -1
 

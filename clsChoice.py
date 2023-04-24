@@ -6,12 +6,24 @@ import JSForm
 
 class clsChoice:
     """
-    clsChoiceList
+    clsChoices
 
     This class is used to manage autofill dropdown lists for ComboBoxes.
+        if the control properties use the value "choices" those values are loaded.
+        if not the fieldname is used to lookup the choices values from tblChoices
+
         display - list of dropdown display values
         fieldname - list of fieldnames in the display value
-        fielddata - list of the data related to the fieldname (seperated for easy use)
+        fielddata - list of the values for choices in the comobox dropdown list.
+        values "in Choices"are seperated by <CR><LF>
+
+    CREATE TABLE IF NOT EXISTS `tblchoices` (
+        `ID` int(11) NOT NULL AUTO_INCREMENT,
+        `Field` varchar(255) NOT NULL,
+        `Choices` longtext NOT NULL,
+        `Note` longtext DEFAULT NULL,
+        PRIMARY KEY (`ID`)
+    )
     """
 
     def __init__(self, dbconnection, controldescription):
@@ -59,6 +71,10 @@ class clsChoice:
 
     def len(self):
         return len(self.display)
+
+    # 
+    #   internal methods
+    #
 
     def _loadfromchoicestable(self):
         """
