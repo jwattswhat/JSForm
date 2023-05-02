@@ -3,7 +3,7 @@
         "FORM": {
             "name": "frmReports",
             "type": "Panel",
-            "title": "frmReports: Church Manager - Report Menu",
+            "title": "frmReports: JSForm - Report Menu",
             "posch": [
                 -1,
                 -1

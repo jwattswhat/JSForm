@@ -22,11 +22,17 @@ class clsOption:
     """
 
 
-    def __init__(self, DBConnection=None):
-        self.DBConnection = DBConnection
+    def __init__(self, DB=None):
+        if not DB:
+            self.DBConnection = None
+            self.JSConnection = None
+        else:
+            self.DBConnection = DB.DBConnection
+            self.JSConnection = DB.JSConnection
 
-    def set_Option_DBConnection(self, DBConnection):
-        self.DBConnection = DBConnection
+    def set_Option_DBConnection(self, DB):
+        self.DBConnection = DB.DBConnection
+        self.JSConnection = DB.JSConnection
 
     def get_Option_Value(self, optionfor, optiontype):
         if self.DBConnection == None:
@@ -34,15 +40,15 @@ class clsOption:
         SQL = 'SELECT OptionValue FROM tblOptions WHERE OptionFor = "{optionfor}" AND OptionType = "{optiontype}";'.format(
             optionfor=optionfor, optiontype=optiontype
         )
-        cursor = self.DBConnection.cursor()
         try:
+            cursor = self.DBConnection.cursor()
             cursor.execute(SQL)
             row = cursor.fetchone()
         except:
             row = None
         cursor.close()
         if not row:
-            cursor = JSFORMOPTION.DBConnection.cursor()
+            cursor = self.JSConnection.cursor()
             cursor.execute(SQL)
             row = cursor.fetchall()
             cursor.close()
@@ -58,5 +64,4 @@ class clsOption:
         cursor.execute(SQL)
         cursor.close()
 
-JSFORMOPTION = clsOption()
 OPTION = clsOption()

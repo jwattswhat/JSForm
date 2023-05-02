@@ -52,7 +52,7 @@ args = cmparser.parse_args()
 # print(args.server,args.database,args.user,args.password)
 
 
-server = args.server
+host = args.server
 database = args.database
 user = args.user
 password = args.password
@@ -62,7 +62,7 @@ app = wx.App(0)
 #
 # 	Connect to DataBase
 #
-JSFormDB = JSForm.clsDB(server, database, user, password)
+JSFormDB = JSForm.clsDB(host, database, user, password)
 JSForm.CONFIG.set_Config_DBConnection(JSFormDB.DBConnection)
 JSForm.OPTION.set_Option_DBConnection(JSFormDB.DBConnection)
 JSForm.FONT.set_Font_DBConnection(JSFormDB.DBConnection)

@@ -289,6 +289,9 @@ class clsSQL:
             case "LONG"|"FLOAT":
                 value = value
 
+            case "NEWDECIMAL":
+                value = str(value)
+
             #   Date and Time Types
 
             case "DATETIME":
@@ -359,6 +362,8 @@ class clsSQL:
                 value = str(value)
 
             case "FLOAT":
+                value = str(value)
+            case "NEWDECIMAL":
                 value = str(value)
 
             #   Date and Time Types

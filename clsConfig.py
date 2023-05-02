@@ -25,11 +25,17 @@ class clsConfig:
 
     """
 
-    def __init__(self, DBConnection=None):
-        self.DBConnection = DBConnection
+    def __init__(self, DB=None):
+        if not DB:
+            self.DBConnection = None
+            self.JSConnection = None
+        else:
+            self.DBConnection = DB.DBConnection
+            self.JSConnection = DB.JSConnection
 
-    def set_Config_DBConnection(self, DBConnection):
-        self.DBConnection = DBConnection
+    def set_Config_DBConnection(self, DB):
+        self.DBConnection = DB.DBConnection
+        self.JSConnection = DB.JSConnection
 
     def get_Config_Value(self, ConfigFamily, ConfigType):
         if self.DBConnection == None:
@@ -44,7 +50,9 @@ class clsConfig:
             row = None
         cursor.close()
         if not row:
-            cursor = JSFORMCONFIG.DBConnection.cursor()
+            SQL = "SELECT ConfigValue FROM jsConfig WHERE ConfigFamily = '{ConfigFamily}' AND ConfigType = '{ConfigType}';".format(
+                ConfigFamily=ConfigFamily, ConfigType=ConfigType)
+            cursor = self.JSConnection.cursor()
             cursor.execute(SQL)
             row = cursor.fetchone()
             cursor.close()
@@ -74,11 +82,13 @@ class clsConfig:
             rows = None
         cursor.close()
         if not rows:
-            cursor = JSFORMCONFIG.DBConnection.cursor()
+            SQL = "SELECT ConfigType, ConfigValue FROM jsConfig WHERE ConfigFamily = '{configfamily}';".format(
+                configfamily=configfamily
+                    )
+            cursor = self.JSConnection.cursor()
             cursor.execute(SQL)
             rows = cursor.fetchall()
             cursor.close()
         return rows
 
-JSFORMCONFIG = clsConfig()      #   Forms Configuragion
 CONFIG = clsConfig()            #   Application Configuration

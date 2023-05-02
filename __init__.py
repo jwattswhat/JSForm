@@ -1,5 +1,5 @@
 from JSForm.clsConstant import CONST
-from JSForm.clsConfig import JSFORMCONFIG, CONFIG
+from JSForm.clsConfig import CONFIG
 from JSForm.clsOption import OPTION
 from JSForm.clsFont import FONT
 from JSForm.clsLog import LG

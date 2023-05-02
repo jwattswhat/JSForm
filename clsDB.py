@@ -49,7 +49,7 @@ class clsDB:
 
     def __init__(self, host=None, databasename=None, username=None, password=None):
         global CONFIG,OPTION,FONT
-        if username == None or password  == None:
+        if host == None or databasename == None or username == None or password  == None:
                 dlg = self._getcredentials(self, title="Enter DB Login info")
                 if host:
                     dlg.host.SetValue(host)
@@ -75,6 +75,15 @@ class clsDB:
             "database": databasename,
         }
         self.DBConnection = mysql.connector.connect(**self.DBCredintials)
+
+        #   Make connection to JSForms DB
+        self.JSCredintials = {
+            "user": username,
+            "password": password,
+            "host": host,
+            "database": "JSForm"
+        }
+        self.JSConnection = mysql.connector.connect(**self.JSCredintials)
 
 class clsRecord:
     """

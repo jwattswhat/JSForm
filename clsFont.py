@@ -17,13 +17,16 @@ class clsFont:
             see wx.Font wxPython for more information.
 
     """
-    def __init__(self, DBConnection=None):
+    def __init__(self, DB=None):
         self.fontdict = {}
         self._currentfont = wx.Font()
-        self.DBConnection = DBConnection
+        if not DB:
+            self.DBConnection = None
+        else:
+            self.DBConnection = DB.DBConnection
 
-    def set_Font_DBConnection(self, DBConnection):
-        self.DBConnection = DBConnection
+    def set_Font_DBConnection(self, DB):
+        self.DBConnection = DB.DBConnection
 
     def Get_Config_Font(self):
         self.fontdict = {}

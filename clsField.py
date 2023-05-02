@@ -366,6 +366,11 @@ class clsField:
             self.controldescription = controldescription
             # textctrl preprocess
 
+            if "style" not in controldescription:
+                controldescription["style"] = wx.TE_RIGHT
+            else:
+                controldescription["style"] = controldescription["style"] |wx.TE_RIGHT
+
             super().__init__(
                 parent.PARENT.FORM,
                 wx.ID_ANY,
@@ -379,15 +384,19 @@ class clsField:
             if value == None:
                 super().SetValue("")
             else:
-                return super().SetValue(self.controldescription["format"].format(value))
+                if "format" in self.controldescription:
+                    super().SetValue(self.controldescription["format"].format(value))
+                else:
+                    super().SetValue(value)
 
         def ChangeValue(self, value):
             if value == None:
                 super().ChangeValue("")
             else:
-                return super().ChangeValue(
-                    self.controldescription["format"].format(value)
-                )
+                if "format" in self.controldescription:
+                    super().SetValue(self.controldescription["format"].format(value))
+                else:
+                    super().SetValue(value)
 
         def GetValue(self):
             value = self.choices.getchoicedisplay(super().GetValue()).replace(",", "")
@@ -397,7 +406,6 @@ class clsField:
 
     class clsCurrency(clsTextNumber):
         pass
-
     class clsFloat(clsTextNumber):
         def GetValue(self):
             value = super().GetValue()
