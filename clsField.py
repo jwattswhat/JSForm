@@ -236,13 +236,14 @@ class clsField:
     class clsStaticText(wx.StaticText, clsFieldExtra):
         def __init__(self, parent, controldescription):
             super().init_field(parent, controldescription)
-
             # statictext preprocess
+
+            controldescription["label"] = self.getOption(controldescription["label"])
 
             super().__init__(
                 parent.PARENT.FORM,
                 wx.ID_ANY,
-                **getcontrolparameters(self.CONTROLDESCRIPTION),
+                **getcontrolparameters(controldescription),
             )
 
             # statictext postprocess
@@ -251,6 +252,26 @@ class clsField:
             if value != None:
                 super().SetLabel(value)
             self.SetNormalColor()
+
+        def getOption(self, txt):
+            texttxt = txt
+            pos = 0
+            while True:
+                start = txt.find("{OPTION", pos)
+                if start == -1:
+                    break
+                end = txt.find("}", start)
+                c1 = txt.find(":", start)
+                c2 = txt.find(":", c1 + 1)
+                optionfor = txt[c1 + 1 : c2]
+                optiontype = txt[c2 + 1 : end]
+                pos = start + 1
+                texttxt = txt.replace(
+                    txt[start : end + 1],
+                    '"' + JSForm.OPTION.get_Option_Value(optionfor, optiontype) + '"',
+                    1,
+                )
+            return texttxt
 
     class clsTextCtrl(wx.TextCtrl, clsFieldExtra):
         def __init__(self, parent, controldescription):

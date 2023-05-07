@@ -48,6 +48,10 @@ class clsOption:
             row = None
         cursor.close()
         if not row:
+            SQL = 'SELECT OptionValue FROM jsOptions WHERE OptionFor = "{optionfor}" AND OptionType = "{optiontype}";'.format(
+            optionfor=optionfor, optiontype=optiontype
+            )
+
             cursor = self.JSConnection.cursor()
             cursor.execute(SQL)
             row = cursor.fetchall()
@@ -57,7 +61,7 @@ class clsOption:
     def set_Option_Value(self, optionfor, optiontype, optionvalue):
         if self.DBConnection == None:
             return None
-        SQL = "UPDATE tblOption SET OptionValue ='{OptionValue}' WHERE OptionFor = '{OptionFor}' AND OptionValue='{OptionValue}';".format(
+        SQL = "UPDATE tblOptions SET OptionValue ='{OptionValue}' WHERE OptionFor = '{OptionFor}' AND OptionType='{OptionType}';".format(
             OptionFor=optionfor, OptionType=optiontype, OptionValue=optionvalue
         )
         cursor = self.DBConnection.cursor()

@@ -63,9 +63,9 @@ app = wx.App(0)
 # 	Connect to DataBase
 #
 JSFormDB = JSForm.clsDB(host, database, user, password)
-JSForm.CONFIG.set_Config_DBConnection(JSFormDB.DBConnection)
-JSForm.OPTION.set_Option_DBConnection(JSFormDB.DBConnection)
-JSForm.FONT.set_Font_DBConnection(JSFormDB.DBConnection)
+JSForm.CONFIG.set_Config_DBConnection(JSFormDB)
+JSForm.OPTION.set_Option_DBConnection(JSFormDB)
+JSForm.FONT.set_Font_DBConnection(JSFormDB)
 JSForm.FONT.Get_Config_Font()
 JSForm.CONST.btnNavigationCONTROLS = JSForm.convertNavButtons(
     JSForm.CONST.btnNavigationCONTROLS

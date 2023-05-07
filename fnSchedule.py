@@ -1,11 +1,10 @@
 import mysql
 import datetime
 
-import clsDB
-import clsSQL
-import clsSMTP
-from clsConfig import CONFIG
-
+from JSForm import clsDB
+from JSForm import clsSQL
+from JSForm import clsSMTP
+from JSForm import CONFIG
 
 def readonerecord(dbconn, table):
     SQL = clsSQL.clsSQL(dbconn, table)
@@ -38,7 +37,7 @@ def strtolist(st):
 
 def ScheduleParticipants(ServiceID):
 
-    ChurchDB = clsDB.clsDB("localhost", "ChurchDB", "church", "Church99")
+    ChurchDB = clsDB.clsDB("192.168.3.200", "ChurchDB", "church", "Church99")
     ChurchDBConnection = mysql.connector.connect(**ChurchDB.DB)
 
     # check for previous schedule for this service
