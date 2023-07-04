@@ -866,6 +866,8 @@ class clsForm:
         for fld in self.RECORDS.sql.sqldescription:
             if fld == "ID":
                 continue
+            if fld not in self.CONTROLID:
+                continue
             if fld in self.CONTROLID:
                 value = self.CONTROLID[fld].GetValue()
             else:

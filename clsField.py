@@ -12,7 +12,10 @@ import os
 import pathlib
 import itertools
 import sys
-
+import locale
+from decimal import *
+c = getcontext()
+c.traps[FloatOperation] = True
 # import wxpython
 
 import wx
@@ -37,7 +40,7 @@ def getcontrolparameters(controldictionary):
     newdict = {}
     if "stylelist" in controldictionary:
         newdict.update({"style": setstylefield(controldictionary["stylelist"])})
-    #if "validatorstr" in controldictionary:
+    # if "validatorstr" in controldictionary:
     #    newdict.update(
     #        {"validator": JSForm.setvalidatorfield(controldictionary["validatorstr"])}
     #    )
@@ -85,7 +88,8 @@ def setstylefield(sty):
         st = st | wx.adv.DP_DROPDOWN
     if "MULTIPLE" in sty:
         st = st | wx.LB_MULTIPLE
-
+    if "JUSTIFYRIGHT" in sty:
+        st = st | wx.TE_RIGHT
     return st
 
 
@@ -390,7 +394,7 @@ class clsField:
             if "style" not in controldescription:
                 controldescription["style"] = wx.TE_RIGHT
             else:
-                controldescription["style"] = controldescription["style"] |wx.TE_RIGHT
+                controldescription["style"] = controldescription["style"] | wx.TE_RIGHT
 
             super().__init__(
                 parent.PARENT.FORM,
@@ -425,8 +429,20 @@ class clsField:
                 value = None
             return value
 
-    class clsCurrency(clsTextNumber):
-        pass
+    class clsCurrency(clsTextCtrl):
+        def GetValue(self):
+            value = super().GetValue()
+            if value == None:
+                value = "0.00"
+            return Decimal(value)
+
+        def SetValue(self, value):
+            if value == None:
+                super().SetValue("")
+            else:
+                d = Decimal(value)
+                super().SetValue(Decimal(value))
+
     class clsFloat(clsTextNumber):
         def GetValue(self):
             value = super().GetValue()
@@ -944,12 +960,15 @@ class clsField:
         def SetValue(self, value, dateformat=None):
             if not dateformat:
                 dateformat = JSForm.CONFIG.get_Config_Value("Format", "Date")
-            if (not value):
-                if "stylelist" in self.CONTROLDESCRIPTION and "ALLOWNONE" in self.CONTROLDESCRIPTION["stylelist"]:
+            if not value:
+                if (
+                    "stylelist" in self.CONTROLDESCRIPTION
+                    and "ALLOWNONE" in self.CONTROLDESCRIPTION["stylelist"]
+                ):
                     super().SetNullText("")
                     super().SetValue(wx.DateTime())
                     return None
-                value = datetime.date.today().strftime(dateformat) 
+                value = datetime.date.today().strftime(dateformat)
             value = datetime.datetime.strptime(value, dateformat)
             super().SetValue(value)
 
@@ -982,12 +1001,15 @@ class clsField:
         def SetValue(self, value, timeformat=None):
             if not timeformat:
                 timeformat = JSForm.CONFIG.get_Config_Value("Format", "Time")
-            if (not value):
-                if "stylelist" in self.CONTROLDESCRIPTION and "ALLOWNONE" in self.CONTROLDESCRIPTION["stylelist"]:
+            if not value:
+                if (
+                    "stylelist" in self.CONTROLDESCRIPTION
+                    and "ALLOWNONE" in self.CONTROLDESCRIPTION["stylelist"]
+                ):
                     super().SetNullText("")
                     super().SetValue(wx.DateTime())
                     return None
-                value = datetime.date.today().strftime(timeformat) 
+                value = datetime.date.today().strftime(timeformat)
             value = datetime.datetime.strptime(value, timeformat)
             super().SetValue(value)
 
