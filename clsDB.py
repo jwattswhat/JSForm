@@ -310,8 +310,8 @@ class clsRecord:
             sql = "SELECT Last_Insert_ID();"
             try:
                 cursor.execute(sql)
-            except:
-                print("sql error {sql}".format(sql=sql))
+            except Exception as ex:
+                print("sql error {err}:{sql} ".format(err=ex, sql=sql))
             lid = cursor.fetchone()
             cursor.close()
             self.setfieldvalue("ID", lid[0])
@@ -322,8 +322,8 @@ class clsRecord:
             sql = self.sql.update(self._record[self._position])
             try:
                 cursor.execute(sql)
-            except:
-                print("sql error {sql}".format(sql=sql))
+            except Exception as ex:
+                print("sql error {err}:{sql} ".format(err=ex, sql=sql))
             self.DBConnection.commit()
             cursor.close()
         self.original.saverecord(self.current())
