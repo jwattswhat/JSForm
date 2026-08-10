@@ -401,11 +401,11 @@ The repository also includes `tblReports`, described in [Reports](#reports).
 | MySQL connector type | Form representation |
 | --- | --- |
 | `TINY` | Python Boolean. |
-| `LONG`, `FLOAT` | Numeric value. |
+| Integer and floating-point types | Native Python numeric value. |
 | `NEWDECIMAL` | String representation. |
-| `DATE` | String formatted using `Format/Date`. |
-| `TIME` | String formatted using `Format/Time`. |
-| `DATETIME` | String formatted using `Format/DateTime`. |
+| `DATE` | Native Python `date`; formatted only by the screen control. |
+| `TIME` | Native Python `timedelta`; formatted only by the screen control. |
+| `DATETIME` | Native Python `datetime`; formatted only by the screen control. |
 | `VAR_STRING`, `STRING`, `BLOB` | String, or a list if the stored text begins with `[`. |
 
 Lists are historically stored as bracketed, carriage-return-separated text. `CheckListBox`, by contrast, stores a JSON object mapping labels to string values `"True"` and `"False"`.
@@ -748,7 +748,7 @@ Each `column` needs `name`, `label`, and `widthch`. A column can contain a `look
 
 ### `DatePickerCtrl`
 
-A date picker whose string representation is controlled by the `Format/Date` configuration value. Add `ALLOWNONE` to permit a null date.
+A date picker displayed according to `Format/Date`. `GetValue()` returns a native Python `date`. Add `ALLOWNONE` to permit a null date.
 
 ```json
 "BirthDate": {
@@ -764,11 +764,11 @@ Without `ALLOWNONE`, an empty value defaults to today's date.
 
 ### `TimePickerCtrl`
 
-A time picker whose string representation is controlled by `Format/Time`.
+A time picker displayed according to `Format/Time`. `GetValue()` returns a native Python `timedelta`, matching MariaDB's `TIME` representation.
 
 ### `DateTime`
 
-A composite control containing a date picker and time picker. It divides the configured width between those two controls and returns a combined date/time string.
+A composite control containing a date picker and time picker. It divides the configured width between those controls and returns a native Python `datetime`.
 
 ### `FilePickerCtrl`
 
@@ -795,7 +795,7 @@ A `wx.html.HtmlWindow`. `SetValue()` calls `SetPage()` and `GetValue()` returns 
 ### `CalendarCtrl`
 
 A calendar-style date selector. It accepts configured date strings, Python
-`date`/`datetime` values, and returns a string using `Format/Date`.
+`date`/`datetime` values, and returns a native Python `date`.
 
 ## Choices and lookups
 
@@ -1155,7 +1155,7 @@ Framework methods call the global logger `JSForm.LG`. The current logger writes 
 | Control remains blank | Control key/name does not match a selected database field. |
 | Combo box has no choices | No literal choices, no matching `tblChoices` row, and an invalid/missing `lookupchoices` query. |
 | Lookup order is ignored | `sort` was used instead of `orderby`. |
-| Date parsing fails | Database/form text does not match `Format/Date`, `Format/Time`, or `Format/DateTime`. |
+| Date parsing fails | A JSON-supplied initial value does not match `Format/Date`, `Format/Time`, or `Format/DateTime`; database values should use native SQL temporal types. |
 | Insert/update SQL error | Database metadata, field aliases, escaping, or value conversion does not match the table. |
 | Only one subform appears | The current initializer returns after the first subform. |
 | Schema check fails on an otherwise working form | Runtime/schema drift described above. |

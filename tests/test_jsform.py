@@ -55,9 +55,23 @@ class TestControlValues(unittest.TestCase):
 
         self.assertIsNone(number_value(""))
         self.assertEqual(number_value("1,234"), 1234)
+        self.assertEqual(number_value('"1"'), 1)
+        self.assertEqual(number_value("'2'"), 2)
         self.assertEqual(number_value("12.50"), Decimal("12.50"))
         self.assertEqual(number_value("$1,234.50", "currency"), Decimal("1234.50"))
         self.assertEqual(number_value("1.25", "float"), 1.25)
+
+    def test_sql_record_formatter_preserves_standard_numeric_types(self):
+        from clsSQL import clsSQL
+
+        formatter = object.__new__(clsSQL)
+        for field_type, value in (
+            ("SHORT", 1), ("LONG", 2), ("LONGLONG", 3),
+            ("INT24", 4), ("YEAR", 2027), ("FLOAT", 1.5), ("DOUBLE", 2.5),
+        ):
+            with self.subTest(field_type=field_type):
+                formatter.sqldescription = {"Value": {"type": field_type}}
+                self.assertEqual(formatter._format_for_record("Value", value), value)
 
     def test_json_is_validated_and_normalized(self):
         from control_values import normalized_json
@@ -80,7 +94,12 @@ class TestControlValues(unittest.TestCase):
 
     def test_date_time_inputs_accept_native_database_values(self):
         import datetime
-        from control_values import datetime_value
+        from control_values import (
+            datetime_value,
+            native_date,
+            native_datetime,
+            native_time,
+        )
 
         date = datetime.date(2026, 8, 10)
         time = datetime.time(13, 45)
@@ -91,9 +110,44 @@ class TestControlValues(unittest.TestCase):
         self.assertEqual(
             datetime_value("2026-08-10", "%Y-%m-%d", "date").date(), date
         )
+        self.assertEqual(native_date(date), date)
+        self.assertEqual(native_date("08/10/2026", "%m/%d/%Y"), date)
+        self.assertEqual(native_time(time), datetime.timedelta(hours=13, minutes=45))
+        self.assertEqual(native_time(delta), delta)
+        self.assertEqual(native_time(datetime.time()), datetime.timedelta(0))
+        stamp = datetime.datetime(2026, 8, 10, 13, 45)
+        self.assertEqual(native_datetime(stamp), stamp)
+        self.assertEqual(
+            native_datetime("08/10/2026 01:45 PM", "%m/%d/%Y %I:%M %p"), stamp
+        )
+        for converter in (native_date, native_time, native_datetime):
+            self.assertIsNone(converter(None))
+            self.assertIsNone(converter(""))
+
+    def test_sql_record_formatter_preserves_native_temporal_types(self):
+        import datetime
+        from clsSQL import clsSQL
+
+        formatter = object.__new__(clsSQL)
+        values = {
+            "DATE": datetime.date(2027, 1, 1),
+            "TIME": datetime.timedelta(hours=9, minutes=30),
+            "DATETIME": datetime.datetime(2027, 1, 1, 9, 30),
+        }
+        for field_type, value in values.items():
+            with self.subTest(field_type=field_type):
+                formatter.sqldescription = {"Value": {"type": field_type}}
+                self.assertIs(formatter._format_for_record("Value", value), value)
 
 
 class TestControlCatalog(unittest.TestCase):
+    def test_data_view_constructor_does_not_receive_json_field_name(self):
+        import clsConstant
+
+        self.assertNotIn(
+            "name", clsConstant.CONST.wxpythoncallparmameters["DataViewListCtrl"]
+        )
+
     def test_both_schemas_accept_security_declarations(self):
         from jsonschema import validate
 
@@ -243,6 +297,12 @@ class TestResponsiveLayout(unittest.TestCase):
             if isinstance(node, ast.Call)
         ]
         self.assertNotIn("super().SetNullText", calls)
+
+    def test_datetime_composite_uses_child_specific_formats(self):
+        source = (ROOT / "clsField.py").read_text(encoding="utf-8-sig")
+        self.assertIn('get_Config_Value("Format", "Date")', source)
+        self.assertIn('get_Config_Value("Format", "Time")', source)
+        self.assertNotIn("self.datefield.SetValue(value, dtfmt)", source)
 
     def test_default_spacing_is_compact_and_overridable(self):
         from layout_engine import layout_spacing
@@ -428,6 +488,7 @@ class TestFormServices(unittest.TestCase):
 
 class TestWriteStatements(unittest.TestCase):
     def test_statements_parameterize_values_and_validate_identifiers(self):
+        import datetime
         from sql_statements import WriteStatements, quote_identifier
 
         statements = WriteStatements("tblPerson")
@@ -445,6 +506,15 @@ class TestWriteStatements(unittest.TestCase):
         self.assertIn("`Name`=%s", update_sql)
         self.assertNotIn("O'Brien", update_sql)
         self.assertEqual(update_values, ("O'Brien", None, 7))
+
+        temporal = {
+            "ID": 8,
+            "Date": datetime.date(2027, 1, 1),
+            "Time": datetime.timedelta(hours=9, minutes=30),
+            "DateTime": datetime.datetime(2027, 1, 1, 9, 30),
+        }
+        _, temporal_values = statements.update(temporal)
+        self.assertEqual(temporal_values, tuple(temporal.values())[1:] + (8,))
 
         with self.assertRaisesRegex(ValueError, "Unsafe SQL identifier"):
             quote_identifier("tblPerson; DROP TABLE tblPerson")
@@ -627,6 +697,24 @@ class TestJSFormPython(unittest.TestCase):
         recordset.setfieldvalue("Name", "Changed")
         self.assertEqual(recordset.recordisdirty(), ["Name"])
         self.assertEqual(recordset.last()["ID"], 2)
+
+    def test_temporal_dirty_tracking_compares_native_values_semantically(self):
+        import datetime
+        from record_state import RecordState
+
+        recordset = RecordState()
+        recordset.add(
+            {
+                "Date": datetime.date(2027, 1, 1),
+                "Time": datetime.timedelta(hours=9, minutes=30),
+                "DateTime": datetime.datetime(2027, 1, 1, 9, 30),
+            }
+        )
+        recordset.first()
+        recordset.setfieldvalue("Time", datetime.time(9, 30))
+        self.assertEqual(recordset.recordisdirty(), [])
+        recordset.setfieldvalue("Time", datetime.time(9, 31))
+        self.assertEqual(recordset.recordisdirty(), ["Time"])
 
 
 class TestJSFormDefinitions(unittest.TestCase):

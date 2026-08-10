@@ -1,5 +1,33 @@
 """Database-independent record navigation and dirty-state tracking."""
 
+import datetime
+from decimal import Decimal
+
+
+def comparable_value(value):
+    """Normalize equivalent database/control values without display formatting."""
+    if value == "":
+        return None
+    if isinstance(value, datetime.datetime):
+        return ("datetime", value.replace(tzinfo=None))
+    if isinstance(value, datetime.date):
+        return ("date", value)
+    if isinstance(value, datetime.time):
+        return (
+            "time",
+            datetime.timedelta(
+                hours=value.hour,
+                minutes=value.minute,
+                seconds=value.second,
+                microseconds=value.microsecond,
+            ),
+        )
+    if isinstance(value, datetime.timedelta):
+        return ("time", value)
+    if isinstance(value, Decimal):
+        return ("number", value.normalize())
+    return value
+
 
 class OriginalRecord:
     def __init__(self):
@@ -23,7 +51,7 @@ class OriginalRecord:
         return self.record
 
     def comparefield(self, field, value):
-        return str(value) == str(self.record[field])
+        return comparable_value(value) == comparable_value(self.record[field])
 
 
 class RecordState:
@@ -117,11 +145,12 @@ class RecordState:
         return self._record is None
 
     def fieldisdirty(self, field):
-        return str(self.original.record.get(field)) != str(self.current()[field])
+        return comparable_value(self.original.record.get(field)) != comparable_value(
+            self.current()[field]
+        )
 
     def recordisdirty(self):
         current = self.current()
         if not current:
             return []
         return [field for field in current if self.fieldisdirty(field)]
-

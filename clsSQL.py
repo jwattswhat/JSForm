@@ -193,12 +193,8 @@ class clsSQL:
                 return value == 1
             case "LONG"|"FLOAT":
                 return value
-            case "TIME":
-                return value.strftime(JSForm.CONFIG.get_Config_Value("Format", "Time"))
-            case "DATE":
-                return value.strftime(JSForm.CONFIG.get_Config_Value("Format", "Date"))
-            case "DATETIME":
-                return value.strftime(JSForm.CONFIG.get_Config_Value("Format", "DateTime"))
+            case "TIME"|"DATE"|"DATETIME":
+                return value
             case other:
                 return value
 
@@ -296,7 +292,7 @@ class clsSQL:
 
             #   Numeric
 
-            case "LONG"|"FLOAT":
+            case "SHORT"|"LONG"|"LONGLONG"|"INT24"|"YEAR"|"FLOAT"|"DOUBLE":
                 value = value
 
             case "NEWDECIMAL":
@@ -304,25 +300,11 @@ class clsSQL:
 
             #   Date and Time Types
 
-            case "DATETIME":
-                if value:
-                    value = value.strftime(JSForm.CONFIG.get_Config_Value("Format", "DateTime"))
-                else:
-                    value = datetime.datetime.now()
-                    value = value.strftime(JSForm.CONFIG.get_Config_Value("Format", "DateTime"))
-            case "DATE":
-                if value:
-                    value = value.strftime(JSForm.CONFIG.get_Config_Value("Format", "Date"))
-                else:
-                    value = datetime.datetime.now()
-                    value = value.strftime(JSForm.CONFIG.get_Config_Value("Format", "Date"))
-            case "TIME":
-                if value:
-                    dt = datetime.datetime(2022, 1, 1) + value
-                    value = dt.strftime(JSForm.CONFIG.get_Config_Value("Format", "Time"))
-                else:
-                    value = datetime.datetime.now()
-                    value = value.strftime(JSForm.CONFIG.get_Config_Value("Format", "Time"))
+            case "DATETIME"|"DATE"|"TIME":
+                # Keep connector-native temporal values in the record. Controls
+                # own presentation formatting; parameterized writes send these
+                # values back to MariaDB without a locale-dependent round-trip.
+                value = value
 
             #   Default to string type
 

@@ -978,16 +978,19 @@ class clsField:
             self.timefield.SetToolTip(tooltip)
 
         def SetValue(self, value):
-            dtfmt = JSForm.CONFIG.get_Config_Value("Format", "DateTime")
-            self.datefield.SetValue(value, dtfmt)
-            self.timefield.SetValue(value, dtfmt)
+            date_format = JSForm.CONFIG.get_Config_Value("Format", "Date")
+            time_format = JSForm.CONFIG.get_Config_Value("Format", "Time")
+            self.datefield.SetValue(value, date_format)
+            self.timefield.SetValue(value, time_format)
 
         def GetValue(self):
             dt = self.datefield.GetValue()
             tm = self.timefield.GetValue()
             if dt is None or tm is None:
                 return None
-            return dt + " " + tm
+            return datetime.datetime.combine(
+                dt, (datetime.datetime.min + tm).time()
+            )
 
         def SetWarningColor(self):
             self.datefield.SetBackgroundColour(FORMColors["Warning"]["bcolor"])
@@ -1050,14 +1053,15 @@ class clsField:
             super().SetValue(value)
 
         def GetValue(self, format=None):
-            if format == None:
-                format = JSForm.CONFIG.get_Config_Value("Format", "Date")
             try:
-                dt = super().GetValue().Format(format)
+                value = super().GetValue()
+                dt = datetime.date(value.GetYear(), value.GetMonth() + 1, value.GetDay())
                 self.nonevalue = False
             except:
                 dt = None
                 self.nonevalue = True
+            if dt is None:
+                return None
             return dt
 
     class clsTimePickerCtrl(wx.adv.TimePickerCtrl, clsFieldExtra):
@@ -1108,8 +1112,11 @@ class clsField:
 
         def GetValue(self):
             try:
-                return super().GetValue().Format(
-                    JSForm.CONFIG.get_Config_Value("Format", "Time")
+                value = super().GetValue()
+                return datetime.timedelta(
+                    hours=value.GetHour(),
+                    minutes=value.GetMinute(),
+                    seconds=value.GetSecond(),
                 )
             except (AttributeError, RuntimeError):
                 return None
@@ -1140,7 +1147,7 @@ class clsField:
 
         def GetValue(self):
             value = super().GetDate()
-            return value.Format(JSForm.CONFIG.get_Config_Value("Format", "Date"))
+            return datetime.date(value.GetYear(), value.GetMonth() + 1, value.GetDay())
 
     class clsFilePickerCtrl(wx.FilePickerCtrl, clsFieldExtra):
         path = ""

@@ -159,7 +159,9 @@ class clsConstantsNameSpace:
             "style",
             "validator",
         ],
-        "DataViewListCtrl": ["id", "name", "pos", "size", "style", "validator"],
+        # wx.dataview.DataViewListCtrl does not accept wx.Control's optional
+        # ``name`` keyword in its Python constructor overloads.
+        "DataViewListCtrl": ["id", "pos", "size", "style", "validator"],
         "DatePickerCtrl": [
             "id",
             "name",
