@@ -81,8 +81,9 @@ class clsConstantsNameSpace:
             "label",
             "pos",
             "size",
-            "styel"
+            "style",
         ],
+        "JSON": ["name", "value", "pos", "size", "style", "validator"],
         "StaticBox": [
             "name",
             "label",
@@ -158,7 +159,7 @@ class clsConstantsNameSpace:
             "style",
             "validator",
         ],
-        "DataViewListCtrl": ["id", "pos", "size", "style", "validator"],
+        "DataViewListCtrl": ["id", "name", "pos", "size", "style", "validator"],
         "DatePickerCtrl": [
             "id",
             "name",

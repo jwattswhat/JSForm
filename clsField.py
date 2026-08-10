@@ -22,6 +22,14 @@ import wx
 import wx.adv
 import wx.dataview
 import wx.html
+from control_values import (
+    checked_value,
+    datetime_value,
+    multiline_text,
+    normalized_json,
+    number_value,
+    value_sequence,
+)
 
 # import framwork
 
@@ -45,7 +53,10 @@ def getcontrolparameters(controldictionary):
     #        {"validator": JSForm.setvalidatorfield(controldictionary["validatorstr"])}
     #    )
 
-    for key in JSForm.CONST.wxpythoncallparmameters[controldictionary["type"]]:
+    controltype = controldictionary["type"]
+    if controltype not in JSForm.CONST.wxpythoncallparmameters:
+        raise ValueError("Unsupported JSForm control type: {}".format(controltype))
+    for key in JSForm.CONST.wxpythoncallparmameters[controltype]:
         if key in controldictionary.keys():
             newdict.update({key: controldictionary[key]})
     return newdict
@@ -172,16 +183,28 @@ class clsField:
                 self.FIELD = self.clsDatePickerCtrl(self, controldescription)
             case "TimePickerCtrl":
                 self.FIELD = self.clsTimePickerCtrl(self, controldescription)
+            case "CalendarCtrl":
+                self.FIELD = self.clsCalendarCtrl(self, controldescription)
             case "FilePickerCtrl":
                 self.FIELD = self.clsFilePickerCtrl(self, controldescription)
             case "HTMLCtrl":
                 self.FIELD = self.clsHTMLCtrl(self, controldescription)
+            case _:
+                raise ValueError(
+                    "Unsupported JSForm control type: {}".format(
+                        controldescription["type"]
+                    )
+                )
 
         #  all fields post process
 
         # Check for Read Only Fields
-        if "readonly" in controldescription:
+        if controldescription.get("readonly", False):
             self.FIELD.Disable()
+
+        tooltip = controldescription.get("tooltip")
+        if tooltip:
+            self.FIELD.SetToolTip(str(tooltip))
 
     def GetID(self):
         return self.ID
@@ -254,7 +277,7 @@ class clsField:
 
         def SetValue(self, value):
             if value != None:
-                super().SetLabel(value)
+                super().SetLabel(str(value))
             self.SetNormalColor()
 
         def getOption(self, txt):
@@ -334,16 +357,10 @@ class clsField:
             # textctrl postprocess
 
         def SetValue(self, value):
-            if value == None:
-                super().SetValue("")
-            else:
-                super().SetValue("\r\n".join(value))
+            super().SetValue(multiline_text(value))
 
         def ChangeValue(self, value):
-            if value == None:
-                super().ChangeValue("")
-            else:
-                super().ChangeValue("\r\n".join(value))
+            super().ChangeValue(multiline_text(value))
 
         def GetValue(self):
             value = super().GetValue()
@@ -357,13 +374,19 @@ class clsField:
         lst = {}
 
         def SetValue(self, value):
-            self.lst = json.loads(value)
+            if value in (None, ""):
+                self.lst = {}
+                super().SetValue(None)
+                return
+            self.lst = value if isinstance(value, dict) else json.loads(value)
             super().SetValue(list(self.lst.keys()))
 
         def ChangeValue(self, value):
-            if value == None:
-                return None
-            self.lst = json.loads(value)
+            if value in (None, ""):
+                self.lst = {}
+                super().ChangeValue(None)
+                return
+            self.lst = value if isinstance(value, dict) else json.loads(value)
             super().ChangeValue(list(self.lst.keys()))
 
         def GetValue(self):
@@ -374,7 +397,8 @@ class clsField:
             return json.dumps(chklst)
 
         def MergeList(self, lst):
-            chklst = json.loads(self.GetValue())
+            current = self.GetValue()
+            chklst = {} if current is None else json.loads(current)
             value = chklst | lst
             self.ChangeValue(json.dumps(value))
 
@@ -412,43 +436,39 @@ class clsField:
                 if "format" in self.controldescription:
                     super().SetValue(self.controldescription["format"].format(value))
                 else:
-                    super().SetValue(value)
+                    super().SetValue(str(value))
 
         def ChangeValue(self, value):
             if value == None:
                 super().ChangeValue("")
             else:
                 if "format" in self.controldescription:
-                    super().SetValue(self.controldescription["format"].format(value))
+                    super().ChangeValue(self.controldescription["format"].format(value))
                 else:
-                    super().SetValue(value)
+                    super().ChangeValue(str(value))
 
         def GetValue(self):
             value = self.choices.getchoicedisplay(super().GetValue()).replace(",", "")
             if value == "":
-                value = None
-            return value
+                return None
+            return number_value(value)
 
     class clsCurrency(clsTextCtrl):
         def GetValue(self):
             value = super().GetValue()
-            if value == None:
-                value = "0.00"
-            return Decimal(value)
+            if value in (None, ""):
+                return None
+            return number_value(value, "currency")
 
         def SetValue(self, value):
             if value == None:
                 super().SetValue("")
             else:
-                d = Decimal(value)
                 super().SetValue(Decimal(value))
 
     class clsFloat(clsTextNumber):
         def GetValue(self):
-            value = super().GetValue()
-            if value == None:
-                value = 0.0
-            return float(value)
+            return number_value(wx.TextCtrl.GetValue(self), "float")
 
     class clsJSON(wx.TextCtrl, clsFieldExtra):
         def __init__(self, parent, controldescription):
@@ -464,6 +484,24 @@ class clsField:
             self.SetNormalColor()
 
             # JSON postprocess
+
+        def SetValue(self, value):
+            if value in (None, ""):
+                super().SetValue("")
+                return
+            super().SetValue(normalized_json(value))
+
+        def ChangeValue(self, value):
+            if value in (None, ""):
+                super().ChangeValue("")
+                return
+            super().ChangeValue(normalized_json(value))
+
+        def GetValue(self):
+            value = super().GetValue()
+            if value == "":
+                return None
+            return normalized_json(value)
 
     class clsComboBox(wx.ComboBox, clsFieldExtra):
         def __init__(self, parent, controldesc):
@@ -494,8 +532,8 @@ class clsField:
             if value == None:
                 super().SetValue("")
             else:
-                if self.choiceslist == None:
-                    super().SetValue(value)
+                if self.choices.len() == 0:
+                    super().SetValue(str(value))
                 else:
                     disp = self.choices.getchoicedisplay(value)
                     if disp == None:
@@ -569,7 +607,7 @@ class clsField:
 
             #   Set selections
             if value != None:
-                for val in value:
+                for val in value_sequence(value):
                     for item in range(self.GetItemCount()):
                         if val == self.GetItemText(item):
                             self.SetItemState(
@@ -628,7 +666,7 @@ class clsField:
 
             #   Set the Selections
             if value != None:
-                for val in value:
+                for val in value_sequence(value):
                     lookupval = self.choices.getchoicedisplay(int(val))
                     for item in range(self.GetItemCount()):
                         if lookupval == self.GetItemText(item):
@@ -666,7 +704,7 @@ class clsField:
             # checkbox postprocess
 
         def SetValue(self, value):
-            if (value == True) or (value == 1):
+            if checked_value(value):
                 super().SetValue(wx.CHK_CHECKED)
             else:
                 super().SetValue(wx.CHK_UNCHECKED)
@@ -697,15 +735,15 @@ class clsField:
         def SetValue(self, value):
             self.Clear()
             checklist = {}
-            if value != None:
-                checklist = json.loads(value)
+            if value not in (None, ""):
+                checklist = value if isinstance(value, dict) else json.loads(value)
                 try:
                     self.InsertItems(list(checklist.keys()), 0)
                 except:
                     checklist = {}
 
             for check in checklist:
-                if checklist[check] == "True":
+                if checklist[check] is True or str(checklist[check]).lower() == "true":
                     self.Check(self.FindString(check), True)
                 else:
                     self.Check(self.FindString(check), False)
@@ -782,7 +820,8 @@ class clsField:
             self.DLVCrecords.load_records(table=table, parentrecord=parentrecord)
             for rec in self.DLVCrecords._record:
                 self.AppendTableRecord(rec)
-            self.SelectRow(0)
+            if self.GetItemCount():
+                self.SelectRow(0)
 
         def AppendTableRecord(self, record):
             columnsforcontrol = []
@@ -804,13 +843,12 @@ class clsField:
             super().AppendItem(columnsforcontrol)
 
         def SetValueRecord(self, row, record):
-            column = 0
-            for field in record:
-                super().SetValue(record[field], row, column)
-                column = column + 1
+            for column, field in enumerate(self.columnnames):
+                super().SetValue(str(record.get(field, "")), row, column)
 
         def GetSelectedRowID(self):
-            return super().GetSelectedRow()
+            record = self.GetSelectedRow()
+            return None if record is None else record.get("ID")
 
         def GetSelectedRow(self):
             selectedrow = super().GetSelectedRow()
@@ -934,16 +972,20 @@ class clsField:
             self.datefield.Disable()
             self.timefield.Disable()
 
+        def SetToolTip(self, tooltip):
+            wx.Panel.SetToolTip(self, tooltip)
+            self.datefield.SetToolTip(tooltip)
+            self.timefield.SetToolTip(tooltip)
+
         def SetValue(self, value):
-            if value is not None:
-                dtfmt = JSForm.CONFIG.get_Config_Value("Format", "DateTime")
-                self.datefield.SetValue(value, dtfmt)
-                self.timefield.SetValue(value, dtfmt)
+            dtfmt = JSForm.CONFIG.get_Config_Value("Format", "DateTime")
+            self.datefield.SetValue(value, dtfmt)
+            self.timefield.SetValue(value, dtfmt)
 
         def GetValue(self):
             dt = self.datefield.GetValue()
             tm = self.timefield.GetValue()
-            if dt == None:
+            if dt is None or tm is None:
                 return None
             return dt + " " + tm
 
@@ -964,6 +1006,7 @@ class clsField:
         def __init__(self, parent, controldescription):
             super().init_field(parent, controldescription)
             controldescription = self.CONTROLDESCRIPTION.copy()
+            initial_value = controldescription.pop("dt", None)
 
             # datepicker preprocess
             try:
@@ -983,6 +1026,8 @@ class clsField:
                 if "ALLOWNONE" in controldescription["stylelist"]:
                     super().SetNullText("")
                     super().SetValue(wx.DateTime())
+            if initial_value is not None:
+                self.SetValue(initial_value)
 
         def SetValue(self, value, dateformat=None):
             if not dateformat:
@@ -996,7 +1041,12 @@ class clsField:
                     super().SetValue(wx.DateTime())
                     return None
                 value = datetime.date.today().strftime(dateformat)
-            value = datetime.datetime.strptime(value, dateformat)
+            if isinstance(value, datetime.datetime):
+                value = value
+            elif isinstance(value, datetime.date):
+                value = datetime.datetime.combine(value, datetime.time())
+            else:
+                value = datetime_value(value, dateformat, "date")
             super().SetValue(value)
 
         def GetValue(self, format=None):
@@ -1013,15 +1063,19 @@ class clsField:
     class clsTimePickerCtrl(wx.adv.TimePickerCtrl, clsFieldExtra):
         def __init__(self, parent, controldescription):
             super().init_field(parent, controldescription)
+            controldescription = self.CONTROLDESCRIPTION.copy()
+            initial_value = controldescription.pop("dt", None)
 
             # timepicker preprocess
 
             super().__init__(
                 parent.PARENT.FORM,
                 wx.ID_ANY,
-                **getcontrolparameters(self.CONTROLDESCRIPTION),
+                **getcontrolparameters(controldescription),
             )
             self.SetNormalColor()
+            if initial_value is not None:
+                self.SetValue(initial_value)
 
             # timepicker postprocess
 
@@ -1036,16 +1090,52 @@ class clsField:
                     super().SetNullText("")
                     super().SetValue(wx.DateTime())
                     return None
-                value = datetime.date.today().strftime(timeformat)
-            value = datetime.datetime.strptime(value, timeformat)
+                value = datetime.datetime.now().strftime(timeformat)
+            if isinstance(value, datetime.datetime):
+                value = value
+            elif isinstance(value, datetime.time):
+                value = datetime.datetime.combine(datetime.date.today(), value)
+            elif isinstance(value, datetime.timedelta):
+                value = datetime.datetime.combine(datetime.date.today(), datetime.time()) + value
+            else:
+                value = datetime_value(value, timeformat, "time")
             super().SetValue(value)
 
         def GetValue(self):
-            return (
-                super()
-                .GetValue()
-                .Format(JSForm.CONFIG.get_Config_Value("Format", "Time"))
+            try:
+                return super().GetValue().Format(
+                    JSForm.CONFIG.get_Config_Value("Format", "Time")
+                )
+            except (AttributeError, RuntimeError):
+                return None
+
+    class clsCalendarCtrl(wx.adv.CalendarCtrl, clsFieldExtra):
+        def __init__(self, parent, controldescription):
+            super().init_field(parent, controldescription)
+            description = self.CONTROLDESCRIPTION.copy()
+            initial_value = description.pop("date", None)
+            super().__init__(
+                parent.PARENT.FORM,
+                wx.ID_ANY,
+                **getcontrolparameters(description),
             )
+            self.SetNormalColor()
+            if initial_value is not None:
+                self.SetValue(initial_value)
+
+        def SetValue(self, value):
+            if value in (None, ""):
+                value = datetime.date.today()
+            if isinstance(value, str):
+                dateformat = JSForm.CONFIG.get_Config_Value("Format", "Date")
+                value = datetime_value(value, dateformat, "date")
+            elif isinstance(value, datetime.date) and not isinstance(value, datetime.datetime):
+                value = datetime.datetime.combine(value, datetime.time())
+            super().SetDate(wx.DateTime.FromDMY(value.day, value.month - 1, value.year))
+
+        def GetValue(self):
+            value = super().GetDate()
+            return value.Format(JSForm.CONFIG.get_Config_Value("Format", "Date"))
 
     class clsFilePickerCtrl(wx.FilePickerCtrl, clsFieldExtra):
         path = ""
@@ -1097,6 +1187,8 @@ class clsField:
 
     class clsHTMLCtrl(wx.html.HtmlWindow, clsFieldExtra):
         def __init__(self, parent, controldescription):
+            super().init_field(parent, controldescription)
+            self.htmlvalue = ""
             super().__init__(
                 parent.PARENT.FORM,
                 wx.ID_ANY,
@@ -1104,8 +1196,8 @@ class clsField:
             )
 
         def SetValue(self, value):
-            self.htmlvalue = value
-            super().SetPage(value)
+            self.htmlvalue = "" if value is None else str(value)
+            super().SetPage(self.htmlvalue)
 
         def GetValue(self):
-            return self.htmlvalue
+            return self.htmlvalue or None

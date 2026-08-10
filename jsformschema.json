@@ -136,12 +136,17 @@
                     "DateTime",
                     "DatePickerCtrl",
                     "TimePickerCtrl",
+                    "CalendarCtrl",
                     "FilePickerCtrl",
                     "HTMLCtrl"
                   ]
                 },
                 "label": {
                   "type": "string"
+                },
+                "tooltip": {
+                  "type": "string",
+                  "minLength": 1
                 },
                 "name": {
                   "type": "string"

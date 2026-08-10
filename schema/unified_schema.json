@@ -117,9 +117,20 @@
             ".*": {
               "type": "object",
               "properties": {
-                "type": { "type": "string" },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "StaticBox", "StaticText", "MultiLine", "TextCtrl",
+                    "TextNumber", "Currency", "Float", "JSON", "ComboBox",
+                    "ListCtrl", "ListCtrlID", "CheckBox", "CheckListBox",
+                    "CheckListEdit", "Button", "DataViewListCtrl", "DateTime",
+                    "DatePickerCtrl", "TimePickerCtrl", "CalendarCtrl",
+                    "FilePickerCtrl", "HTMLCtrl"
+                  ]
+                },
                 "name": { "type": "string" },
                 "label": { "type": "string" },
+                "tooltip": { "type": "string", "minLength": 1 },
                 "layout": {
                   "type": "object",
                   "properties": {

@@ -9,6 +9,7 @@ import sys
 import types
 import unittest
 import xml.etree.ElementTree as ET
+from decimal import Decimal
 from pathlib import Path
 
 
@@ -37,6 +38,130 @@ EXPECTED_PUBLIC_NAMES = {
     "layout_spacing",
     "frame_position",
 }
+
+
+class TestControlValues(unittest.TestCase):
+    def test_multiline_preserves_strings_and_joins_sequences(self):
+        from control_values import multiline_text
+
+        self.assertEqual(multiline_text("one\ntwo"), "one\ntwo")
+        self.assertEqual(multiline_text(["one", 2]), "one\r\n2")
+        self.assertEqual(multiline_text(None), "")
+
+    def test_numeric_types_preserve_null_and_return_python_numbers(self):
+        from control_values import number_value
+
+        self.assertIsNone(number_value(""))
+        self.assertEqual(number_value("1,234"), 1234)
+        self.assertEqual(number_value("12.50"), Decimal("12.50"))
+        self.assertEqual(number_value("$1,234.50", "currency"), Decimal("1234.50"))
+        self.assertEqual(number_value("1.25", "float"), 1.25)
+
+    def test_json_is_validated_and_normalized(self):
+        from control_values import normalized_json
+
+        self.assertIsNone(normalized_json(None))
+        self.assertEqual(normalized_json({"enabled": True}), '{"enabled":true}')
+        self.assertEqual(normalized_json('{ "items": [1, 2] }'), '{"items":[1,2]}')
+        with self.assertRaises(json.JSONDecodeError):
+            normalized_json("not JSON")
+
+    def test_boolean_and_scalar_list_normalization(self):
+        from control_values import checked_value, value_sequence
+
+        for value in (True, 1, "1", "true", "YES", "on"):
+            self.assertTrue(checked_value(value))
+        for value in (False, 0, None, "false", "no"):
+            self.assertFalse(checked_value(value))
+        self.assertEqual(value_sequence("single"), ["single"])
+        self.assertEqual(value_sequence(None), [])
+
+    def test_date_time_inputs_accept_native_database_values(self):
+        import datetime
+        from control_values import datetime_value
+
+        date = datetime.date(2026, 8, 10)
+        time = datetime.time(13, 45)
+        delta = datetime.timedelta(hours=9, minutes=30)
+        self.assertEqual(datetime_value(date, "%Y-%m-%d", "date").date(), date)
+        self.assertEqual(datetime_value(time, "%H:%M", "time").time(), time)
+        self.assertEqual(datetime_value(delta, "%H:%M", "time").time(), datetime.time(9, 30))
+        self.assertEqual(
+            datetime_value("2026-08-10", "%Y-%m-%d", "date").date(), date
+        )
+
+
+class TestControlCatalog(unittest.TestCase):
+    def test_factory_metadata_and_schemas_advertise_the_same_controls(self):
+        tree = ast.parse((ROOT / "clsField.py").read_text(encoding="utf-8-sig"))
+        field_class = next(
+            node for node in tree.body
+            if isinstance(node, ast.ClassDef) and node.name == "clsField"
+        )
+        constructor = next(
+            node for node in field_class.body
+            if isinstance(node, ast.FunctionDef) and node.name == "__init__"
+        )
+        factory_types = {
+            case.pattern.value.value
+            for node in ast.walk(constructor)
+            if isinstance(node, ast.Match)
+            for case in node.cases
+            if isinstance(case.pattern, ast.MatchValue)
+            and isinstance(case.pattern.value, ast.Constant)
+        }
+
+        constants_tree = ast.parse((ROOT / "clsConstant.py").read_text(encoding="utf-8-sig"))
+        constants_class = next(
+            node for node in constants_tree.body
+            if isinstance(node, ast.ClassDef) and node.name == "clsConstantsNameSpace"
+        )
+        parameter_assignment = next(
+            node for node in constants_class.body
+            if isinstance(node, ast.Assign)
+            and any(isinstance(target, ast.Name) and target.id == "wxpythoncallparmameters" for target in node.targets)
+        )
+        metadata_types = set(ast.literal_eval(parameter_assignment.value))
+        metadata_types -= {"Dialog", "Frame", "Panel", "navButton"}
+
+        canonical = json.loads((ROOT / "schema" / "unified_schema.json").read_text())
+        canonical_form = next(iter(canonical["patternProperties"].values()))
+        schema_types = set(
+            canonical_form["properties"]["CONTROLS"]
+            ["patternProperties"][".*"]["properties"]["type"]["enum"]
+        )
+        legacy = json.loads((ROOT / "jsformschema.json").read_text())
+        legacy_form = next(iter(legacy["patternProperties"].values()))
+        legacy_types = set(
+            legacy_form["properties"]["CONTROLS"]
+            ["patternProperties"][".*"]["properties"]["type"]["enum"]
+        )
+
+        self.assertEqual(factory_types, metadata_types)
+        self.assertEqual(factory_types, schema_types)
+        self.assertEqual(factory_types, legacy_types)
+        self.assertIn("CalendarCtrl", factory_types)
+        self.assertIn("JSON", factory_types)
+
+    def test_both_schemas_allow_nonempty_tooltips(self):
+        for schema_path in (
+            ROOT / "schema" / "unified_schema.json",
+            ROOT / "jsformschema.json",
+        ):
+            schema = json.loads(schema_path.read_text())
+            form_schema = next(iter(schema["patternProperties"].values()))
+            tooltip = (
+                form_schema["properties"]["CONTROLS"]["patternProperties"][".*"]
+                ["properties"]["tooltip"]
+            )
+            self.assertEqual(tooltip["type"], "string")
+            self.assertEqual(tooltip["minLength"], 1)
+
+    def test_control_factory_applies_tooltip_after_construction(self):
+        tree = ast.parse((ROOT / "clsField.py").read_text(encoding="utf-8-sig"))
+        source = ast.unparse(tree)
+        self.assertIn("tooltip = controldescription.get('tooltip')", source)
+        self.assertIn("self.FIELD.SetToolTip(str(tooltip))", source)
 
 
 class TestResponsiveLayout(unittest.TestCase):

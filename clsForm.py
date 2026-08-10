@@ -343,7 +343,7 @@ class clsForm:
             self,
             self.CONTROLDESCRIPTION,
             self.DBConnection,
-            readonly="readonly" in self.FORMDESCRIPTON,
+            readonly=self.FORMDESCRIPTON.get("readonly", False),
             readonly_fields=self.FORMDESCRIPTON.get("readonlyfields", []),
         )
 

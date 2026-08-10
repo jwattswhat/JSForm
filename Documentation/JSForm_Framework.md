@@ -456,7 +456,7 @@ Use `[-1, -1]` as a top-level position to center in both directions. A negative 
 | `stylelist` | No | Framework style names such as `CAPTION`. |
 | `table` | No | Database table/query description. Omit for menu and utility forms. |
 | `controls` | No | Standard controls. Defaults to `["Navigation", "Close"]`. |
-| `readonly` | No | Presence makes all controls read-only. The current implementation checks presence, not the property's Boolean value. |
+| `readonly` | No | When `true`, makes all controls read-only. A value of `false` leaves them enabled. |
 | `readonlyfields` | No | List of individual control names made read-only. |
 | `linkedform` | No | Definitions of related forms shown separately. |
 | `subform` | No | Definitions of related forms embedded as static boxes. |
@@ -550,6 +550,7 @@ Common properties include:
 | `name` | wxPython name and normally the selected database-field name. |
 | `type` | Framework control type. |
 | `label` | Visible text for labels, boxes, checkboxes, buttons, and list headings. |
+| `tooltip` | Optional help bubble shown when the pointer pauses over the control. |
 | `value` | Initial wxPython value where supported. Database loading usually replaces it. |
 | `defaultvalue` | Value used when the database value is `NULL`. |
 | `pos` / `posch` | Position in pixels or character units. |
@@ -791,9 +792,10 @@ The current implementation returns the selected filename, not a full path. The s
 
 A `wx.html.HtmlWindow`. `SetValue()` calls `SetPage()` and `GetValue()` returns the most recently assigned HTML string.
 
-### Declared but unavailable controls
+### `CalendarCtrl`
 
-`CalendarCtrl` appears in the allowed wxPython parameter table and in older documentation, but the control factory has no `CalendarCtrl` case. It cannot currently be instantiated through JSON.
+A calendar-style date selector. It accepts configured date strings, Python
+`date`/`datetime` values, and returns a string using `Format/Date`.
 
 ## Choices and lookups
 
@@ -1203,10 +1205,10 @@ This repository is a historical working framework rather than a polished distrib
 4. SQL values are not consistently parameterized.
 5. Exception handling frequently uses broad `except` blocks, which can hide failures.
 6. `Frame` is accepted by the schema but is not built by `process_form_type()`.
-7. `CalendarCtrl` is described/declared but not available in the factory.
+7. All control types advertised by the schemas are implemented by the factory; automated catalog checks keep these lists synchronized.
 8. Only the first declared subform is initialized because of an early return.
 9. One example uses `sort`, but the SQL implementation recognizes `orderby`.
-10. `readonly` is detected by property presence rather than its Boolean value.
+10. Both form-level and control-level `readonly` honor their Boolean value.
 11. `clsSQL` has edge cases in quoting, alias detection, and its default formatting branch; test every database type before production use.
 12. Configuration setters do not visibly commit in their own methods; persistence depends on connector transaction behavior or outside commits.
 13. `check_internetconnection()` loops indefinitely until a request succeeds.
