@@ -178,6 +178,8 @@ class clsForm:
         for name, description in self.CONTROLDESCRIPTION.items():
             if description.get("security_hidden") and name in self.CONTROLID:
                 self.CONTROLID[name].Hide()
+            if description.get("security_disabled") and name in self.CONTROLID:
+                self.CONTROLID[name].Disable()
         if self.RESPONSIVE_LAYOUT:
             layout_settings = dict(self.FORMDESCRIPTON.get("layout") or {})
             layout_settings.setdefault(

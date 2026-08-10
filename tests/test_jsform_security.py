@@ -35,6 +35,10 @@ class TestFormSecurity(unittest.TestCase):
             },
         },
         "Unprotected": {"type": "TextCtrl"},
+        "ProtectedAction": {
+            "type": "Button",
+            "security": {"invoke": "people.records.export"},
+        },
     }
 
     def test_form_operations_use_declared_permissions(self):
@@ -61,6 +65,7 @@ class TestFormSecurity(unittest.TestCase):
         self.assertTrue(secured["Name"]["readonly"])
         self.assertTrue(secured["PastoralNote"]["security_hidden"])
         self.assertTrue(secured["PastoralNote"]["layout"]["hidden"])
+        self.assertTrue(secured["ProtectedAction"]["security_disabled"])
         self.assertNotIn("readonly", secured["Unprotected"])
 
     def test_compatibility_and_fail_closed_policies_are_explicit(self):

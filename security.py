@@ -72,7 +72,7 @@ class FormSecurity:
             )
 
     def secured_control_descriptions(self):
-        """Return copies with denied edits marked read-only and denied views hidden."""
+        """Return copies with denied view, edit, and invoke behavior marked."""
         result = {}
         for name, source in self.control_descriptions.items():
             description = source.copy()
@@ -83,5 +83,7 @@ class FormSecurity:
                 layout["hidden"] = True
                 description["layout"] = layout
                 description["security_hidden"] = True
+            if not self.allows_control(name, "invoke"):
+                description["security_disabled"] = True
             result[name] = description
         return result
