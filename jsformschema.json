@@ -50,6 +50,26 @@
         "type":"string",
         "enum": ["CAPTION","READONLY"]}
     },
+    "formsecurity": {
+      "type": "object",
+      "properties": {
+        "open": {"type":"string","pattern":"^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$"},
+        "create": {"type":"string","pattern":"^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$"},
+        "update": {"type":"string","pattern":"^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$"},
+        "delete": {"type":"string","pattern":"^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$"},
+        "report": {"type":"string","pattern":"^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$"}
+      },
+      "additionalProperties": false
+    },
+    "controlsecurity": {
+      "type": "object",
+      "properties": {
+        "view": {"type":"string","pattern":"^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$"},
+        "edit": {"type":"string","pattern":"^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$"},
+        "invoke": {"type":"string","pattern":"^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$"}
+      },
+      "additionalProperties": false
+    },
     "formproperties": {
       "type": "object",
       "properties": {
@@ -61,6 +81,7 @@
           "type": "string"
         },
         "table": {"$ref":"#/definitions/tableproperties"},
+        "security": {"$ref":"#/definitions/formsecurity"},
         "stylelist": {"$ref":"#/definitions/formstylelist"},
         "posch": {"$ref":"#/definitions/possize"},
         "sizech": {"$ref":"#/definitions/possize"},
@@ -176,6 +197,7 @@
                   }
                 },
                 "lookupchoices":{"$ref":"#/definitions/tableproperties"},
+                "security":{"$ref":"#/definitions/controlsecurity"},
                 "action":{
                   "type": "array",
                   "items": [

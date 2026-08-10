@@ -108,6 +108,17 @@
               }
             },
             "nodataDB": { "type": "boolean" }
+            ,"security": {
+              "type": "object",
+              "properties": {
+                "open": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$" },
+                "create": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$" },
+                "update": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$" },
+                "delete": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$" },
+                "report": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$" }
+              },
+              "additionalProperties": false
+            }
           },
           "required": ["name", "type", "title"]
         },
@@ -179,6 +190,15 @@
                 "action": {
                   "type": "array",
                   "items": { "type": "string" }
+                },
+                "security": {
+                  "type": "object",
+                  "properties": {
+                    "view": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$" },
+                    "edit": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$" },
+                    "invoke": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$" }
+                  },
+                  "additionalProperties": false
                 },
                 "lookupchoices": {
                   "type": "object",

@@ -24,6 +24,7 @@ from JSForm.form_services import (
     ControlFactory, FormDefinitionLoader, required_fields, resolve_form_schema,
 )
 from JSForm.layout_engine import apply_responsive_layout, supports_responsive_layout
+from JSForm.security import AuthorizationDenied, FormSecurity
 
 #
 #   import system classes
@@ -86,6 +87,8 @@ class clsForm:
         position=None,
         parentrecord=None,
         fillonblank=None,
+        authorization_policy=None,
+        audit_hook=None,
     ):
         self.create(
             parent,
@@ -96,6 +99,8 @@ class clsForm:
             position,
             parentrecord,
             fillonblank,
+            authorization_policy,
+            audit_hook,
         )
 
     def create(
@@ -108,6 +113,8 @@ class clsForm:
         position=None,
         parentrecord=None,
         fillonblank=None,
+        authorization_policy=None,
+        audit_hook=None,
     ):
         JSForm.LG.log(
             formname=formname,
@@ -122,6 +129,8 @@ class clsForm:
         self.position = position
         self.parentkey = parentrecord
         self.fillonblank = fillonblank
+        self.AUTHORIZATION_POLICY = authorization_policy
+        self.AUDIT_HOOK = audit_hook
         self.RECORDS = None
 
         self.LINKEDFORM = ChildFormRegistry()
@@ -141,6 +150,13 @@ class clsForm:
         if controls != None:
             self.FORMDESCRIPTON["controls"] = controls
 
+        self.SECURITY = FormSecurity(
+            formname, self.FORMDESCRIPTON, self.CONTROLDESCRIPTION,
+            authorization_policy,
+        )
+        self.SECURITY.require("open")
+        self.CONTROLDESCRIPTION = self.SECURITY.secured_control_descriptions()
+
         self.RESPONSIVE_LAYOUT = supports_responsive_layout(
             self.FORMDESCRIPTON, self.CONTROLDESCRIPTION
         )
@@ -159,6 +175,9 @@ class clsForm:
         self.FRAME, self.FORM = self.process_form_type(self.FORMDESCRIPTON, position)
 
         self.CONTROLID = self.build_form()
+        for name, description in self.CONTROLDESCRIPTION.items():
+            if description.get("security_hidden") and name in self.CONTROLID:
+                self.CONTROLID[name].Hide()
         if self.RESPONSIVE_LAYOUT:
             layout_settings = dict(self.FORMDESCRIPTON.get("layout") or {})
             layout_settings.setdefault(
@@ -179,6 +198,7 @@ class clsForm:
         self.initialize_sub_forms()
 
         self.bind_form_controls()
+        self.apply_navigation_security()
 
         if not self.RECORDS:
             return
@@ -469,6 +489,8 @@ class clsForm:
             position=None,  # pyautogui.position(),
             parentrecord=record,
             fillonblank=fob,
+            authorization_policy=self.AUTHORIZATION_POLICY,
+            audit_hook=self.AUDIT_HOOK,
         )
         if LinkedForm.RECORDS is not None:
             LinkedForm.fill_form(LinkedForm.RECORDS.current())
@@ -489,6 +511,8 @@ class clsForm:
                 frmdescription=self.FORMDESCRIPTON["subform"][subfrm].copy(),
                 position=None,
                 parentrecord=self.RECORDS.current(),
+                authorization_policy=self.AUTHORIZATION_POLICY,
+                audit_hook=self.AUDIT_HOOK,
             )
 
             self.SUBFORM.register(subfrm, SubForm)
@@ -503,6 +527,9 @@ class clsForm:
         #
         for field in self.CONTROLID:
             if "action" in self.CONTROLDESCRIPTION[field]:
+                if not self.SECURITY.allows_control(field, "invoke"):
+                    self.CONTROLID[field].Disable()
+                    continue
                 match self.CONTROLDESCRIPTION[field]["action"][0]:
                     case "mouse":
                         match self.CONTROLDESCRIPTION[field][1]:
@@ -608,6 +635,41 @@ class clsForm:
             self.CONTROLID["btnNext"].Enable()
             self.CONTROLID["btnLast"].Enable()
             self.CONTROLID["btnUpdate"].Enable()
+            self.apply_navigation_security()
+
+    def apply_navigation_security(self):
+        """Disable standard write buttons denied by form security."""
+        if "btnNew" in self.CONTROLID and not self.SECURITY.allows("create"):
+            self.CONTROLID["btnNew"].Disable()
+        if "btnUpdate" in self.CONTROLID and not self.SECURITY.allows("update"):
+            self.CONTROLID["btnUpdate"].Disable()
+        if "btnDelete" in self.CONTROLID and not self.SECURITY.allows("delete"):
+            self.CONTROLID["btnDelete"].Disable()
+
+    def _authorize_operation(self, operation):
+        try:
+            self.SECURITY.require(operation)
+            return True
+        except AuthorizationDenied as error:
+            dialog = wx.MessageDialog(self.FORM, str(error), "Access denied", wx.OK)
+            dialog.ShowModal()
+            dialog.Destroy()
+            return False
+
+    def _audit_operation(self, operation, changed_fields=None, record_id=None):
+        if not self.AUDIT_HOOK:
+            return
+        record = self.RECORDS.current() if self.RECORDS else None
+        table = self.FORMDESCRIPTON.get("table", {}).get("name")
+        if record_id is None and record:
+            record_id = record.get("ID")
+        self.AUDIT_HOOK({
+            "operation": operation,
+            "form_name": self.FORMNAME,
+            "table": table,
+            "record_id": record_id,
+            "changed_fields": tuple(changed_fields or ()),
+        })
 
     def disable_navigation_buttons(self):
         JSForm.LG.log()
@@ -660,6 +722,8 @@ class clsForm:
 
     def new_record(self):
         JSForm.LG.log()
+        if not self._authorize_operation("create"):
+            return
         if not self.FORMDirty():
             self.RECORDS.add(self.RECORDS.sql.get_blank_record())
             if self.fillonblank:
@@ -893,12 +957,17 @@ class clsForm:
 
     def _on_delete_record_click(self, event):
         JSForm.LG.log()
+        if not self._authorize_operation("delete"):
+            return
+        current = self.RECORDS.current()
+        record_id = current.get("ID") if current else None
         if not self.FORMDirty():
             try:
                 self.RECORDS.delete_record_from_DB()
             except RuntimeError as error:
                 self._show_operation_error(str(error))
                 return
+            self._audit_operation("delete", ("ID",), record_id)
             dlg = wx.MessageDialog(
                 self.FORM,
                 "Record Deleted.",
@@ -916,6 +985,8 @@ class clsForm:
 
     def _on_update_record_click(self, event):
         JSForm.LG.log()
+        if not self._authorize_operation("update"):
+            return
         required = self._check_required_fields()
         if required:
             for fld in required:
@@ -927,11 +998,13 @@ class clsForm:
             dlg.Destroy()
             return
         self.update_screen_to_record()
+        changed_fields = self.RECORDS.recordisdirty()
         try:
             self.RECORDS.update_current_record_in_DB()
         except RuntimeError as error:
             self._show_operation_error(str(error))
             return
+        self._audit_operation("update", changed_fields)
         self.enable_navigation_buttons()
         dlg = wx.MessageDialog(
             self.FORM,

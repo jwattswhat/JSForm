@@ -31,6 +31,8 @@ EXPECTED_PUBLIC_NAMES = {
     "WriteStatements", "quote_identifier",
     "ControlFactory", "FormDefinitionError", "FormDefinitionLoader", "required_fields",
     "resolve_form_schema",
+    "AllowAllAuthorizationPolicy", "AuthorizationDenied",
+    "DenyAllAuthorizationPolicy", "FormSecurity",
     "LimeReportProcess", "ReportProcessError",
     "LayoutItem", "build_layout_plan", "apply_responsive_layout",
     "supports_responsive_layout",
@@ -92,6 +94,51 @@ class TestControlValues(unittest.TestCase):
 
 
 class TestControlCatalog(unittest.TestCase):
+    def test_both_schemas_accept_security_declarations(self):
+        from jsonschema import validate
+
+        definition = {
+            "frmSecureFORM": {
+                "FORM": {
+                    "name": "frmSecure", "type": "Panel", "title": "Secure",
+                    "posch": [1, 1], "sizech": [20, 10],
+                    "security": {"open": "people.records.view"},
+                },
+                "CONTROLS": {
+                    "Name": {
+                        "type": "TextCtrl", "name": "Name", "posch": [1, 1],
+                        "security": {
+                            "view": "people.records.view",
+                            "edit": "people.records.edit",
+                        },
+                    }
+                },
+            }
+        }
+        for schema_path in (
+            ROOT / "schema" / "unified_schema.json", ROOT / "jsformschema.json"
+        ):
+            validate(definition, json.loads(schema_path.read_text()))
+
+    def test_schema_rejects_malformed_permission_name(self):
+        from jsonschema import ValidationError, validate
+
+        definition = {
+            "frmSecureFORM": {
+                "FORM": {
+                    "name": "frmSecure", "type": "Panel", "title": "Secure",
+                    "posch": [1, 1], "sizech": [20, 10],
+                    "security": {"open": "Not A Permission"},
+                },
+                "CONTROLS": {},
+            }
+        }
+        with self.assertRaises(ValidationError):
+            validate(
+                definition,
+                json.loads((ROOT / "schema" / "unified_schema.json").read_text()),
+            )
+
     def test_factory_metadata_and_schemas_advertise_the_same_controls(self):
         tree = ast.parse((ROOT / "clsField.py").read_text(encoding="utf-8-sig"))
         field_class = next(
