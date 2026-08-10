@@ -5,6 +5,7 @@
 
 """
 import datetime
+import requests
 
 import JSForm
 
@@ -107,6 +108,13 @@ def sql_table_exists(dbconnection, tablename):
         return False
     return True
 
+def check_internetconnection(timeout):
+    while True:
+        try:
+            requests.head("http://www.google.com/", timeout=timeout)
+            return True
+        except requests.ConnectionError:
+            pass
 
 
 # print("{:02x}".format(ord("\r")))

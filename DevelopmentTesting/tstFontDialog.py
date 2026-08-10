@@ -14,7 +14,7 @@ app = wx.App(0)
 #
 # 	DataBase
 #
-ChurchDB = clsDB.clsDB("localhost", "ChurchDB", "church", "Church99")
+ChurchDB = clsDB.clsDB("localhost", "ChurchDB", "church", None)
 ChurchDBConnection = mysql.connector.connect(**ChurchDB.DB)
 frm = wx.Frame(None,wx.ID_ANY)
 myfont = clsFont.clsFont(ChurchDBConnection)

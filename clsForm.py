@@ -19,6 +19,11 @@ import json
 #   import framework classes
 #
 import JSForm
+from JSForm.form_lifecycle import ChildFormRegistry
+from JSForm.form_services import (
+    ControlFactory, FormDefinitionLoader, required_fields, resolve_form_schema,
+)
+from JSForm.layout_engine import apply_responsive_layout, supports_responsive_layout
 
 #
 #   import system classes
@@ -119,8 +124,8 @@ class clsForm:
         self.fillonblank = fillonblank
         self.RECORDS = None
 
-        self.LINKEDFORM = {}
-        self.SUBFORM = {}
+        self.LINKEDFORM = ChildFormRegistry()
+        self.SUBFORM = ChildFormRegistry()
 
         self.FORMDESCRIPTON, self.CONTROLDESCRIPTION = self.load_form_from_json(
             formname
@@ -136,6 +141,11 @@ class clsForm:
         if controls != None:
             self.FORMDESCRIPTON["controls"] = controls
 
+        self.RESPONSIVE_LAYOUT = supports_responsive_layout(
+            self.FORMDESCRIPTON, self.CONTROLDESCRIPTION
+        )
+        self.FORMDESCRIPTON["_responsive_layout"] = self.RESPONSIVE_LAYOUT
+
         self.FORMDESCRIPTON, self.CONTROLDESCRIPTION = JSForm.charactertopoint(
             self.FORMDESCRIPTON, self.CONTROLDESCRIPTION
         )
@@ -149,12 +159,21 @@ class clsForm:
         self.FRAME, self.FORM = self.process_form_type(self.FORMDESCRIPTON, position)
 
         self.CONTROLID = self.build_form()
+        if self.RESPONSIVE_LAYOUT:
+            layout_settings = dict(self.FORMDESCRIPTON.get("layout") or {})
+            layout_settings.setdefault(
+                "center",
+                self.FORMDESCRIPTON["pos"][0] <= -1
+                and self.FORMDESCRIPTON["pos"][1] <= -1,
+            )
+            apply_responsive_layout(
+                self.FORM, self.FRAME, self.CONTROLID, self.CONTROLDESCRIPTION,
+                layout_settings,
+            )
 
         self.RECORDS = self.initialize_data_record(self.FORMDESCRIPTON)
-        try:
+        if self.RECORDS is not None:
             self.RECORDS.load_records(self.FORMDESCRIPTON["table"], parentrecord)
-        except:
-            pass
 
         self.initialize_linked_forms()
         self.initialize_sub_forms()
@@ -269,9 +288,14 @@ class clsForm:
             )
 
             # formdescription["pos"] = [0, 0]
-            FORM = wx.Panel(
-                FRAME, wx.ID_ANY, **JSForm.getcontrolparameters(formdescription)
+            panel_class = (
+                wx.ScrolledWindow
+                if formdescription.get("_responsive_layout")
+                else wx.Panel
             )
+            FORM = panel_class(FRAME, wx.ID_ANY, **JSForm.getcontrolparameters(formdescription))
+            if isinstance(FORM, wx.ScrolledWindow):
+                FORM.SetScrollRate(10, 10)
 
         elif formdescription["type"] == "StaticBox":
             FORM = wx.StaticBox(
@@ -300,51 +324,40 @@ class clsForm:
         """
         JSForm.LG.log(Form=Form)
 
-        FormLocation = JSForm.CONFIG.get_Config_Value("Location", "Form")
-
-        #   if the form doesn't exist locally check in JSForm
-        try:
-            formname = FormLocation + Form + ".json"
-            f = open(
-                formname,
+        form_location = JSForm.CONFIG.get_Config_Value("Location", "Form")
+        fallback = os.path.join(os.path.dirname(JSForm.__file__), "Forms")
+        check_schema = JSForm.OPTION.get_Option_Value("JSONSchema", "CheckForms") == "Yes"
+        schema_path = None
+        if check_schema:
+            schema_path = resolve_form_schema(
+                JSForm.__file__,
+                JSForm.CONFIG.get_Config_Value("Location", "JSONSchema"),
             )
-        except:
-            FormLocation = os.path.dirname(JSForm.__file__) + "\\Forms\\"
-            formname = FormLocation + Form + ".json"
-            f = open(
-                formname,
-            )
-        jsonfrm = json.load(f)
-
-        if JSForm.OPTION.get_Option_Value("JSONSchema", "CheckForms") == "Yes":
-            SchemaLocation = JSForm.CONFIG.get_Config_Value("Location", "JSONSchema")
-            jsonschema = SchemaLocation + "jsformschema.json"
-            f = open(jsonschema)
-            schema = json.load(f)
-            validate(instance=jsonfrm, schema=schema)
-
-        return jsonfrm[Form + "FORM"]["FORM"], jsonfrm[Form + "FORM"]["CONTROLS"]
+        return FormDefinitionLoader(
+            form_location, fallback, schema_path, validate if check_schema else None
+        ).load(Form)
 
     def build_form(self):
         JSForm.LG.log()
-        controlid = {}
-        if "readonly" in self.FORMDESCRIPTON:
-            readonly = True
-        else:
-            readonly = False
-        for key in self.CONTROLDESCRIPTION.copy():
-            if readonly:
-                self.CONTROLDESCRIPTION[key].update({"readonly": True})
+        return ControlFactory(JSForm.clsField, wx.ID_ANY).build(
+            self,
+            self.CONTROLDESCRIPTION,
+            self.DBConnection,
+            readonly="readonly" in self.FORMDESCRIPTON,
+            readonly_fields=self.FORMDESCRIPTON.get("readonlyfields", []),
+        )
 
-            if "readonlyfields" in self.FORMDESCRIPTON:
-                if key in self.FORMDESCRIPTON["readonlyfields"]:
-                    self.CONTROLDESCRIPTION[key].update({"readonly": True})
-
-            fld = JSForm.clsField(
-                self, wx.ID_ANY, self.CONTROLDESCRIPTION[key], self.DBConnection
-            )
-            controlid.update({key: fld.FIELD})
-        return controlid
+    def refresh_layout(self, font=None):
+        """Recalculate an open form after a font or display-setting change."""
+        font = font or JSForm.FONT.Get_Current_Font()
+        self.FRAME.SetFont(font)
+        self.FORM.SetFont(font)
+        for control in self.CONTROLID.values():
+            control.SetFont(font)
+        self.FORM.Layout()
+        if hasattr(self.FORM, "FitInside"):
+            self.FORM.FitInside()
+        self.FRAME.Layout()
 
     def initialize_data_record(self, formdescription, SQL=None):
         JSForm.LG.log(formdescription=formdescription)
@@ -374,10 +387,7 @@ class clsForm:
                 continue
 
             #   get the  value
-            try:  #   Get the Default value
-                default = self.CONTROLDESCRIPTION[key]["defaultvalue"]
-            except:
-                default = None
+            default = self.CONTROLDESCRIPTION[key].get("defaultvalue")
 
             #   set the value
             if record == None:
@@ -403,7 +413,7 @@ class clsForm:
                         None, self.RECORDS.current()
                     )
                 )
-            except:
+            except (AttributeError, RuntimeError):
                 continue
         for subfrm in self.SUBFORM:
             try:
@@ -412,7 +422,7 @@ class clsForm:
                         None, self.RECORDS.current()
                     )
                 )
-            except:
+            except (AttributeError, RuntimeError):
                 continue
         for field in self.CONTROLID:
             if self.CONTROLDESCRIPTION[field]["type"] == "DataViewListCtrl":
@@ -460,11 +470,9 @@ class clsForm:
             parentrecord=record,
             fillonblank=fob,
         )
-        try:
+        if LinkedForm.RECORDS is not None:
             LinkedForm.fill_form(LinkedForm.RECORDS.current())
-        except:
-            pass
-        self.LINKEDFORM.update({lnkdfrm: LinkedForm})
+        self.LINKEDFORM.register(lnkdfrm, LinkedForm)
         return LinkedForm.show()
 
     def initialize_sub_forms(self):
@@ -483,7 +491,7 @@ class clsForm:
                 parentrecord=self.RECORDS.current(),
             )
 
-            self.SUBFORM.update({subfrm: SubForm})
+            self.SUBFORM.register(subfrm, SubForm)
             return SubForm.show()
 
     def bind_form_controls(self):
@@ -642,11 +650,8 @@ class clsForm:
         JSForm.LG.log()
         if "modal" in self.FORMDESCRIPTON:
             return self.FRAME.ShowModal()
-        try:
-            self.FRAME.Show()
-        except:
-            pass
-        finally:
+        self.FRAME.Show()
+        if self.FORM is not self.FRAME:
             self.FORM.Show()
 
     def showmodal(self):
@@ -791,10 +796,7 @@ class clsForm:
                 )
                 form.show()
             case "openlinkedform":
-                try:
-                    record = self.RECORDS.current()
-                except:
-                    record = None
+                record = self.RECORDS.current() if self.RECORDS else None
                 self.open_linked_form(openctrl, record)
 
     def _editchecklist(self, event):
@@ -806,13 +808,15 @@ class clsForm:
         cursor = self.DBConnection.cursor()
         try:
             cursor.execute(
-                "SELECT CheckList FROM tblCheckList WHERE ID = {ID}".format(
-                    ID=self.CONTROLID[newlist].GetValue()
-                )
+                "SELECT CheckList FROM tblCheckList WHERE ID = %s",
+                (self.CONTROLID[newlist].GetValue(),),
             )
-        except:
+            row = cursor.fetchone()
+        except Exception as error:
+            self._show_operation_error("Unable to load the checklist.")
             return None
-        row = cursor.fetchone()
+        finally:
+            cursor.close()
         chklst = json.loads(row[0])
         match self.CONTROLDESCRIPTION[field]["action"][1]:
             case "replacelist":
@@ -835,17 +839,36 @@ class clsForm:
         JSForm.LG.log()
 
         if not self.FORMDirty():
-            if self.LINKEDFORM:
-                for linkedform in self.LINKEDFORM.copy().keys():
-                    self.LINKEDFORM[linkedform].FORM.Close()
+            # Detach children before closing them. Their close handlers can call
+            # back into this form, and wx may already have deleted a child panel.
+            self._close_child_forms(self.LINKEDFORM)
+            self._close_child_forms(self.SUBFORM)
 
             if self.PARENT:
-                if self.FORMNAME in self.PARENT.LINKEDFORM:
-                    self.PARENT.LINKEDFORM.pop(self.FORMNAME)
-                if self.FORMNAME in self.PARENT.SUBFORM:
-                    self.PARENT.SUBFORM.pop(self.FORMNAME)
+                self.PARENT.LINKEDFORM.pop(self.FORMNAME, None)
+                self.PARENT.SUBFORM.pop(self.FORMNAME, None)
 
-            self.FRAME.Destroy()
+            try:
+                if not self.FRAME.IsBeingDeleted():
+                    self.FRAME.Destroy()
+            except RuntimeError:
+                # The native wx object was already destroyed by its parent.
+                pass
+
+    def _close_child_forms(self, forms):
+        """Close live child forms and discard stale wx wrapper references."""
+        if hasattr(forms, "close_all"):
+            forms.close_all()
+            return
+        children = list(forms.values())
+        forms.clear()
+        for child in children:
+            try:
+                if not child.FORM.IsBeingDeleted():
+                    child.FORM.Close()
+            except RuntimeError:
+                # Accessing an already-deleted wx object raises RuntimeError.
+                continue
 
     def _replace_checklist(self, event):
         JSForm.LG.log()
@@ -862,26 +885,7 @@ class clsForm:
     #
 
     def _check_required_fields(self):
-        required = []
-        for fld in self.RECORDS.sql.sqldescription:
-            if fld == "ID":
-                continue
-            if fld not in self.CONTROLID:
-                continue
-            if fld in self.CONTROLID:
-                value = self.CONTROLID[fld].GetValue()
-            else:
-                value = None
-            if value is None:
-                if not self.RECORDS.sql.sqldescription[fld]["null_ok"]:
-                    required.append(fld)
-                    continue
-                try:
-                    if self.CONTROLID[fld].CONTROLDESCRIPTION["required"]:
-                        required.append(fld)
-                except:
-                    continue
-        return required
+        return required_fields(self.RECORDS.sql.sqldescription, self.CONTROLID)
 
     def _on_new_record_click(self, event):
         JSForm.LG.log()
@@ -890,7 +894,11 @@ class clsForm:
     def _on_delete_record_click(self, event):
         JSForm.LG.log()
         if not self.FORMDirty():
-            self.RECORDS.delete_record_from_DB()
+            try:
+                self.RECORDS.delete_record_from_DB()
+            except RuntimeError as error:
+                self._show_operation_error(str(error))
+                return
             dlg = wx.MessageDialog(
                 self.FORM,
                 "Record Deleted.",
@@ -904,10 +912,7 @@ class clsForm:
 
     def _close_linked_forms(self):
         JSForm.LG.log()
-        linked = self.LINKEDFORM.copy()
-        for frm in linked:
-            self.LINKEDFORM[frm].FORM.Close()
-            self.LINKEDFORM.pop(frm)
+        self._close_child_forms(self.LINKEDFORM)
 
     def _on_update_record_click(self, event):
         JSForm.LG.log()
@@ -922,7 +927,11 @@ class clsForm:
             dlg.Destroy()
             return
         self.update_screen_to_record()
-        self.RECORDS.update_current_record_in_DB()
+        try:
+            self.RECORDS.update_current_record_in_DB()
+        except RuntimeError as error:
+            self._show_operation_error(str(error))
+            return
         self.enable_navigation_buttons()
         dlg = wx.MessageDialog(
             self.FORM,
@@ -933,6 +942,11 @@ class clsForm:
         result = dlg.ShowModal()
         dlg.Destroy()
         self.set_all_controls_to_normal_color()
+
+    def _show_operation_error(self, message):
+        dialog = wx.MessageDialog(self.FORM, message, "Database operation failed", wx.OK)
+        dialog.ShowModal()
+        dialog.Destroy()
 
     def _first_prev_next_last(self, firstprevnextlast):
         JSForm.LG.log()

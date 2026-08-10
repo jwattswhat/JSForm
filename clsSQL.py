@@ -9,6 +9,7 @@ from mysql.connector import FieldType
 import datetime
 
 import JSForm
+from JSForm.sql_statements import WriteStatements
 
 
 class clsSQL:
@@ -142,6 +143,9 @@ class clsSQL:
         )
         return sql
 
+    def insert_statement(self, record):
+        return WriteStatements(self.table["name"], self.aspairs.get).insert(record)
+
     def update(self, record):
         keys, values = self._prepare_keys_values(record)
         valuestrings = []
@@ -162,10 +166,16 @@ class clsSQL:
 
         return sql
 
+    def update_statement(self, record):
+        return WriteStatements(self.table["name"], self.aspairs.get).update(record)
+
     def delete(self, recordID):
         return "DELETE FROM {tablename} WHERE ID = {ID};".format(
             tablename=self.table["name"], ID=recordID
         )
+
+    def delete_statement(self, recordID):
+        return WriteStatements(self.table["name"], self.aspairs.get).delete(recordID)
 
     def get_sql_field_description(self, field):
         return self.sqldescription[field]

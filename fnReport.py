@@ -3,8 +3,42 @@ import mysql
 import datetime
 import os
 import subprocess
+import re
+import tempfile
+from pathlib import Path
 
 import JSForm
+from JSForm.report_runtime import LimeReportProcess
+
+
+def prepare_lime_report_template(source, database_name):
+    """Return a temporary template targeting database_name when necessary."""
+    source = Path(source)
+    content = source.read_text(encoding="utf-8-sig")
+    pattern = r'(<databaseName\s+Type="QString">)([^<]*)(</databaseName>)'
+    database_names = re.findall(pattern, content)
+    if not database_names or all(value[1].casefold() == database_name.casefold() for value in database_names):
+        return str(source), None
+
+    staged = re.sub(
+        pattern,
+        lambda match: "{}{}{}".format(match.group(1), database_name, match.group(3)),
+        content,
+    )
+    temp_dir = Path(tempfile.gettempdir()) / "ChurchManager-LimeReport-Test"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    target = temp_dir / source.name
+    target.write_text(staged, encoding="utf-8")
+    return str(target), target
+
+
+def current_database_name(dbconnection):
+    cursor = dbconnection.cursor()
+    try:
+        cursor.execute("SELECT DATABASE();")
+        return cursor.fetchone()[0]
+    finally:
+        cursor.close()
 
 def RunReport(reportid,frm,dbconnection):
     class _requiredfielddialog(wx.Dialog):
@@ -45,7 +79,7 @@ def RunReport(reportid,frm,dbconnection):
     row = cursor.fetchone()
     cursor.close()
     if row == None:
-        dlg = _requiredfielddialog(frm.FORM,"Report Not Found",rptTitle,"Report")
+        dlg = _requiredfielddialog(frm.FORM,"Report Not Found",str(reportid),"Report")
         result = dlg.ShowModal()
         dlg.Destroy()
         return None
@@ -75,19 +109,23 @@ def RunReport(reportid,frm,dbconnection):
         try:
             os.remove(
                 "{reportlocation}{rptreport}.pdf".format(
-                    report=reportlocation, rptreport=rptReport
+                    reportlocation=reportlocation, rptreport=rptReport
                 )
             )
-        except:
+        except FileNotFoundError:
             pass
 
         #   build the commandline
-        cmdline = "{limedir}limereport -s{reportpattern}{rptreport}.lrxml -d{reportlocation}{rptreport}.pdf".format(
-            limedir=limedir,
-            reportpattern=reportpattern,
-            reportlocation=reportlocation,
-            rptreport=rptReport,
+        source_template = "{reportpattern}{rptreport}.lrxml".format(
+            reportpattern=reportpattern, rptreport=rptReport
         )
+        lime_template, temporary_template = prepare_lime_report_template(
+            source_template, current_database_name(dbconnection)
+        )
+        output_path = "{reportlocation}{rptreport}.pdf".format(
+            reportlocation=reportlocation, rptreport=rptReport
+        )
+        parameters = {}
 
         for param in rptParams:
             try:
@@ -102,17 +140,18 @@ def RunReport(reportid,frm,dbconnection):
                     dlg.Destroy()
                     return None
                 else:
-                    cmdline = cmdline + ' -p{param}="{pvalue}"'.format(param=param,pvalue=pvalue)
-            except:
+                    parameters[param] = pvalue
+            except (AttributeError, KeyError, TypeError, ValueError):
                 dlg = _requiredfielddialog(frm.FORM,"Required Field",rptTitle,param)
                 result = dlg.ShowModal()
                 dlg.Destroy()
                 return None
 
         #   Process the report
-        sb = subprocess.Popen(cmdline)
-        sb.wait()
-        cmdline = "{reportlocation}{rptreport}.pdf".format(
-            reportlocation=reportlocation, rptreport=rptReport
-        )
-        subprocess.Popen(cmdline, shell=True)
+        process = LimeReportProcess(limedir)
+        try:
+            process.generate(lime_template, output_path, parameters)
+        finally:
+            if temporary_template:
+                temporary_template.unlink(missing_ok=True)
+        process.open_output(output_path)

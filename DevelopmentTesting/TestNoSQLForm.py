@@ -17,7 +17,7 @@ app = wx.App(0)
 # 	Main form
 #
 
-ChurchDB = clsDB.clsDB("localhost", "ChurchDB", "church", "Church99")
+ChurchDB = clsDB.clsDB("localhost", "ChurchDB", "church", None)
 ChurchDBConnection = mysql.connector.connect(**ChurchDB.DB)
 CONFIG.set_Config_DBConnection(ChurchDBConnection)
 

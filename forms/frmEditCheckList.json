@@ -1,7 +1,7 @@
 {
     "frmEditCheckListFORM": {
         "FORM": {
-            "name": "frmEditChecklist",
+            "name": "frmEditCheckList",
             "type": "Panel",
             "title": "Edit CheckList",
             "table": {

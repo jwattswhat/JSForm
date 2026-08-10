@@ -1,7 +1,10 @@
 __pycache__/
 .venv/
+.test-venv/
 Bulletins/
 Reports/
 Pictures/
 Sermons/
+BackupDB/*.SQL
+Log.txt
 *.pyc

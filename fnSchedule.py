@@ -37,7 +37,7 @@ def strtolist(st):
 
 def ScheduleParticipants(ServiceID):
 
-    ChurchDB = clsDB.clsDB("192.168.3.200", "ChurchDB", "church", "Church99")
+    ChurchDB = clsDB.clsDB("192.168.3.200", "ChurchDB", "church", None)
     ChurchDBConnection = mysql.connector.connect(**ChurchDB.DB)
 
     # check for previous schedule for this service
@@ -162,7 +162,7 @@ def ScheduleParticipants(ServiceID):
 def notifyviaeMail(ServiceID):
     global CONFIG
 
-    ChurchDB = clsDB.clsDB("localhost", "ChurchDB", "church", "Church99")
+    ChurchDB = clsDB.clsDB("localhost", "ChurchDB", "church", None)
     ChurchDBConnection = mysql.connector.connect(**ChurchDB.DB)
     SMTP = clsSMTP.clsSMTP()
 

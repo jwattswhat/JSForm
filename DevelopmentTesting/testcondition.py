@@ -19,7 +19,7 @@ def conditionCONFIG(condition):
 
 condition = "ID = {id} AND Lectionary = {OPTION:Lectionary:Current} ii = {OPTION:Lectionary:Current}"
 
-ChurchDB = clsDB.clsDB("localhost", "ChurchDB", "church", "Church99")
+ChurchDB = clsDB.clsDB("localhost", "ChurchDB", "church", None)
 ChurchDBConnection = mysql.connector.connect(**ChurchDB.DB)
 OPTION.set_Option_DBConnection(ChurchDBConnection)
 

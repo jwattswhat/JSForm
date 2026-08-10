@@ -885,23 +885,50 @@ class clsField:
                 return choice
             return row[0]
 
-    class clsDateTime(wx.TextCtrl, clsFieldExtra):
+    class clsDateTime(wx.Panel, clsFieldExtra):
         def __init__(self, parent, controldescription):
             super().init_field(parent, controldescription)
+            description = self.CONTROLDESCRIPTION.copy()
+            size = list(description.get("size", [300, 28]))
+            position = description.get("pos", wx.DefaultPosition)
+            wx.Panel.__init__(
+                self, parent.PARENT.FORM, wx.ID_ANY, pos=position, size=size
+            )
 
-            # Datetime preprocess
+            class CompositeParent:
+                pass
 
-            # process date and time accourding to controldescription fields
-            # "displaydate" & "displaytime"
-            self.lc = self.CONTROLDESCRIPTION
+            proxy = CompositeParent()
+            proxy.DBConnection = parent.DBConnection
+            proxy.PARENT = CompositeParent()
+            proxy.PARENT.FORM = self
 
-            sz = self.lc["size"][0]
-            self.lc["size"][0] = sz - 120
-            self.datefield = clsField.clsDatePickerCtrl(parent, self.CONTROLDESCRIPTION)
+            date_description = description.copy()
+            date_description["type"] = "DatePickerCtrl"
+            date_description["pos"] = [0, 0]
+            date_description["size"] = [max(120, int(size[0] * 0.6)), size[1]]
+            time_description = description.copy()
+            time_description["type"] = "TimePickerCtrl"
+            time_description["pos"] = [0, 0]
+            time_description["size"] = [max(90, size[0] - date_description["size"][0]), size[1]]
 
-            self.lc["pos"][0] = self.lc["pos"][0] + self.lc["size"][0]
-            self.lc["size"][0] = sz - self.lc["size"][0]
-            self.timefield = clsField.clsTimePickerCtrl(parent, self.CONTROLDESCRIPTION)
+            self.datefield = clsField.clsDatePickerCtrl(proxy, date_description)
+            self.timefield = clsField.clsTimePickerCtrl(proxy, time_description)
+            sizer = wx.BoxSizer(wx.HORIZONTAL)
+            sizer.Add(self.datefield, 3, wx.EXPAND)
+            sizer.Add(self.timefield, 2, wx.EXPAND | wx.LEFT, 2)
+            self.SetSizer(sizer)
+            self.SetMinSize(sizer.GetMinSize())
+
+        def SetFont(self, font):
+            changed = wx.Panel.SetFont(self, font)
+            if hasattr(self, "datefield"):
+                self.datefield.SetFont(font)
+            if hasattr(self, "timefield"):
+                self.timefield.SetFont(font)
+            if self.GetSizer():
+                self.GetSizer().Layout()
+            return changed
 
         def Disable(self):
             self.datefield.Disable()

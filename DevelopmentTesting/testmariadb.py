@@ -2,7 +2,7 @@ import mysql
 import mysql.connector
 DB = {
             "user": "church",
-            "password": "Church99",
+            "password": None,
             "host": "localhost",
             "database": "ChurchDB",
         }

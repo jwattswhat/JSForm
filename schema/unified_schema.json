@@ -1,0 +1,195 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Universal Form Schema",
+  "type": "object",
+  "patternProperties": {
+    "^frm.*FORM$": {
+      "type": "object",
+      "properties": {
+        "FORM": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "type": { "type": "string", "enum": ["Panel", "Dialog", "Frame"] },
+            "title": { "type": "string" },
+            "layout": {
+              "type": "object",
+              "properties": {
+                "type": { "type": "string", "enum": ["responsive", "legacy"] },
+                "border": { "type": "integer", "minimum": 0 },
+                "gap": { "type": "integer", "minimum": 0 }
+              },
+              "required": ["type"]
+            },
+            "table": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "fields": {
+                  "type": "array",
+                  "items": { "type": ["string", "object"] }
+                },
+                "orderby": { "type": "string" },
+                "sort": { "type": "string" },
+                "condition": { "type": "string" }
+              },
+              "required": ["name", "fields"]
+            },
+            "tablename": { "type": "string" },
+            "subformtype": { "type": "string" },
+            "stylelist": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "style": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "stylestr": { "type": "string" },
+            "posch": {
+              "type": "array",
+              "items": { "type": "number" },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "sizech": {
+              "type": "array",
+              "items": { "type": "number" },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "controls": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "readonlyfields": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "linkedform": {
+              "type": "object",
+              "patternProperties": {
+                ".*": {
+                  "type": "object",
+                  "properties": {
+                    "name": { "type": "string" },
+                    "title": { "type": "string" },
+                    "table": {
+                      "type": "object",
+                      "properties": {
+                        "name": { "type": "string" },
+                        "fields": {
+                          "type": "array",
+                          "items": { "type": "string" }
+                        },
+                        "orderby": { "type": "string" },
+                        "condition": { "type": "string" }
+                      }
+                    },
+                    "controls": {
+                      "type": "array",
+                      "items": { "type": "string" }
+                    },
+                    "readonlyfields": {
+                      "type": "array",
+                      "items": { "type": "string" }
+                    },
+                    "fillonblank": {
+                      "type": "array",
+                      "items": { "type": "string" }
+                    },
+                    "bindbtn": { "type": "string" },
+                    "posch": {
+                      "type": "array",
+                      "items": { "type": "number" }
+                    }
+                  }
+                }
+              }
+            },
+            "nodataDB": { "type": "boolean" }
+          },
+          "required": ["name", "type", "title"]
+        },
+        "CONTROLS": {
+          "type": "object",
+          "patternProperties": {
+            ".*": {
+              "type": "object",
+              "properties": {
+                "type": { "type": "string" },
+                "name": { "type": "string" },
+                "label": { "type": "string" },
+                "layout": {
+                  "type": "object",
+                  "properties": {
+                    "row": { "type": "integer", "minimum": 0 },
+                    "column": { "type": "integer", "minimum": 0 },
+                    "row_span": { "type": "integer", "minimum": 1 },
+                    "column_span": { "type": "integer", "minimum": 1 },
+                    "expand": { "type": "boolean" },
+                    "proportion": { "type": "integer", "minimum": 0 },
+                    "hidden": { "type": "boolean" }
+                  }
+                },
+                "posch": {
+                  "type": "array",
+                  "items": { "type": "number" },
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                "sizech": {
+                  "type": "array",
+                  "items": { "type": "number" }
+                },
+                "stylelist": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                },
+                "readonly": { "type": "boolean" },
+                "norecorddata": { "type": "boolean" },
+                "defaultvalue": { "type": ["string", "number", "boolean", "null"] },
+                "value": { "type": ["string", "number", "boolean", "null"] },
+                "list": { "type": "boolean" },
+                "linkedfield": { "type": "string" },
+                "savestyle": { "type": "string" },
+                "format": { "type": "string" },
+                "column": {
+                  "type": "array",
+                  "items": {
+                    "type": ["array", "object"],
+                    "items": [
+                      { "type": "string" },
+                      { "type": "number" }
+                    ]
+                  }
+                },
+                "columnSQL": { "type": "string" },
+                "action": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                },
+                "lookupchoices": {
+                  "type": "object",
+                  "properties": {
+                    "name": { "type": "string" },
+                    "fields": {
+                      "type": "array",
+                      "items": { "type": "string" }
+                    },
+                    "orderby": { "type": "string" },
+                    "condition": { "type": "string" },
+                    "ID": { "type": "string" }
+                  }
+                }
+              },
+              "required": ["type", "name", "posch"]
+            }
+          }
+        }
+      },
+      "required": ["FORM", "CONTROLS"]
+    }
+  },
+  "additionalProperties": false
+}

@@ -10,8 +10,8 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "justMyCode": true,
-            "args": ["--server","192.168.3.200","--database","JSForm","--user","church","--password","Church99"]
+            "justMyCode": true ,
+            "args": ["--server","192.168.3.200","--database","JSForm","--user","church","--password","REMOVED_USE_WINDOWS_CREDENTIAL_MANAGER"]
         }
     ]
 }

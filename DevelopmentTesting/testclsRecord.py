@@ -4,7 +4,7 @@
 import clsDB
 import mysql
 
-db = clsDB.clsDB("localhost", "ChurchDB", "church", "Church99")
+db = clsDB.clsDB("localhost", "ChurchDB", "church", None)
 cn = ChurchDBConnection = mysql.connector.connect(**db.DB)
 re = clsDB.clsRecord(cn, 'tblChurch', 'SELECT * FROM tblChurch')
 print("current", re.get_current_record())

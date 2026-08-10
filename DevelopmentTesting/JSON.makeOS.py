@@ -46,7 +46,7 @@ for o in sorttable["Lines"]:
     ][sorttable["Lines"][o]]
 
 
-ChurchDB = clsDB.clsDB("localhost", "ChurchDB", "church", "Church99")
+ChurchDB = clsDB.clsDB("localhost", "ChurchDB", "church", None)
 ChurchDBConnection = mysql.connector.connect(**ChurchDB.DB)
 CONFIG.set_Config_DBConnection(ChurchDBConnection)
 OPTION.set_Option_DBConnection(ChurchDBConnection)

@@ -15,6 +15,22 @@ from datetime import datetime, timedelta
 #   Framework Imports
 import JSForm
 
+
+def database_operation_message(error, operation):
+    """Translate common database constraint errors into user-facing guidance."""
+    messages = {
+        1048: "A required database value is missing.",
+        1062: "This record duplicates an existing value.",
+        1451: "This record cannot be deleted because other records still use it.",
+        1452: "The selected related record no longer exists.",
+    }
+    return messages.get(
+        getattr(error, "errno", None),
+        "Unable to {} the database record.".format(operation),
+    )
+from JSForm.db_connections import DatabaseConnections, DatabaseSettings
+from JSForm.record_state import RecordState
+
 class clsDB:
     """
     clsDB - Database Class
@@ -47,7 +63,7 @@ class clsDB:
             btnok = wx.Button(panel,wx.ID_OK,label="Connect",pos=(10,150),size=(100,30))
 
 
-    def __init__(self, host=None, databasename=None, username=None, password=None):
+    def __init__(self, host=None, databasename=None, username=None, password=None, jsform_database="JSForm"):
         global CONFIG,OPTION,FONT
         if host == None or databasename == None or username == None or password  == None:
                 dlg = self._getcredentials(self, title="Enter DB Login info")
@@ -68,24 +84,27 @@ class clsDB:
                 dlg.Destroy()
                 if result == JSForm.CONST.FORM_CANCEL:
                     return True
-        self.DBCredintials = {
-            "user": username,
-            "password": password,
-            "host": host,
-            "database": databasename,
-        }
-        self.DBConnection = mysql.connector.connect(**self.DBCredintials)
+        application_settings = DatabaseSettings(host, databasename, username, password)
+        framework_settings = DatabaseSettings(host, jsform_database, username, password)
+        self.CONNECTIONS = DatabaseConnections(
+            application_settings, framework_settings, mysql.connector.connect
+        )
+        # Compatibility attributes retained for existing applications.
+        self.DBCredintials = application_settings.connector_arguments()
+        self.JSCredintials = framework_settings.connector_arguments()
+        self.DBConnection = self.CONNECTIONS.application
+        self.JSConnection = self.CONNECTIONS.framework
 
-        #   Make connection to JSForms DB
-        self.JSCredintials = {
-            "user": username,
-            "password": password,
-            "host": host,
-            "database": "JSForm"
-        }
-        self.JSConnection = mysql.connector.connect(**self.JSCredintials)
+    def close(self):
+        self.CONNECTIONS.close()
 
-class clsRecord:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+
+class clsRecord(RecordState):
     """
         clsRecord -
         Rev. Jonathan C. Watt
@@ -104,44 +123,6 @@ class clsRecord:
     """
     BlankRecord = -1
 
-    class clsOriginalRecord:
-        def __init__(self):
-            self.record = {}
-
-        def saverecord(self, record):
-            self.record = record.copy()
-            for field in self.record:
-                self.savefield(field, self.record[field])
-
-        def savefield(self, field, value):
-            if value == "":
-                self.record[field] = None
-            else:
-                self.record[field] = value
-
-        def getsavedfield(self, field):
-            return self.record[field]
-
-        def restore(self):
-            return self.record
-
-        def comparefield(self, field, value):
-            return str(value) == str(self.record[field])
-
-        def comparerecord(self, record):
-            errorfields = []
-            for field in record:
-                if self.original[field] == "":
-                    self.original[field] == None
-                if record[field] == "":
-                    record[field] = None
-                # print (self.original[field],record[field],self.original[field]==record[field])
-                if str(self.original[field]) != str(record[field]):
-                    errorfields.append(field)
-            if errorfields != []:
-                return errorfields
-            return False
-
     def __init__(self, connection, table=None):
         """
         DBConnection - connection to database
@@ -154,12 +135,10 @@ class clsRecord:
             }
         ...
         """
+        super().__init__()
         self.DBConnection = connection
         self.TABLENAME = table["name"]
-        self.original = self.clsOriginalRecord()
         self.TABLE = table
-        self._record = None
-        self._position = 0
         self.sqlaspairs = None
         self.sql = None
 
@@ -178,9 +157,11 @@ class clsRecord:
         sql = self.sql.select()
         try:
             cursor.execute(sql)
-        except:
-            return None
-        rows = cursor.fetchall()
+            rows = cursor.fetchall()
+        except Exception as error:
+            raise RuntimeError("Unable to read records from {}.".format(self.TABLENAME)) from error
+        finally:
+            cursor.close()
         if len(rows) == 0:
             return []
 
@@ -188,92 +169,6 @@ class clsRecord:
         if records != []:
             return records
         return []
-
-    def add(self, rec):
-        if self.isempty():
-            self._record = []
-        self._record.append(rec)
-        return self.last()
-
-    def delete(self):
-        if not self.isempty():
-            self._record.pop(self._position)
-            self.prev()
-
-    def current(self):
-        if not self.isempty():
-            return self._record[self._position]
-
-    def currentfield(self, field):
-        return self._record[self._position][field]
-
-    def currentnum(self):
-        return self._position
-
-    def first(self):
-        if not self.isempty():
-            self._position = 0
-            self.original.saverecord(self._record[self._position])
-            return self._record[self._position]
-
-    def prev(self,loop=False):
-        if self._position > 0:
-            self._position -= 1
-        else:
-            if loop:
-                return self.last()
-        self.original.saverecord(self._record[self._position])
-        return self._record[self._position]
-
-    def next(self,loop=False):
-        if self._position < len(self._record) - 1:
-            self._position += 1
-            self.original.saverecord(self._record[self._position])
-            return self._record[self._position]
-        if loop:
-            return self.first()
-
-    def last(self):
-        self._position = len(self._record) - 1
-        self.original.saverecord(self._record[self._position])
-        return self._record[self._position]
-
-    def setfieldvalue(self, field, value):
-        self._record[self._position][field] = value
-
-    def updatecurrentrec(self, rec):
-        self._record[self._position] = rec
-
-    def getcurrentID(self):
-        if not self.isempty():
-            return self._record[self._position]["ID"]
-
-    def getfield(self, name):
-        return self._record[self._position][name]
-
-    def setControlID(self, name, ID):
-        self._record[self._position][name].update({"ControlID": ID})
-
-    def ControlID(self):
-        return self._record[self._position]["ControlID"]
-
-    def get_field_by_name(self, fieldname):
-        return self._record[self._position].get(fieldname)
-
-    def isempty(self):
-        return self._record == None
-
-    def fieldisdirty(self, field):
-        return str(self.original.record[field]) != str(
-            self._record[self._position][field]
-        )
-
-    def recordisdirty(self):
-        dirtyfields = []
-        for field in self._record[self._position]:
-            if self.fieldisdirty(field):
-                dirtyfields.append(field)
-        return dirtyfields
 
     #
     #   internal methods
@@ -284,12 +179,15 @@ class clsRecord:
         delete record from the DB
         """
         cursor = self.DBConnection.cursor()
-        sql = self.sql.delete(self._record[self._position]["ID"])
+        sql, values = self.sql.delete_statement(self.current()["ID"])
         try:
-            cursor.execute(sql)
-        except:
-            print("sql error {sql}".format(sql=sql))
-        self.DBConnection.commit()
+            cursor.execute(sql, values)
+            self.DBConnection.commit()
+        except Exception as error:
+            self.DBConnection.rollback()
+            raise RuntimeError(database_operation_message(error, "delete")) from error
+        finally:
+            cursor.close()
 
         # delete record from the dictionary
         self.delete()
@@ -299,33 +197,30 @@ class clsRecord:
         # Insert New Record "ID" Field is None
         if self._record[self._position]["ID"] == None:
             cursor = self.DBConnection.cursor()
-            sql = self.sql.insert(self._record[self._position])
+            sql, values = self.sql.insert_statement(self.current())
             try:
-                cursor.execute(sql)
-            except:
-                print("sql error {sql}".format(sql=sql))
-            self.DBConnection.commit()
-
-            # Get the ID (autoincrement field) from the last Insert
-            sql = "SELECT Last_Insert_ID();"
-            try:
-                cursor.execute(sql)
-            except Exception as ex:
-                print("sql error {err}:{sql} ".format(err=ex, sql=sql))
-            lid = cursor.fetchone()
-            cursor.close()
-            self.setfieldvalue("ID", lid[0])
+                cursor.execute(sql, values)
+                new_id = cursor.lastrowid
+                self.DBConnection.commit()
+            except Exception as error:
+                self.DBConnection.rollback()
+                raise RuntimeError(database_operation_message(error, "insert")) from error
+            finally:
+                cursor.close()
+            self.setfieldvalue("ID", new_id)
 
         # Update existing record only update fields that have changed.
         else:
             cursor = self.DBConnection.cursor()
-            sql = self.sql.update(self._record[self._position])
+            sql, values = self.sql.update_statement(self.current())
             try:
-                cursor.execute(sql)
-            except Exception as ex:
-                print("sql error {err}:{sql} ".format(err=ex, sql=sql))
-            self.DBConnection.commit()
-            cursor.close()
+                cursor.execute(sql, values)
+                self.DBConnection.commit()
+            except Exception as error:
+                self.DBConnection.rollback()
+                raise RuntimeError(database_operation_message(error, "update")) from error
+            finally:
+                cursor.close()
         self.original.saverecord(self.current())
 
     def __close__(self):

@@ -15,7 +15,7 @@ def _buttonclick(event):
         frm.FORM.Close()
 
     select = event.GetEventObject().GetName()
-    formname = None
+    formname = None 
     match select:
         case "lblEnhancements":
             formname = "frmEnhancement"
