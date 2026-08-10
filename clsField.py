@@ -22,7 +22,7 @@ import wx
 import wx.adv
 import wx.dataview
 import wx.html
-from control_values import (
+from JSForm.control_values import (
     checked_value,
     datetime_value,
     multiline_text,
@@ -1087,8 +1087,13 @@ class clsField:
                     "stylelist" in self.CONTROLDESCRIPTION
                     and "ALLOWNONE" in self.CONTROLDESCRIPTION["stylelist"]
                 ):
-                    super().SetNullText("")
-                    super().SetValue(wx.DateTime())
+                    # wx.adv.TimePickerCtrl has no SetNullText support. The
+                    # nullable date in clsDateTime represents the null value.
+                    super().SetValue(
+                        datetime.datetime.combine(
+                            datetime.date.today(), datetime.time()
+                        )
+                    )
                     return None
                 value = datetime.datetime.now().strftime(timeformat)
             if isinstance(value, datetime.datetime):

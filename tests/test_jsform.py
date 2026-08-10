@@ -232,6 +232,18 @@ class TestResponsiveLayout(unittest.TestCase):
         self.assertIn("wx.Panel", bases)
         self.assertIn("wx.Panel.__init__", calls)
 
+    def test_nullable_time_picker_does_not_call_unsupported_null_text_api(self):
+        tree = ast.parse((ROOT / "clsField.py").read_text(encoding="utf-8-sig"))
+        time_class = next(
+            node for node in ast.walk(tree)
+            if isinstance(node, ast.ClassDef) and node.name == "clsTimePickerCtrl"
+        )
+        calls = [
+            ast.unparse(node.func) for node in ast.walk(time_class)
+            if isinstance(node, ast.Call)
+        ]
+        self.assertNotIn("super().SetNullText", calls)
+
     def test_default_spacing_is_compact_and_overridable(self):
         from layout_engine import layout_spacing
 
