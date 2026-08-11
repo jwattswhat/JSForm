@@ -42,11 +42,14 @@ class TestJSFormDatabase(unittest.TestCase):
         except ImportError as error:
             raise unittest.SkipTest("The mariadb Python connector is unavailable") from error
 
-        stored_user, password = read_credential("ChurchManager/Test")
+        credential_target = os.environ.get(
+            "JSFORM_TEST_CREDENTIAL_TARGET", "ChurchManager/Test"
+        )
+        stored_user, password = read_credential(credential_target)
         configured_user = os.environ.get("JSFORM_TEST_DB_USER", stored_user)
         if configured_user.casefold() != stored_user.casefold():
             raise RuntimeError(
-                "The JSForm test username does not match ChurchManager/Test."
+                "The JSForm test username does not match the stored credential."
             )
 
         cls.connection = mariadb.connect(
@@ -63,7 +66,7 @@ class TestJSFormDatabase(unittest.TestCase):
                 "SELECT TABLE_NAME FROM information_schema.TABLES "
                 "WHERE TABLE_SCHEMA = DATABASE()"
             )
-            cls.available_tables = {row[0] for row in cursor.fetchall()}
+            cls.available_tables = {row[0].casefold() for row in cursor.fetchall()}
         finally:
             cursor.close()
 
@@ -81,17 +84,18 @@ class TestJSFormDatabase(unittest.TestCase):
             cursor.close()
 
     def test_required_framework_tables_exist(self):
-        self.assertEqual(REQUIRED_TABLES - self.available_tables, set())
+        required = {table.casefold() for table in REQUIRED_TABLES}
+        self.assertEqual(required - self.available_tables, set())
 
     def test_required_tables_are_readable(self):
         for table in sorted(REQUIRED_TABLES):
             with self.subTest(table=table):
-                if table not in self.available_tables:
+                if table.casefold() not in self.available_tables:
                     continue
                 self.query(f"SELECT 1 FROM `{table}` LIMIT 1")
 
     def test_configuration_keys_are_unique(self):
-        if "jsConfig" not in self.available_tables:
+        if "jsconfig" not in self.available_tables:
             self.skipTest("jsConfig is missing")
         duplicates = self.query(
             "SELECT ConfigFamily, ConfigType, COUNT(*) FROM jsConfig "
@@ -100,7 +104,7 @@ class TestJSFormDatabase(unittest.TestCase):
         self.assertEqual(duplicates, [])
 
     def test_option_keys_are_unique(self):
-        if "jsOptions" not in self.available_tables:
+        if "jsoptions" not in self.available_tables:
             self.skipTest("jsOptions is missing")
         duplicates = self.query(
             "SELECT OptionFor, OptionType, COUNT(*) FROM jsOptions "
@@ -109,7 +113,7 @@ class TestJSFormDatabase(unittest.TestCase):
         self.assertEqual(duplicates, [])
 
     def test_report_codes_are_unique(self):
-        if "jsReports" not in self.available_tables:
+        if "jsreports" not in self.available_tables:
             self.skipTest("jsReports is missing")
         duplicates = self.query(
             "SELECT Report, COUNT(*) FROM jsReports WHERE Report IS NOT NULL AND Report <> '' "
