@@ -264,6 +264,17 @@ class TestControlCatalog(unittest.TestCase):
         self.assertIn("tooltip = controldescription.get('tooltip')", source)
         self.assertIn("self.FIELD.SetToolTip(str(tooltip))", source)
 
+    def test_text_controls_support_field_specific_maximum_length(self):
+        source = (ROOT / "clsField.py").read_text(encoding="utf-8-sig")
+        self.assertIn('self.CONTROLDESCRIPTION.get("maxlength")', source)
+        self.assertIn("self.SetMaxLength(int(maximum))", source)
+        self.assertIn("wx.EVT_TEXT_MAXLEN", source)
+        for path in (ROOT / "schema" / "unified_schema.json", ROOT / "jsformschema.json"):
+            schema = json.loads(path.read_text(encoding="utf-8-sig"))
+            text = json.dumps(schema)
+            self.assertIn('"maxlength"', text)
+            self.assertIn('"maxlengthmessage"', text)
+
 
 class TestResponsiveLayout(unittest.TestCase):
     def test_frame_position_accounts_for_header_and_usable_screen_bounds(self):

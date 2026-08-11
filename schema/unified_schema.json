@@ -142,6 +142,8 @@
                 "name": { "type": "string" },
                 "label": { "type": "string" },
                 "tooltip": { "type": "string", "minLength": 1 },
+                "maxlength": { "type": "integer", "minimum": 1 },
+                "maxlengthmessage": { "type": "string", "minLength": 1 },
                 "layout": {
                   "type": "object",
                   "properties": {

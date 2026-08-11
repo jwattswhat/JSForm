@@ -313,7 +313,21 @@ class clsField:
             )
             self.SetNormalColor()
 
+            maximum = self.CONTROLDESCRIPTION.get("maxlength")
+            if maximum is not None:
+                self.SetMaxLength(int(maximum))
+                self.Bind(wx.EVT_TEXT_MAXLEN, self._on_max_length)
+
             # textctrl postprocess
+
+        def _on_max_length(self, event):
+            message = self.CONTROLDESCRIPTION.get("maxlengthmessage")
+            if not message:
+                label = self.CONTROLDESCRIPTION.get("label") or self.CONTROLDESCRIPTION.get("name") or "This field"
+                message = "{} accepts at most {} characters.".format(
+                    label, self.CONTROLDESCRIPTION["maxlength"]
+                )
+            wx.MessageBox(str(message), "Entry too long", wx.OK | wx.ICON_WARNING)
 
         def SetValue(self, value):
             if value == None:

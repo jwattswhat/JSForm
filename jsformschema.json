@@ -169,6 +169,14 @@
                   "type": "string",
                   "minLength": 1
                 },
+                "maxlength": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "maxlengthmessage": {
+                  "type": "string",
+                  "minLength": 1
+                },
                 "name": {
                   "type": "string"
                 },
