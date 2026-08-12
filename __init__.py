@@ -33,6 +33,7 @@ from JSForm.report_renderer import PDFReportRenderer, ReportRenderError
 from JSForm.report_designer import (
     ReportCanvas, ReportDesignerFrame, ReportDesignerModel, open_report_designer,
 )
+from JSForm.report_catalog import ReportCatalogModel, open_report_catalog
 from JSForm.security import (
     AllowAllAuthorizationPolicy, AuthorizationDenied, DenyAllAuthorizationPolicy,
     FormSecurity,
