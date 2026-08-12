@@ -64,7 +64,9 @@
       "properties": {
         "type": {"enum": ["reportheader", "pageheader", "groupheader", "detail", "groupfooter", "pagefooter", "reportfooter"]},
         "height": {"type": "number", "exclusiveMinimum": 0, "maximum": 2000},
+        "minimumheight": {"type": "number", "exclusiveMinimum": 0, "maximum": 2000},
         "repeat": {"type": "boolean"},
+        "autofit": {"type": "boolean"},
         "pagebreakbefore": {"type": "boolean"},
         "pagebreakafter": {"type": "boolean"}
       }
@@ -95,6 +97,7 @@
         "verticalalign": {"enum": ["top", "middle", "bottom"]},
         "padding": {"$ref": "#/$defs/edges"},
         "visible": {"type": "boolean"},
+        "affectautofit": {"type": "boolean"},
         "repeatcollection": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"},
         "columns": {"type": "array", "maxItems": 30, "items": {"$ref": "#/$defs/column"}},
         "itemheight": {"type": "number", "exclusiveMinimum": 0, "maximum": 1000},

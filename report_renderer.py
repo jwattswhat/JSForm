@@ -196,13 +196,36 @@ class PDFReportRenderer:
     def _draw_bound_band(
         self, pdf, definition, dataset, band_name, row, collection_name, top, margins,
     ):
-        for _, control in self._controls_for_band(definition.controls, band_name):
+        controls = self._controls_for_band(definition.controls, band_name)
+        for _, control in controls:
             self._draw_control(
                 pdf, control, dataset, margins["left"], top,
                 current_row=row, current_collection=collection_name,
                 definition=definition,
             )
-        return top - definition.bands[band_name]["height"]
+        height = definition.bands[band_name]["height"]
+        if definition.bands[band_name].get("autofit"):
+            occupied = [
+                control["position"][1] + control["size"][1]
+                for _, control in controls
+                if control.get("affectautofit", True)
+                if self._control_has_content(control, dataset, row, collection_name)
+            ]
+            minimum = definition.bands[band_name].get("minimumheight", 24)
+            height = min(height, max(minimum, max(occupied, default=20) + 4))
+        return top - height
+
+    @classmethod
+    def _control_has_content(cls, control, dataset, row, collection_name):
+        if control.get("visible", True) is False:
+            return False
+        if control["type"] in ("label", "line", "rectangle"):
+            return bool(control.get("label")) or control["type"] in ("line", "rectangle")
+        if control.get("collection") == collection_name and control.get("field"):
+            return row.get(control["field"]) not in (None, "", b"")
+        if control.get("collection") and control.get("field"):
+            return cls._first_value(control, dataset) not in (None, "", b"")
+        return True
 
     @classmethod
     def _sorted_rows(cls, rows, definition, dataset, collection_name):

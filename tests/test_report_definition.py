@@ -88,6 +88,12 @@ class TestReportDefinition(unittest.TestCase):
         with self.assertRaisesRegex(ReportDefinitionError, "invalid headerband"):
             self.loader.from_dict(data)
 
+    def test_band_minimum_height_cannot_exceed_design_height(self):
+        data = valid_definition()
+        data["CMMD01REPORT"]["REPORT"]["bands"]["Detail"]["minimumheight"] = 100
+        with self.assertRaisesRegex(ReportDefinitionError, "minimumheight"):
+            self.loader.from_dict(data)
+
     def test_save_and_reopen_preserves_definition(self):
         definition = self.loader.from_dict(valid_definition())
         with tempfile.TemporaryDirectory() as folder:

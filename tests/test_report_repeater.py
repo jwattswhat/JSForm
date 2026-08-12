@@ -75,6 +75,17 @@ class TestReportRepeater(unittest.TestCase):
         self.assertEqual(layout[0][1], [])
         self.assertEqual(renderer._repeater_height(repeater, {"Photo": b"image"}), 72)
 
+    def test_autofit_content_detection_ignores_empty_bound_images_and_text(self):
+        renderer = PDFReportRenderer()
+        dataset = type("Dataset", (), {"collections": {"rows": ()}})()
+        image = {
+            "type": "image", "collection": "rows", "field": "Photo",
+            "position": [0, 0], "size": [80, 72],
+        }
+        name = dict(image, type="text", field="Name")
+        self.assertFalse(renderer._control_has_content(image, dataset, {"Photo": None}, "rows"))
+        self.assertTrue(renderer._control_has_content(name, dataset, {"Name": "Household"}, "rows"))
+
     def test_group_headers_render_when_field_value_changes(self):
         source = valid_definition()
         report = source["CMMD01REPORT"]["REPORT"]

@@ -110,6 +110,11 @@ class ReportDefinitionLoader:
                 f"Report name {root['REPORT']['name']} does not match root {root_name}"
             )
         bands = root["REPORT"]["bands"]
+        for band_name, band in bands.items():
+            if band.get("minimumheight", 0) > band["height"]:
+                raise ReportDefinitionError(
+                    f"Band {band_name} minimumheight cannot exceed its height"
+                )
         for group in root["REPORT"].get("groups", []):
             for key, expected_type in (("headerband", "groupheader"), ("footerband", "groupfooter")):
                 band_name = group[key]
