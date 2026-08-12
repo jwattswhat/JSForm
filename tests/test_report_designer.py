@@ -184,6 +184,47 @@ class TestReportDesignerModel(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "must be at least"):
             model.set_band_height("Detail", 5)
 
+    def test_repeater_item_width_can_be_changed_and_undone(self):
+        source = valid_definition()
+        source["CMMD01REPORT"]["CONTROLS"]["FamilyName"] = {
+            "type": "repeater", "band": "Detail", "position": [0, 0], "size": [500, 60],
+            "repeatcollection": "families", "itemheight": 60,
+            "items": [{"name": "Name", "field": "FamilyName", "position": [0, 0], "size": [200, 20]}],
+        }
+        model = ReportDesignerModel(ReportDefinitionLoader().from_dict(source))
+        model.set_repeater_item_geometry("FamilyName", "Name", size=[250, 20])
+        self.assertEqual(model.controls["FamilyName"]["items"][0]["size"][0], 250)
+        model.undo()
+        self.assertEqual(model.controls["FamilyName"]["items"][0]["size"][0], 200)
+
+    def test_repeater_item_cannot_extend_past_row(self):
+        source = valid_definition()
+        source["CMMD01REPORT"]["CONTROLS"]["FamilyName"] = {
+            "type": "repeater", "band": "Detail", "position": [0, 0], "size": [500, 60],
+            "repeatcollection": "families", "itemheight": 60,
+            "items": [{"name": "Name", "field": "FamilyName", "position": [0, 0], "size": [200, 20]}],
+        }
+        model = ReportDesignerModel(ReportDefinitionLoader().from_dict(source))
+        with self.assertRaisesRegex(ValueError, "beyond the detail row width"):
+            model.set_repeater_item_geometry("FamilyName", "Name", position=[400, 0], size=[200, 20])
+
+    def test_page_setup_changes_orientation_and_is_undoable(self):
+        model = self.model()
+        model.set_page_setup(
+            "letter", "landscape", {"top": 36, "right": 36, "bottom": 36, "left": 36},
+        )
+        self.assertEqual(model.report["orientation"], "landscape")
+        self.assertEqual(model.page_size, (792, 612))
+        model.undo()
+        self.assertEqual(model.report["orientation"], "portrait")
+
+    def test_page_setup_rejects_too_narrow_printable_area(self):
+        model = self.model()
+        with self.assertRaisesRegex(ValueError, "printable width"):
+            model.set_page_setup(
+                "letter", "portrait", {"top": 36, "right": 210, "bottom": 36, "left": 210},
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

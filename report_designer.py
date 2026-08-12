@@ -330,6 +330,52 @@ class ReportDesignerModel:
         self.report["bands"][band_name]["height"] = height
         self.dirty = True
 
+    def set_repeater_item_geometry(self, control_name, item_name, position=None, size=None):
+        control = self.controls[control_name]
+        if control["type"] != "repeater":
+            raise ValueError(f"{control_name} is not a repeating detail control")
+        item = next((item for item in control["items"] if item["name"] == item_name), None)
+        if item is None:
+            raise ValueError(f"Unknown detail column: {item_name}")
+        candidate = deepcopy(self.data)
+        candidate_control = candidate[self.root_name]["CONTROLS"][control_name]
+        candidate_item = next(
+            value for value in candidate_control["items"] if value["name"] == item_name
+        )
+        if position is not None:
+            candidate_item["position"] = [max(0, position[0]), max(0, position[1])]
+        if size is not None:
+            candidate_item["size"] = [max(MINIMUM_SIZE, size[0]), max(MINIMUM_SIZE, size[1])]
+        if candidate_item["position"][0] + candidate_item["size"][0] > control["size"][0]:
+            raise ValueError(f"{item_name} extends beyond the detail row width")
+        if candidate_item["position"][1] + candidate_item["size"][1] > control["itemheight"]:
+            raise ValueError(f"{item_name} extends beyond the detail row height")
+        validated = self.loader.from_dict(candidate)
+        self._record_change()
+        self.data = validated.to_dict()
+        self.dirty = True
+
+    def set_page_setup(self, pagesize, orientation, margins):
+        candidate = deepcopy(self.data)
+        settings = candidate[self.root_name]["REPORT"]
+        settings["pagesize"] = pagesize
+        settings["orientation"] = orientation
+        settings["margins"] = dict(margins)
+        validated = self.loader.from_dict(candidate)
+        candidate_model = ReportDesignerModel(validated, loader=self.loader)
+        widest = max(
+            (control["position"][0] + control["size"][0] for control in candidate_model.controls.values()),
+            default=0,
+        )
+        if widest > candidate_model.content_width:
+            raise ValueError(
+                f"Existing controls require {widest:g} points, but the printable width would be "
+                f"{candidate_model.content_width:g} points"
+            )
+        self._record_change()
+        self.data = validated.to_dict()
+        self.dirty = True
+
     @staticmethod
     def _rectangles_overlap(first, second):
         ax, ay, aw, ah = first
@@ -370,6 +416,18 @@ class ReportCanvas(wx.ScrolledWindow):
         width, height = self.model.page_size
         self.SetVirtualSize((int(width * self.scale + 48), int(height * self.scale + 48)))
         self.Refresh()
+
+    def fit_page(self):
+        client_width, client_height = self.GetClientSize()
+        page_width, page_height = self.model.page_size
+        if client_width <= 60 or client_height <= 60:
+            return
+        self.scale = max(
+            0.25,
+            min((client_width - 48) / page_width, (client_height - 48) / page_height),
+        )
+        self.refresh_extent()
+        self.Scroll(0, 0)
 
     def reveal_control(self, name):
         """Scroll the selected control into view and repaint it."""
@@ -548,9 +606,142 @@ class ReportCanvas(wx.ScrolledWindow):
             dc.SetClippingRegion(rect)
             dc.DrawText(label, rect.x + 3, rect.y + 3)
             dc.DestroyClippingRegion()
+            if control["type"] == "repeater":
+                self.draw_repeater_items(dc, rect, control, selected)
             if selected:
                 dc.SetBrush(wx.Brush(wx.Colour(0, 100, 220)))
                 dc.DrawRectangle(rect.right - HANDLE // 2, rect.bottom - HANDLE // 2, HANDLE, HANDLE)
+
+    def draw_repeater_items(self, dc, repeater_rect, control, selected):
+        origin_x = repeater_rect.x
+        origin_y = repeater_rect.y
+        for item in control["items"]:
+            x, y = item["position"]
+            width, height = item["size"]
+            rect = wx.Rect(
+                int(origin_x + x * self.scale), int(origin_y + y * self.scale),
+                max(1, int(width * self.scale)), max(1, int(height * self.scale)),
+            )
+            dc.SetPen(wx.Pen(wx.Colour(90, 145, 180), 1, wx.PENSTYLE_DOT))
+            dc.SetBrush(wx.Brush(wx.Colour(250, 253, 255)))
+            dc.DrawRectangle(rect)
+            dc.SetTextForeground(wx.Colour(35, 70, 95))
+            dc.SetFont(wx.Font(7, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
+            dc.SetClippingRegion(rect)
+            dc.DrawText(item["name"], rect.x + 2, rect.y + 1)
+            dc.DestroyClippingRegion()
+
+
+class RepeaterItemsDialog(wx.Dialog):
+    def __init__(self, parent, model, control_name):
+        super().__init__(parent, title="Edit Detail Columns", size=(470, 330))
+        self.model = model
+        self.control_name = control_name
+        self.items = model.controls[control_name]["items"]
+        panel = wx.Panel(self)
+        layout = wx.BoxSizer(wx.VERTICAL)
+        layout.Add(
+            wx.StaticText(panel, label="Choose a detail item, then adjust its position and size."),
+            0, wx.ALL, 10,
+        )
+        body = wx.BoxSizer(wx.HORIZONTAL)
+        self.item_list = wx.ListBox(panel, choices=[item["name"] for item in self.items])
+        self.item_list.Bind(wx.EVT_LISTBOX, self.on_item_selection)
+        body.Add(self.item_list, 1, wx.EXPAND | wx.RIGHT, 10)
+        grid = wx.FlexGridSizer(cols=2, vgap=8, hgap=8)
+        self.editors = {}
+        for key, label in (("x", "X"), ("y", "Y"), ("width", "Width"), ("height", "Height")):
+            grid.Add(wx.StaticText(panel, label=label), 0, wx.ALIGN_CENTER_VERTICAL)
+            editor = wx.SpinCtrlDouble(panel, min=0, max=2000, initial=0, inc=1)
+            editor.SetDigits(0)
+            self.editors[key] = editor
+            grid.Add(editor, 0)
+        body.Add(grid, 0, wx.EXPAND)
+        layout.Add(body, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
+        buttons = wx.BoxSizer(wx.HORIZONTAL)
+        buttons.AddStretchSpacer()
+        apply_button = wx.Button(panel, label="Apply")
+        apply_button.Bind(wx.EVT_BUTTON, self.on_apply)
+        buttons.Add(apply_button, 0, wx.RIGHT, 8)
+        close_button = wx.Button(panel, wx.ID_CLOSE, "Close")
+        close_button.Bind(wx.EVT_BUTTON, lambda event: self.EndModal(wx.ID_CLOSE))
+        buttons.Add(close_button, 0)
+        layout.Add(buttons, 0, wx.EXPAND | wx.ALL, 10)
+        panel.SetSizer(layout)
+        if self.items:
+            self.item_list.SetSelection(0)
+            self.load_item(0)
+
+    def on_item_selection(self, event):
+        self.load_item(event.GetSelection())
+
+    def load_item(self, index):
+        item = self.model.controls[self.control_name]["items"][index]
+        x, y = item["position"]
+        width, height = item["size"]
+        for key, value in (("x", x), ("y", y), ("width", width), ("height", height)):
+            self.editors[key].SetValue(value)
+
+    def on_apply(self, event):
+        index = self.item_list.GetSelection()
+        if index == wx.NOT_FOUND:
+            return
+        item = self.model.controls[self.control_name]["items"][index]
+        try:
+            self.model.set_repeater_item_geometry(
+                self.control_name, item["name"],
+                position=[self.editors["x"].GetValue(), self.editors["y"].GetValue()],
+                size=[self.editors["width"].GetValue(), self.editors["height"].GetValue()],
+            )
+        except ValueError as error:
+            wx.MessageBox(str(error), "Cannot resize detail column", wx.OK | wx.ICON_WARNING, self)
+            return
+        self.GetParent().canvas.Refresh()
+        self.GetParent().SetStatusText(f"Updated detail column {item['name']}")
+
+
+class PageSetupDialog(wx.Dialog):
+    def __init__(self, parent, model):
+        super().__init__(parent, title="Page Setup", size=(370, 350))
+        panel = wx.Panel(self)
+        layout = wx.BoxSizer(wx.VERTICAL)
+        grid = wx.FlexGridSizer(cols=2, vgap=10, hgap=10)
+        grid.AddGrowableCol(1, 1)
+        grid.Add(wx.StaticText(panel, label="Paper size"), 0, wx.ALIGN_CENTER_VERTICAL)
+        self.pagesize = wx.Choice(panel, choices=["Letter", "Legal", "A4"])
+        self.pagesize.SetStringSelection(model.report["pagesize"].upper() if model.report["pagesize"] == "a4" else model.report["pagesize"].title())
+        grid.Add(self.pagesize, 1, wx.EXPAND)
+        grid.Add(wx.StaticText(panel, label="Orientation"), 0, wx.ALIGN_CENTER_VERTICAL)
+        self.orientation = wx.Choice(panel, choices=["Portrait", "Landscape"])
+        self.orientation.SetStringSelection(model.report["orientation"].title())
+        grid.Add(self.orientation, 1, wx.EXPAND)
+        self.margin_editors = {}
+        for key in ("top", "right", "bottom", "left"):
+            grid.Add(wx.StaticText(panel, label=f"{key.title()} margin"), 0, wx.ALIGN_CENTER_VERTICAL)
+            editor = wx.SpinCtrlDouble(
+                panel, min=0, max=2000, initial=model.report["margins"][key], inc=1,
+            )
+            editor.SetDigits(0)
+            self.margin_editors[key] = editor
+            grid.Add(editor, 1, wx.EXPAND)
+        layout.Add(grid, 1, wx.EXPAND | wx.ALL, 15)
+        buttons = wx.BoxSizer(wx.HORIZONTAL)
+        buttons.AddStretchSpacer()
+        ok_button = wx.Button(panel, wx.ID_OK, "OK")
+        ok_button.Bind(wx.EVT_BUTTON, lambda event: self.EndModal(wx.ID_OK))
+        buttons.Add(ok_button, 0, wx.RIGHT, 8)
+        cancel_button = wx.Button(panel, wx.ID_CANCEL, "Cancel")
+        cancel_button.Bind(wx.EVT_BUTTON, lambda event: self.EndModal(wx.ID_CANCEL))
+        buttons.Add(cancel_button, 0)
+        layout.Add(buttons, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 15)
+        panel.SetSizer(layout)
+
+    def values(self):
+        return (
+            self.pagesize.GetStringSelection().casefold(),
+            self.orientation.GetStringSelection().casefold(),
+            {key: editor.GetValue() for key, editor in self.margin_editors.items()},
+        )
 
 
 class ReportDesignerFrame(wx.Frame):
@@ -569,16 +760,13 @@ class ReportDesignerFrame(wx.Frame):
         if dataset_contract is not None:
             dataset_contract.validate_definition(definition)
         super().__init__(None, title=f"JSForm Report Designer - {definition.title}", size=(1100, 850))
+        self.build_menu_bar()
         panel = wx.Panel(self)
-        toolbar = wx.BoxSizer(wx.VERTICAL)
+        toolbar = wx.BoxSizer(wx.HORIZONTAL)
         primary_toolbar = wx.BoxSizer(wx.HORIZONTAL)
-        layout_toolbar = wx.BoxSizer(wx.HORIZONTAL)
-        open_button = wx.Button(panel, label="Open")
-        open_button.Bind(wx.EVT_BUTTON, self.on_open)
-        primary_toolbar.Add(open_button, 0, wx.ALL, 5)
         save_button = wx.Button(panel, label="Save")
         save_button.Bind(wx.EVT_BUTTON, self.on_save)
-        primary_toolbar.Add(save_button, 0, wx.TOP | wx.BOTTOM | wx.RIGHT, 5)
+        primary_toolbar.Add(save_button, 0, wx.ALL, 5)
         undo_button = wx.Button(panel, label="Undo")
         undo_button.Bind(wx.EVT_BUTTON, self.on_undo)
         primary_toolbar.Add(undo_button, 0, wx.TOP | wx.BOTTOM | wx.RIGHT, 5)
@@ -592,46 +780,15 @@ class ReportDesignerFrame(wx.Frame):
         validate_button = wx.Button(panel, label="Validate")
         validate_button.Bind(wx.EVT_BUTTON, self.on_validate)
         primary_toolbar.Add(validate_button, 0, wx.TOP | wx.BOTTOM | wx.RIGHT, 5)
-        if self.starter_definition_path is not None:
-            restore_button = wx.Button(panel, label="Restore Starter")
-            restore_button.Bind(wx.EVT_BUTTON, self.on_restore_starter)
-            primary_toolbar.Add(restore_button, 0, wx.TOP | wx.BOTTOM | wx.RIGHT, 5)
         primary_toolbar.Add(wx.StaticText(panel, label="Zoom:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 6)
-        self.zoom_choice = wx.Choice(panel, choices=["50%", "75%", "100%", "125%", "150%"])
-        self.zoom_choice.SetStringSelection("100%")
+        self.zoom_choice = wx.Choice(panel, choices=["Fit Page", "50%", "75%", "100%", "125%", "150%"])
+        self.zoom_choice.SetStringSelection("Fit Page")
         self.zoom_choice.Bind(wx.EVT_CHOICE, self.on_zoom)
         primary_toolbar.Add(self.zoom_choice, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT, 5)
         self.snap_checkbox = wx.CheckBox(panel, label="Snap to grid")
         self.snap_checkbox.Bind(wx.EVT_CHECKBOX, self.on_snap_toggle)
         primary_toolbar.Add(self.snap_checkbox, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
-        for edge, label in (
-            ("left", "Align Left"), ("right", "Align Right"),
-            ("top", "Align Top"), ("bottom", "Align Bottom"),
-        ):
-            button = wx.Button(panel, label=label)
-            button.alignment_edge = edge
-            button.Bind(wx.EVT_BUTTON, self.on_align)
-            layout_toolbar.Add(button, 0, wx.TOP | wx.BOTTOM | wx.RIGHT, 5)
-        for axis, label in (
-            ("horizontal", "Distribute Across"),
-            ("vertical", "Distribute Down"),
-        ):
-            button = wx.Button(panel, label=label)
-            button.distribution_axis = axis
-            button.Bind(wx.EVT_BUTTON, self.on_distribute)
-            layout_toolbar.Add(button, 0, wx.TOP | wx.BOTTOM | wx.RIGHT, 5)
-        for control_type, label in (("label", "Add Label"), ("line", "Add Line"), ("rectangle", "Add Box")):
-            button = wx.Button(panel, label=label)
-            button.control_type = control_type
-            button.Bind(wx.EVT_BUTTON, self.on_add_control)
-            primary_toolbar.Add(button, 0, wx.TOP | wx.BOTTOM | wx.RIGHT, 5)
-        delete_button = wx.Button(panel, label="Delete")
-        delete_button.Bind(wx.EVT_BUTTON, self.on_delete_control)
-        primary_toolbar.Add(delete_button, 0, wx.TOP | wx.BOTTOM | wx.RIGHT, 5)
-        self.selection = wx.StaticText(panel, label="No control selected")
-        layout_toolbar.Add(self.selection, 1, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 10)
         toolbar.Add(primary_toolbar, 0, wx.EXPAND)
-        toolbar.Add(layout_toolbar, 0, wx.EXPAND | wx.LEFT, 5)
         self.canvas = ReportCanvas(
             panel, self.model, self.on_selection, self.delete_selected_control,
         )
@@ -677,6 +834,15 @@ class ReportDesignerFrame(wx.Frame):
         properties_panel = wx.Panel(panel, style=wx.BORDER_SIMPLE)
         properties_layout = wx.BoxSizer(wx.VERTICAL)
         properties_layout.Add(wx.StaticText(properties_panel, label="Properties"), 0, wx.ALL, 8)
+        self.selection = wx.StaticText(
+            properties_panel, label="No control selected", style=wx.ST_ELLIPSIZE_END,
+        )
+        self.selection.SetToolTip("Selected report control")
+        properties_layout.Add(self.selection, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        self.selection_geometry = wx.StaticText(properties_panel, label="")
+        properties_layout.Add(
+            self.selection_geometry, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8,
+        )
         grid = wx.FlexGridSizer(cols=2, vgap=6, hgap=6)
         grid.AddGrowableCol(1, 1)
         self.property_controls = {}
@@ -716,6 +882,9 @@ class ReportDesignerFrame(wx.Frame):
         self.property_controls["align"] = alignment
         grid.Add(alignment, 1, wx.EXPAND)
         properties_layout.Add(grid, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
+        self.edit_repeater_button = wx.Button(properties_panel, label="Edit Detail Columns")
+        self.edit_repeater_button.Bind(wx.EVT_BUTTON, self.on_edit_repeater)
+        properties_layout.Add(self.edit_repeater_button, 0, wx.EXPAND | wx.ALL, 8)
         properties_layout.AddStretchSpacer()
         properties_panel.SetSizer(properties_layout)
         workspace = wx.BoxSizer(wx.HORIZONTAL)
@@ -741,6 +910,91 @@ class ReportDesignerFrame(wx.Frame):
             self.model.select(first_control)
             self.canvas.selected_names = {first_control}
             self.on_selection(first_control)
+        wx.CallAfter(self.canvas.fit_page)
+
+    def build_menu_bar(self):
+        menu_bar = wx.MenuBar()
+
+        file_menu = wx.Menu()
+        self._append_menu(file_menu, "&Open...\tCtrl+O", self.on_open)
+        self._append_menu(file_menu, "&Save\tCtrl+S", self.on_save)
+        self._append_menu(file_menu, "Save &As...\tCtrl+Shift+S", self.on_save_as)
+        file_menu.AppendSeparator()
+        if self.preview_handler is not None:
+            self._append_menu(file_menu, "&Preview\tCtrl+P", self.on_preview)
+        self._append_menu(file_menu, "Page Set&up...", self.on_page_setup)
+        if self.starter_definition_path is not None:
+            self._append_menu(file_menu, "&Restore Starter...", self.on_restore_starter)
+        file_menu.AppendSeparator()
+        self._append_menu(file_menu, "E&xit", lambda event: self.Close())
+        menu_bar.Append(file_menu, "&File")
+
+        edit_menu = wx.Menu()
+        self._append_menu(edit_menu, "&Undo\tCtrl+Z", self.on_undo)
+        self._append_menu(edit_menu, "&Redo\tCtrl+Y", self.on_redo)
+        edit_menu.AppendSeparator()
+        self._append_menu(edit_menu, "&Delete\tDel", self.on_delete_control)
+        menu_bar.Append(edit_menu, "&Edit")
+
+        insert_menu = wx.Menu()
+        for control_type, label in (("label", "Label"), ("line", "Line"), ("rectangle", "Box")):
+            self._append_menu(
+                insert_menu, f"Add &{label}...",
+                lambda event, value=control_type: self.add_control(value),
+            )
+        if self.dataset_contract is not None:
+            insert_menu.AppendSeparator()
+            self._append_menu(insert_menu, "Add Selected Data &Field...", self.on_add_field)
+        menu_bar.Append(insert_menu, "&Insert")
+
+        layout_menu = wx.Menu()
+        for edge, label in (("left", "Left"), ("right", "Right"), ("top", "Top"), ("bottom", "Bottom")):
+            self._append_menu(
+                layout_menu, f"Align {label}",
+                lambda event, value=edge: self.apply_alignment(value),
+            )
+        layout_menu.AppendSeparator()
+        self._append_menu(
+            layout_menu, "Distribute Across",
+            lambda event: self.apply_distribution("horizontal"),
+        )
+        self._append_menu(
+            layout_menu, "Distribute Down",
+            lambda event: self.apply_distribution("vertical"),
+        )
+        menu_bar.Append(layout_menu, "&Layout")
+
+        view_menu = wx.Menu()
+        self._append_menu(view_menu, "Fit Page", lambda event: self.set_zoom("Fit Page"))
+        for value in ("50%", "75%", "100%", "125%", "150%"):
+            self._append_menu(view_menu, value, lambda event, zoom=value: self.set_zoom(zoom))
+        view_menu.AppendSeparator()
+        self.snap_menu_item = view_menu.AppendCheckItem(wx.ID_ANY, "Snap to Grid")
+        self.Bind(wx.EVT_MENU, self.on_menu_snap_toggle, self.snap_menu_item)
+        menu_bar.Append(view_menu, "&View")
+
+        tools_menu = wx.Menu()
+        self._append_menu(tools_menu, "&Validate Report", self.on_validate)
+        menu_bar.Append(tools_menu, "&Tools")
+
+        help_menu = wx.Menu()
+        self._append_menu(help_menu, "Keyboard && Mouse Help", self.on_help)
+        menu_bar.Append(help_menu, "&Help")
+        self.SetMenuBar(menu_bar)
+
+    def _append_menu(self, menu, label, handler):
+        item = menu.Append(wx.ID_ANY, label)
+        self.Bind(wx.EVT_MENU, handler, item)
+        return item
+
+    def on_help(self, event):
+        wx.MessageBox(
+            "Ctrl-click selects multiple controls.\n"
+            "Arrow keys move; Shift+Arrow moves 10 points.\n"
+            "Ctrl+Arrow resizes. Delete removes the selection.\n"
+            "Ctrl+Z undoes and Ctrl+Y redoes.",
+            "Report Designer Help", wx.OK | wx.ICON_INFORMATION, self,
+        )
 
     def on_selection(self, name):
         if name:
@@ -751,12 +1005,14 @@ class ReportDesignerFrame(wx.Frame):
             for selected_name in self.canvas.selected_names or {name}:
                 if selected_name in self.model.controls:
                     self.control_list.SetSelection(names.index(selected_name))
-            self.selection.SetLabel(
-                f"{name}   Position {control['position']}   Size {control['size']}"
+            self.selection.SetLabel(name)
+            self.selection_geometry.SetLabel(
+                f"Position {control['position']}   Size {control['size']}"
             )
             self.populate_properties(control)
         else:
             self.selection.SetLabel("No control selected")
+            self.selection_geometry.SetLabel("")
             self.control_list.SetSelection(wx.NOT_FOUND)
 
     def populate_properties(self, control):
@@ -776,6 +1032,7 @@ class ReportDesignerFrame(wx.Frame):
         self.property_controls["bold"].SetValue(control.get("bold", False))
         self.property_controls["italic"].SetValue(control.get("italic", False))
         self.property_controls["align"].SetStringSelection(control.get("align", "left"))
+        self.edit_repeater_button.Enable(control["type"] == "repeater")
         self.updating_properties = False
 
     def refresh_selected(self):
@@ -843,10 +1100,11 @@ class ReportDesignerFrame(wx.Frame):
             self.control_list.SetSelection(names.index(self.model.selected))
 
     def on_align(self, event):
+        self.apply_alignment(event.GetEventObject().alignment_edge)
+
+    def apply_alignment(self, edge):
         try:
-            self.model.align_controls(
-                self.canvas.selected_names, event.GetEventObject().alignment_edge,
-            )
+            self.model.align_controls(self.canvas.selected_names, edge)
         except ValueError as error:
             self.SetStatusText(str(error))
             return
@@ -855,10 +1113,11 @@ class ReportDesignerFrame(wx.Frame):
         self.SetStatusText(f"Aligned {len(self.canvas.selected_names)} controls")
 
     def on_distribute(self, event):
+        self.apply_distribution(event.GetEventObject().distribution_axis)
+
+    def apply_distribution(self, axis):
         try:
-            self.model.distribute_controls(
-                self.canvas.selected_names, event.GetEventObject().distribution_axis,
-            )
+            self.model.distribute_controls(self.canvas.selected_names, axis)
         except ValueError as error:
             self.SetStatusText(str(error))
             return
@@ -901,6 +1160,18 @@ class ReportDesignerFrame(wx.Frame):
                 f"Selected section: {self.canvas.selected_band} ({height:g} points high)"
             )
 
+    def on_edit_repeater(self, event):
+        name = self.model.selected
+        if not name or self.model.controls[name]["type"] != "repeater":
+            self.SetStatusText("Select a repeating detail control first")
+            return
+        dialog = RepeaterItemsDialog(self, self.model, name)
+        try:
+            dialog.ShowModal()
+        finally:
+            dialog.Destroy()
+        self.refresh_selected()
+
     def refresh_after_history(self, action):
         self.canvas.model = self.model
         self.canvas.selected_names = {self.model.selected} if self.model.selected else set()
@@ -922,17 +1193,29 @@ class ReportDesignerFrame(wx.Frame):
             self.SetStatusText("Nothing to redo")
 
     def on_zoom(self, event):
-        self.canvas.scale = int(self.zoom_choice.GetStringSelection().rstrip("%")) / 100
+        self.set_zoom(self.zoom_choice.GetStringSelection())
+
+    def set_zoom(self, selection):
+        self.zoom_choice.SetStringSelection(selection)
+        if selection == "Fit Page":
+            self.canvas.fit_page()
+            return
+        self.canvas.scale = int(selection.rstrip("%")) / 100
         self.canvas.refresh_extent()
         if self.model.selected:
             self.canvas.reveal_control(self.model.selected)
 
     def on_snap_toggle(self, event):
         self.canvas.snap_enabled = self.snap_checkbox.GetValue()
+        self.snap_menu_item.Check(self.canvas.snap_enabled)
         self.canvas.Refresh()
         self.SetStatusText(
             "Snap to 6-point grid enabled" if self.canvas.snap_enabled else "Snap to grid disabled"
         )
+
+    def on_menu_snap_toggle(self, event):
+        self.snap_checkbox.SetValue(self.snap_menu_item.IsChecked())
+        self.on_snap_toggle(event)
 
     def choose_band(self):
         bands = list(self.model.report["bands"])
@@ -947,10 +1230,13 @@ class ReportDesignerFrame(wx.Frame):
             dialog.Destroy()
 
     def on_add_control(self, event):
+        self.add_control(event.GetEventObject().control_type)
+
+    def add_control(self, control_type):
         band = self.choose_band()
         if not band:
             return
-        name = self.model.add_control(event.GetEventObject().control_type, band=band)
+        name = self.model.add_control(control_type, band=band)
         self.canvas.selected_names = {name}
         self.refresh_control_list()
         self.on_selection(name)
@@ -1002,6 +1288,51 @@ class ReportDesignerFrame(wx.Frame):
     def on_save(self, event):
         self.model.save(self.path)
         self.SetStatusText("Report definition saved") if self.GetStatusBar() else None
+
+    def on_save_as(self, event):
+        dialog = wx.FileDialog(
+            self, "Save report definition as", defaultDir=str(self.path.parent),
+            defaultFile=self.path.name,
+            wildcard="Report definitions (*.json)|*.json",
+            style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
+        )
+        try:
+            if dialog.ShowModal() != wx.ID_OK:
+                return
+            target = Path(dialog.GetPath())
+        finally:
+            dialog.Destroy()
+        if target.suffix.casefold() != ".json":
+            target = target.with_suffix(".json")
+        try:
+            definition = self.model.validated_definition()
+            if self.dataset_contract is not None:
+                self.dataset_contract.validate_definition(definition)
+            self.model.save(target)
+        except (ReportDefinitionError, ValueError) as error:
+            wx.MessageBox(str(error), "Cannot save report", wx.OK | wx.ICON_ERROR, self)
+            return
+        self.path = target
+        self.SetTitle(f"JSForm Report Designer - {definition.title}")
+        self.SetStatusText(f"Report saved as {target.name}")
+
+    def on_page_setup(self, event):
+        dialog = PageSetupDialog(self, self.model)
+        try:
+            if dialog.ShowModal() != wx.ID_OK:
+                return
+            pagesize, orientation, margins = dialog.values()
+        finally:
+            dialog.Destroy()
+        try:
+            self.model.set_page_setup(pagesize, orientation, margins)
+        except ValueError as error:
+            wx.MessageBox(str(error), "Cannot change page setup", wx.OK | wx.ICON_WARNING, self)
+            return
+        self.canvas.refresh_extent()
+        if self.zoom_choice.GetStringSelection() == "Fit Page":
+            self.canvas.fit_page()
+        self.SetStatusText(f"Page setup changed to {pagesize.upper()} {orientation}")
 
     def confirm_discard_or_save(self):
         if not self.model.dirty:
