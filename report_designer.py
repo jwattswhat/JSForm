@@ -18,6 +18,7 @@ HANDLE = 7
 MINIMUM_SIZE = 4
 CONTROL_DEFAULTS = {
     "label": {"size": [140, 20], "label": "New label", "fontsize": 10},
+    "systemtext": {"size": [140, 20], "systemvalue": "run_date", "prefix": "Run: ", "fontsize": 8},
     "line": {"size": [140, 1], "bordercolor": "#808080", "borderwidth": 1},
     "rectangle": {"size": [140, 50], "bordercolor": "#808080", "borderwidth": 1},
 }
@@ -176,7 +177,7 @@ class ReportDesignerModel:
         band = band or next(iter(self.report["bands"]))
         if band not in self.report["bands"]:
             raise ValueError(f"Unknown report band: {band}")
-        prefix = {"label": "Label", "line": "Line", "rectangle": "Rectangle"}[control_type]
+        prefix = {"label": "Label", "systemtext": "SystemText", "line": "Line", "rectangle": "Rectangle"}[control_type]
         name = name or self.unique_control_name(prefix)
         if name in self.controls:
             raise ValueError(f"A control named {name} already exists")
@@ -408,6 +409,38 @@ class ReportDesignerModel:
             raise ValueError(f"{item_name} extends beyond the detail row width")
         if candidate_item["position"][1] + candidate_item["size"][1] > control["itemheight"]:
             raise ValueError(f"{item_name} extends beyond the detail row height")
+        validated = self.loader.from_dict(candidate)
+        self._record_change()
+        self.data = validated.to_dict()
+        self.dirty = True
+
+    def set_table_column(self, control_name, column_name, label=None, width=None, format_name=None, align=None):
+        control = self.controls[control_name]
+        if control["type"] != "table":
+            raise ValueError(f"{control_name} is not a table control")
+        candidate = deepcopy(self.data)
+        candidate_control = candidate[self.root_name]["CONTROLS"][control_name]
+        column = next((item for item in candidate_control["columns"] if item["name"] == column_name), None)
+        if column is None:
+            raise ValueError(f"Unknown table column: {column_name}")
+        if label is not None:
+            column["label"] = label
+        if width is not None:
+            column["width"] = max(MINIMUM_SIZE, width)
+        if format_name:
+            column["format"] = format_name
+        else:
+            column.pop("format", None)
+        if align and align != "left":
+            column["align"] = align
+        else:
+            column.pop("align", None)
+        total_width = sum(item["width"] for item in candidate_control["columns"])
+        if total_width > candidate_control["size"][0] + 0.01:
+            raise ValueError(
+                f"Table columns require {total_width:g} points but the table is only "
+                f"{candidate_control['size'][0]:g} points wide"
+            )
         validated = self.loader.from_dict(candidate)
         self._record_change()
         self.data = validated.to_dict()
@@ -804,6 +837,8 @@ class ReportCanvas(wx.ScrolledWindow):
             dc.DestroyClippingRegion()
             if control["type"] == "repeater":
                 self.draw_repeater_items(dc, rect, control, selected)
+            elif control["type"] == "table":
+                self.draw_table_columns(dc, rect, control)
             if selected:
                 dc.SetBrush(wx.Brush(wx.Colour(0, 100, 220)))
                 dc.DrawRectangle(rect.right - HANDLE // 2, rect.bottom - HANDLE // 2, HANDLE, HANDLE)
@@ -826,6 +861,21 @@ class ReportCanvas(wx.ScrolledWindow):
             dc.SetClippingRegion(rect)
             dc.DrawText(item["name"], rect.x + 2, rect.y + 1)
             dc.DestroyClippingRegion()
+
+    def draw_table_columns(self, dc, table_rect, control):
+        x = table_rect.x
+        for column in control["columns"]:
+            width = max(1, int(column["width"] * self.scale))
+            rect = wx.Rect(x, table_rect.y, width, table_rect.height)
+            dc.SetPen(wx.Pen(wx.Colour(90, 145, 180), 1, wx.PENSTYLE_DOT))
+            dc.SetBrush(wx.Brush(wx.Colour(250, 253, 255)))
+            dc.DrawRectangle(rect)
+            dc.SetTextForeground(wx.Colour(35, 70, 95))
+            dc.SetFont(wx.Font(7, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
+            dc.SetClippingRegion(rect)
+            dc.DrawText(column["label"], rect.x + 2, rect.y + 1)
+            dc.DestroyClippingRegion()
+            x += width
 
 
 class RepeaterItemsDialog(wx.Dialog):
@@ -894,6 +944,77 @@ class RepeaterItemsDialog(wx.Dialog):
             return
         self.GetParent().canvas.Refresh()
         self.GetParent().SetStatusText(f"Updated detail column {item['name']}")
+
+
+class TableColumnsDialog(wx.Dialog):
+    def __init__(self, parent, model, control_name):
+        super().__init__(parent, title="Edit Table Columns", size=(520, 350))
+        self.model = model
+        self.control_name = control_name
+        self.columns = model.controls[control_name]["columns"]
+        panel = wx.Panel(self)
+        layout = wx.BoxSizer(wx.VERTICAL)
+        layout.Add(wx.StaticText(panel, label="Choose a column, then adjust its heading, width, format, and alignment."), 0, wx.ALL, 10)
+        body = wx.BoxSizer(wx.HORIZONTAL)
+        self.item_list = wx.ListBox(panel, choices=[item["name"] for item in self.columns])
+        self.item_list.Bind(wx.EVT_LISTBOX, self.on_selection)
+        body.Add(self.item_list, 1, wx.EXPAND | wx.RIGHT, 10)
+        grid = wx.FlexGridSizer(cols=2, vgap=8, hgap=8)
+        grid.Add(wx.StaticText(panel, label="Heading"), 0, wx.ALIGN_CENTER_VERTICAL)
+        self.label = wx.TextCtrl(panel)
+        grid.Add(self.label, 1, wx.EXPAND)
+        grid.Add(wx.StaticText(panel, label="Width"), 0, wx.ALIGN_CENTER_VERTICAL)
+        self.width = wx.SpinCtrlDouble(panel, min=4, max=2000, initial=80, inc=1)
+        self.width.SetDigits(0)
+        grid.Add(self.width, 1, wx.EXPAND)
+        grid.Add(wx.StaticText(panel, label="Format"), 0, wx.ALIGN_CENTER_VERTICAL)
+        self.format = wx.Choice(panel, choices=["text", "integer", "decimal", "currency", "date", "time", "datetime", "boolean", "phone", "address"])
+        grid.Add(self.format, 1, wx.EXPAND)
+        grid.Add(wx.StaticText(panel, label="Alignment"), 0, wx.ALIGN_CENTER_VERTICAL)
+        self.align = wx.Choice(panel, choices=["left", "center", "right"])
+        grid.Add(self.align, 1, wx.EXPAND)
+        grid.AddGrowableCol(1, 1)
+        body.Add(grid, 1, wx.EXPAND)
+        layout.Add(body, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
+        buttons = wx.BoxSizer(wx.HORIZONTAL)
+        buttons.AddStretchSpacer()
+        apply_button = wx.Button(panel, label="Apply")
+        apply_button.Bind(wx.EVT_BUTTON, self.on_apply)
+        buttons.Add(apply_button, 0, wx.RIGHT, 8)
+        close_button = wx.Button(panel, wx.ID_CLOSE, "Close")
+        close_button.Bind(wx.EVT_BUTTON, lambda event: self.EndModal(wx.ID_CLOSE))
+        buttons.Add(close_button)
+        layout.Add(buttons, 0, wx.EXPAND | wx.ALL, 10)
+        panel.SetSizer(layout)
+        if self.columns:
+            self.item_list.SetSelection(0)
+            self.load(0)
+
+    def on_selection(self, event):
+        self.load(event.GetSelection())
+
+    def load(self, index):
+        column = self.model.controls[self.control_name]["columns"][index]
+        self.label.SetValue(column["label"])
+        self.width.SetValue(column["width"])
+        self.format.SetStringSelection(column.get("format", "text"))
+        self.align.SetStringSelection(column.get("align", "left"))
+
+    def on_apply(self, event):
+        index = self.item_list.GetSelection()
+        if index == wx.NOT_FOUND:
+            return
+        column = self.model.controls[self.control_name]["columns"][index]
+        try:
+            self.model.set_table_column(
+                self.control_name, column["name"], self.label.GetValue(), self.width.GetValue(),
+                self.format.GetStringSelection(), self.align.GetStringSelection(),
+            )
+        except ValueError as error:
+            wx.MessageBox(str(error), "Cannot change table column", wx.OK | wx.ICON_WARNING, self)
+            return
+        self.GetParent().canvas.Refresh()
+        self.GetParent().SetStatusText(f"Updated table column {column['name']}")
 
 
 class SortRecordsDialog(wx.Dialog):
@@ -1309,13 +1430,21 @@ class ReportDesignerFrame(wx.Frame):
             editor.Bind(wx.EVT_TEXT_ENTER, self.on_geometry_change)
             self.property_controls[key] = editor
             grid.Add(editor, 1, wx.EXPAND)
-        for key, label in (("label", "Label"), ("collection", "Collection"), ("field", "Field")):
+        for key, label in (("label", "Label"), ("prefix", "Prefix"), ("collection", "Collection"), ("field", "Field")):
             grid.Add(wx.StaticText(properties_panel, label=label), 0, wx.ALIGN_CENTER_VERTICAL)
             editor = wx.TextCtrl(properties_panel, style=wx.TE_PROCESS_ENTER)
             editor.Bind(wx.EVT_TEXT_ENTER, lambda event, property_name=key: self.on_text_property(event, property_name))
             editor.Bind(wx.EVT_KILL_FOCUS, lambda event, property_name=key: self.on_text_property(event, property_name))
             self.property_controls[key] = editor
             grid.Add(editor, 1, wx.EXPAND)
+        grid.Add(wx.StaticText(properties_panel, label="Report value"), 0, wx.ALIGN_CENTER_VERTICAL)
+        system_value = wx.Choice(
+            properties_panel,
+            choices=["run_date", "run_datetime", "page_number", "report_title", "report_code"],
+        )
+        system_value.Bind(wx.EVT_CHOICE, self.on_style_change)
+        self.property_controls["systemvalue"] = system_value
+        grid.Add(system_value, 1, wx.EXPAND)
         grid.Add(wx.StaticText(properties_panel, label="Font"), 0, wx.ALIGN_CENTER_VERTICAL)
         font = wx.Choice(properties_panel, choices=["Helvetica", "Times-Roman", "Courier"])
         font.Bind(wx.EVT_CHOICE, self.on_style_change)
@@ -1373,7 +1502,7 @@ class ReportDesignerFrame(wx.Frame):
         self.property_controls["visible"] = visible
         grid.Add(visible, 0)
         properties_layout.Add(grid, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
-        self.edit_repeater_button = wx.Button(properties_panel, label="Edit Detail Columns")
+        self.edit_repeater_button = wx.Button(properties_panel, label="Edit Repeating Columns")
         self.edit_repeater_button.Bind(wx.EVT_BUTTON, self.on_edit_repeater)
         properties_layout.Add(self.edit_repeater_button, 0, wx.EXPAND | wx.ALL, 8)
         properties_layout.AddStretchSpacer()
@@ -1434,7 +1563,7 @@ class ReportDesignerFrame(wx.Frame):
         menu_bar.Append(edit_menu, "&Edit")
 
         insert_menu = wx.Menu()
-        for control_type, label in (("label", "Label"), ("line", "Line"), ("rectangle", "Box")):
+        for control_type, label in (("label", "Label"), ("systemtext", "Report Value"), ("line", "Line"), ("rectangle", "Box")):
             self._append_menu(
                 insert_menu, f"Add &{label}...",
                 lambda event, value=control_type: self.add_control(value),
@@ -1527,13 +1656,19 @@ class ReportDesignerFrame(wx.Frame):
         width, height = control["size"]
         for key, value in (("x", x), ("y", y), ("width", width), ("height", height)):
             self.property_controls[key].SetValue(value)
-        for key in ("label", "collection", "field"):
+        for key in ("label", "prefix", "collection", "field"):
             editor = self.property_controls[key]
             editor.SetValue(str(control.get(key, "")))
             required = key in ("collection", "field") and control["type"] in ("text", "image")
-            supported = key not in ("collection", "field") or control["type"] in ("text", "image")
+            supported = (
+                (key == "label" and control["type"] == "label")
+                or (key == "prefix" and control["type"] == "systemtext")
+                or (key in ("collection", "field") and control["type"] in ("text", "image"))
+            )
             editor.Enable(required or supported)
         self.property_controls["label"].Enable(control["type"] == "label")
+        self.property_controls["systemvalue"].SetStringSelection(control.get("systemvalue", "run_date"))
+        self.property_controls["systemvalue"].Enable(control["type"] == "systemtext")
         self.property_controls["fontsize"].SetValue(control.get("fontsize", 10))
         self.property_controls["bold"].SetValue(control.get("bold", False))
         self.property_controls["italic"].SetValue(control.get("italic", False))
@@ -1541,12 +1676,16 @@ class ReportDesignerFrame(wx.Frame):
         self.property_controls["verticalalign"].SetStringSelection(control.get("verticalalign", "middle"))
         self.property_controls["font"].SetStringSelection(control.get("font", "Helvetica"))
         self.property_controls["format"].SetStringSelection(control.get("format", "text"))
-        self.property_controls["format"].Enable(control["type"] in ("text", "aggregate"))
+        self.property_controls["format"].Enable(control["type"] in ("text", "systemtext", "aggregate"))
         for key, default in (("color", "#000000"), ("background", "#FFFFFF"), ("bordercolor", "#000000")):
             self.property_controls[key].SetColour(control.get(key, default))
         self.property_controls["borderwidth"].SetValue(control.get("borderwidth", 0))
         self.property_controls["visible"].SetValue(control.get("visible", True))
-        self.edit_repeater_button.Enable(control["type"] == "repeater")
+        editable_columns = control["type"] in ("repeater", "table")
+        self.edit_repeater_button.SetLabel(
+            "Edit Table Columns" if control["type"] == "table" else "Edit Repeating Columns"
+        )
+        self.edit_repeater_button.Enable(editable_columns)
         self.updating_properties = False
 
     def refresh_selected(self):
@@ -1586,7 +1725,7 @@ class ReportDesignerFrame(wx.Frame):
         key = next(key for key, editor in self.property_controls.items() if editor is source)
         if key in ("bold", "italic", "visible"):
             value = source.GetValue()
-        elif key in ("align", "verticalalign", "font", "format"):
+        elif key in ("align", "verticalalign", "font", "format", "systemvalue"):
             value = source.GetStringSelection()
         elif key in ("color", "background", "bordercolor"):
             colour = source.GetColour()
@@ -1619,7 +1758,7 @@ class ReportDesignerFrame(wx.Frame):
 
     def activate_control(self, name):
         control = self.model.controls[name]
-        if control["type"] == "repeater":
+        if control["type"] in ("repeater", "table"):
             self.on_edit_repeater(None)
             return
         if control["type"] == "label":
@@ -1702,10 +1841,14 @@ class ReportDesignerFrame(wx.Frame):
 
     def on_edit_repeater(self, event):
         name = self.model.selected
-        if not name or self.model.controls[name]["type"] != "repeater":
-            self.SetStatusText("Select a repeating detail control first")
+        if not name or self.model.controls[name]["type"] not in ("repeater", "table"):
+            self.SetStatusText("Select a repeating detail or table control first")
             return
-        dialog = RepeaterItemsDialog(self, self.model, name)
+        dialog_class = (
+            RepeaterItemsDialog if self.model.controls[name]["type"] == "repeater"
+            else TableColumnsDialog
+        )
+        dialog = dialog_class(self, self.model, name)
         try:
             dialog.ShowModal()
         finally:

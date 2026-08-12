@@ -53,6 +53,29 @@ class TestPDFReportRenderer(unittest.TestCase):
             self.assertIn("Test Family 000", text)
             self.assertIn("Test Family 099", text)
 
+    def test_empty_table_prints_clear_empty_result_message(self):
+        source = valid_definition()
+        source["CMMD01REPORT"]["REPORT"]["emptytext"] = "Nothing to report."
+        source["CMMD01REPORT"]["CONTROLS"]["FamilyName"] = {
+            "type": "table", "band": "Detail", "position": [0, 0], "size": [500, 36],
+            "repeatcollection": "families",
+            "columns": [{
+                "name": "FamilyName", "label": "Family", "collection": "families",
+                "field": "FamilyName", "width": 500,
+            }],
+        }
+        definition = ReportDefinitionLoader().from_dict(source)
+        contract = ReportDatasetContract(
+            "membership.directory", 1, "reports.membership.contact",
+            (ReportCollection("families", "Families", (ReportField("FamilyName", "Family Name"),)),),
+        )
+        dataset = ReportDataset.create(contract, {"families": []})
+        with tempfile.TemporaryDirectory() as folder:
+            output = Path(folder) / "empty.pdf"
+            PDFReportRenderer().render(definition, dataset, output)
+            text = PdfReader(output).pages[0].extract_text() or ""
+            self.assertIn("Nothing to report.", text)
+
     def test_rows_follow_multiple_sort_levels_without_mutating_dataset(self):
         source = valid_definition()
         source["CMMD01REPORT"]["REPORT"]["sort"] = [
@@ -94,6 +117,18 @@ class TestPDFReportRenderer(unittest.TestCase):
         total = dict(count, operation="sum")
         self.assertEqual(renderer._aggregate_value(count, dataset), 2)
         self.assertEqual(renderer._aggregate_value(total, dataset), Decimal("15.00"))
+
+    def test_system_values_supply_report_metadata(self):
+        renderer = PDFReportRenderer()
+        renderer._rendered_at = datetime(2026, 8, 12, 14, 5)
+        renderer._page_number = 3
+        definition = ReportDefinitionLoader().from_dict(valid_definition())
+        self.assertEqual(renderer._system_value(
+            {"systemvalue": "run_date", "prefix": "Run: "}, definition
+        ), "Run: 8/12/2026")
+        self.assertEqual(renderer._system_value(
+            {"systemvalue": "page_number", "prefix": "Page "}, definition
+        ), "Page 3")
 
 
 if __name__ == "__main__":

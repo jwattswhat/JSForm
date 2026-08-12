@@ -44,9 +44,12 @@ class PDFReportRenderer:
         footer_names = self._bands_of_type(bands, "pagefooter")
         footer_height = sum(bands[name]["height"] for name in footer_names)
         page_number = 1
+        self._page_number = page_number
+        self._rendered_at = datetime.now()
 
         def start_page(first=False):
             nonlocal page_number
+            self._page_number = page_number
             y = usable_top
             if first:
                 y = self._draw_band_type(pdf, definition, dataset, "reportheader", y, page_width, margins)
@@ -80,6 +83,7 @@ class PDFReportRenderer:
                     if current_y - required < usable_bottom + footer_height:
                         pdf.showPage()
                         page_number += 1
+                        self._page_number = page_number
                         current_y = start_page(first=False)
                         header_pending = True
                         changed = 0
@@ -107,6 +111,10 @@ class PDFReportRenderer:
                         pdf, definition, dataset, groups, previous_row,
                         table["repeatcollection"], current_y, margins,
                     )
+                if not rows:
+                    current_y = self._draw_empty_message(
+                        pdf, definition, current_y, margins, page_width
+                    )
             for _, repeater in repeaters:
                 rows = self._sorted_rows(
                     dataset.collections[repeater["repeatcollection"]], definition,
@@ -124,6 +132,7 @@ class PDFReportRenderer:
                     if current_y - height - group_header_height <= usable_bottom + footer_height + 4:
                         pdf.showPage()
                         page_number += 1
+                        self._page_number = page_number
                         current_y = start_page(first=False)
                         changed = 0
                     elif previous_row is not None and changed < len(groups):
@@ -144,6 +153,10 @@ class PDFReportRenderer:
                         pdf, definition, dataset, groups, previous_row,
                         repeater["repeatcollection"], current_y, margins,
                     )
+                if not rows:
+                    current_y = self._draw_empty_message(
+                        pdf, definition, current_y, margins, page_width
+                    )
         report_footer_height = sum(
             bands[name]["height"] for name in self._bands_of_type(bands, "reportfooter")
         )
@@ -151,11 +164,19 @@ class PDFReportRenderer:
             if current_y - report_footer_height <= usable_bottom + footer_height + 4:
                 pdf.showPage()
                 page_number += 1
+                self._page_number = page_number
                 current_y = start_page(first=False)
             self._draw_band_type(
                 pdf, definition, dataset, "reportfooter", current_y, page_width, margins,
             )
         pdf.showPage()
+
+    def _draw_empty_message(self, pdf, definition, top, margins, page_width):
+        message = definition.settings.get("emptytext", "No records match the selected criteria.")
+        pdf.setFont("Helvetica-Oblique", 10)
+        pdf.setFillColorRGB(0.35, 0.35, 0.35)
+        pdf.drawCentredString(page_width / 2, top - 20, message)
+        return top - 36
 
     @staticmethod
     def _groups_for(definition, collection_name):
@@ -289,9 +310,14 @@ class PDFReportRenderer:
             for _, control in self._controls_for_band(definition.controls, band_name):
                 self._draw_control(pdf, control, dataset, margins["left"], y, definition=definition)
             y -= definition.bands[band_name]["height"]
-        pdf.setFont("Helvetica", 8)
-        pdf.setFillColorRGB(0.35, 0.35, 0.35)
-        pdf.drawRightString(page_width - margins["right"], bottom + 6, f"Page {page_number}")
+        has_page_control = any(
+            control.get("type") == "systemtext" and control.get("systemvalue") == "page_number"
+            for control in definition.controls.values()
+        )
+        if not has_page_control:
+            pdf.setFont("Helvetica", 8)
+            pdf.setFillColorRGB(0.35, 0.35, 0.35)
+            pdf.drawRightString(page_width - margins["right"], bottom + 6, f"Page {page_number}")
 
     def _draw_control(
         self, pdf, control, dataset, origin_x, band_top,
@@ -303,10 +329,12 @@ class PDFReportRenderer:
         width, height = control["size"]
         y = band_top - control["position"][1] - height
         kind = control["type"]
-        if kind in {"label", "text", "aggregate"}:
+        if kind in {"label", "text", "systemtext", "aggregate"}:
             self._draw_background_and_border(pdf, control, x, y, width, height)
             if kind == "label":
                 value = control.get("label", "")
+            elif kind == "systemtext":
+                value = self._system_value(control, definition)
             elif kind == "aggregate":
                 value = self._aggregate_value(control, dataset, current_row, definition)
             else:
@@ -330,6 +358,18 @@ class PDFReportRenderer:
                                   preserveAspectRatio=True, anchor="c", mask="auto")
                 except Exception as error:
                     raise ReportRenderError("Unable to render report image") from error
+
+    def _system_value(self, control, definition):
+        value_name = control["systemvalue"]
+        values = {
+            "run_date": f"{self._rendered_at.month}/{self._rendered_at.day}/{self._rendered_at.year}",
+            "run_datetime": self._rendered_at,
+            "page_number": self._page_number,
+            "report_title": definition.title,
+            "report_code": definition.report_id,
+        }
+        value = values[value_name]
+        return f"{control.get('prefix', '')}{value}"
 
     @staticmethod
     def _first_value(control, dataset):

@@ -11,6 +11,34 @@ from test_report_definition import valid_definition
 
 
 class TestReportDesignerModel(unittest.TestCase):
+    def test_system_report_value_can_be_added_and_edited(self):
+        model = self.model()
+        name = model.add_control("systemtext", band=next(iter(model.report["bands"])))
+        model.set_property(name, "systemvalue", "page_number")
+        model.set_property(name, "prefix", "Page ")
+        self.assertEqual(model.controls[name]["systemvalue"], "page_number")
+        self.assertEqual(model.controls[name]["prefix"], "Page ")
+
+    def test_table_column_heading_width_format_and_alignment_are_editable(self):
+        source = valid_definition()
+        source["CMMD01REPORT"]["CONTROLS"]["FamilyName"] = {
+            "type": "table", "band": "Detail", "position": [0, 0], "size": [500, 36],
+            "repeatcollection": "families",
+            "columns": [{
+                "name": "FamilyName", "label": "Family", "collection": "families",
+                "field": "FamilyName", "width": 200,
+            }],
+        }
+        model = ReportDesignerModel(ReportDefinitionLoader().from_dict(source))
+        model.set_table_column(
+            "FamilyName", "FamilyName", label="Household", width=240,
+            format_name="text", align="right",
+        )
+        column = model.controls["FamilyName"]["columns"][0]
+        self.assertEqual(column["label"], "Household")
+        self.assertEqual(column["width"], 240)
+        self.assertEqual(column["align"], "right")
+
     def model(self):
         return ReportDesignerModel(ReportDefinitionLoader().from_dict(valid_definition()))
 
