@@ -84,6 +84,106 @@ class TestReportDesignerModel(unittest.TestCase):
         name = model.add_bound_field("families", "Image", "Family Image", "image", "Detail")
         self.assertEqual(model.controls[name]["type"], "image")
 
+    def test_replace_definition_restores_content_and_marks_dirty(self):
+        model = self.model()
+        model.add_control("label", band="Detail")
+        starter = ReportDefinitionLoader().from_dict(valid_definition())
+        model.replace_definition(starter)
+        self.assertNotIn("Label", model.controls)
+        self.assertEqual(model.selected, "FamilyName")
+        self.assertTrue(model.dirty)
+
+    def test_undo_and_redo_restore_geometry(self):
+        model = self.model()
+        original = list(model.controls["FamilyName"]["position"])
+        model.move("FamilyName", 12, 5)
+        changed = list(model.controls["FamilyName"]["position"])
+        self.assertTrue(model.undo())
+        self.assertEqual(model.controls["FamilyName"]["position"], original)
+        self.assertTrue(model.redo())
+        self.assertEqual(model.controls["FamilyName"]["position"], changed)
+
+    def test_drag_transaction_is_one_undoable_change(self):
+        model = self.model()
+        original = list(model.controls["FamilyName"]["position"])
+        model.begin_transaction()
+        model.move("FamilyName", 2, 1)
+        model.move("FamilyName", 3, 2)
+        model.end_transaction()
+        self.assertEqual(len(model.undo_stack), 1)
+        model.undo()
+        self.assertEqual(model.controls["FamilyName"]["position"], original)
+
+    def test_snap_to_grid_rounds_position_and_is_undoable(self):
+        model = self.model()
+        model.set_geometry("FamilyName", position=[13, 10])
+        model.snap_to_grid("FamilyName", 6)
+        self.assertEqual(model.controls["FamilyName"]["position"], [12, 12])
+        model.undo()
+        self.assertEqual(model.controls["FamilyName"]["position"], [13, 10])
+
+    def test_layout_validation_reports_overlaps(self):
+        model = self.model()
+        model.add_control("label", band="Detail", name="FirstLabel")
+        model.add_control("label", band="Detail", name="SecondLabel")
+        warnings = model.layout_warnings()
+        self.assertIn("FirstLabel overlaps SecondLabel", warnings)
+
+    def test_layout_validation_accepts_separated_controls(self):
+        model = self.model()
+        model.delete_control("FamilyName")
+        model.add_control("label", band="Detail", name="FirstLabel")
+        model.add_control("label", band="Detail", name="SecondLabel")
+        model.set_geometry("SecondLabel", position=[200, 40])
+        self.assertEqual(model.layout_warnings(), [])
+
+    def test_align_controls_left_is_undoable(self):
+        model = self.model()
+        model.delete_control("FamilyName")
+        first = model.add_control("label", band="Detail", name="FirstLabel")
+        second = model.add_control("label", band="Detail", name="SecondLabel")
+        model.set_geometry(first, position=[20, 4])
+        model.set_geometry(second, position=[80, 40])
+        model.align_controls([first, second], "left")
+        self.assertEqual(model.controls[second]["position"][0], 20)
+        model.undo()
+        self.assertEqual(model.controls[second]["position"][0], 80)
+
+    def test_align_controls_requires_same_band(self):
+        model = self.model()
+        model.add_control("label", band="Detail", name="DetailLabel")
+        model.report["bands"]["Header"] = {"type": "reportheader", "height": 40}
+        model.add_control("label", band="Header", name="HeaderLabel")
+        with self.assertRaisesRegex(ValueError, "same report section"):
+            model.align_controls(["DetailLabel", "HeaderLabel"], "top")
+
+    def test_distribute_controls_evenly_across(self):
+        model = self.model()
+        model.delete_control("FamilyName")
+        names = [model.add_control("label", band="Detail", name=f"Label{number}") for number in range(3)]
+        for name, x in zip(names, (0, 100, 300)):
+            model.set_geometry(name, position=[x, 4], size=[20, 10])
+        model.distribute_controls(names, "horizontal")
+        self.assertEqual([model.controls[name]["position"][0] for name in names], [0, 150, 300])
+
+    def test_distribute_controls_requires_three(self):
+        model = self.model()
+        with self.assertRaisesRegex(ValueError, "at least three"):
+            model.distribute_controls(["FamilyName"], "vertical")
+
+    def test_band_height_can_expand_and_undo(self):
+        model = self.model()
+        original = model.report["bands"]["Detail"]["height"]
+        model.set_band_height("Detail", 200)
+        self.assertEqual(model.report["bands"]["Detail"]["height"], 200)
+        model.undo()
+        self.assertEqual(model.report["bands"]["Detail"]["height"], original)
+
+    def test_band_cannot_shrink_over_a_control(self):
+        model = self.model()
+        with self.assertRaisesRegex(ValueError, "must be at least"):
+            model.set_band_height("Detail", 5)
+
 
 if __name__ == "__main__":
     unittest.main()

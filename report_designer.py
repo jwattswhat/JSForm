@@ -29,6 +29,48 @@ class ReportDesignerModel:
         self.root_name = definition.root_name
         self.selected = None
         self.dirty = False
+        self.undo_stack = []
+        self.redo_stack = []
+        self.transaction_snapshot = None
+
+    def _snapshot(self):
+        return deepcopy(self.data), self.selected
+
+    def _record_change(self):
+        if self.transaction_snapshot is None:
+            self.undo_stack.append(self._snapshot())
+            self.undo_stack = self.undo_stack[-100:]
+            self.redo_stack.clear()
+
+    def begin_transaction(self):
+        if self.transaction_snapshot is None:
+            self.transaction_snapshot = self._snapshot()
+
+    def end_transaction(self):
+        if self.transaction_snapshot is None:
+            return
+        old_data, old_selected = self.transaction_snapshot
+        self.transaction_snapshot = None
+        if old_data != self.data:
+            self.undo_stack.append((old_data, old_selected))
+            self.undo_stack = self.undo_stack[-100:]
+            self.redo_stack.clear()
+
+    def undo(self):
+        if not self.undo_stack:
+            return False
+        self.redo_stack.append(self._snapshot())
+        self.data, self.selected = self.undo_stack.pop()
+        self.dirty = True
+        return True
+
+    def redo(self):
+        if not self.redo_stack:
+            return False
+        self.undo_stack.append(self._snapshot())
+        self.data, self.selected = self.redo_stack.pop()
+        self.dirty = True
+        return True
 
     @property
     def report(self):
@@ -44,6 +86,7 @@ class ReportDesignerModel:
         self.selected = name
 
     def move(self, name, dx, dy):
+        self._record_change()
         control = self.controls[name]
         x, y = control["position"]
         width, height = control["size"]
@@ -55,6 +98,7 @@ class ReportDesignerModel:
         self.dirty = True
 
     def resize(self, name, dw, dh):
+        self._record_change()
         control = self.controls[name]
         x, y = control["position"]
         width, height = control["size"]
@@ -66,6 +110,7 @@ class ReportDesignerModel:
         self.dirty = True
 
     def set_geometry(self, name, position=None, size=None):
+        self._record_change()
         control = self.controls[name]
         if position is not None:
             x, y = position
@@ -85,6 +130,14 @@ class ReportDesignerModel:
             ]
         self.dirty = True
 
+    def snap_to_grid(self, name, grid_size=6):
+        if grid_size <= 0:
+            raise ValueError("Grid size must be positive")
+        control = self.controls[name]
+        x, y = control["position"]
+        snapped = [round(x / grid_size) * grid_size, round(y / grid_size) * grid_size]
+        self.set_geometry(name, position=snapped)
+
     def set_property(self, name, key, value):
         candidate = deepcopy(self.data)
         candidate_control = candidate[self.root_name]["CONTROLS"][name]
@@ -93,6 +146,7 @@ class ReportDesignerModel:
         else:
             candidate_control[key] = value
         validated = self.loader.from_dict(candidate)
+        self._record_change()
         self.data = validated.to_dict()
         self.dirty = True
 
@@ -121,6 +175,7 @@ class ReportDesignerModel:
         candidate = deepcopy(self.data)
         candidate[self.root_name]["CONTROLS"][name] = control
         validated = self.loader.from_dict(candidate)
+        self._record_change()
         self.data = validated.to_dict()
         self.selected = name
         self.dirty = True
@@ -149,6 +204,7 @@ class ReportDesignerModel:
         candidate = deepcopy(self.data)
         candidate[self.root_name]["CONTROLS"][name] = control
         validated = self.loader.from_dict(candidate)
+        self._record_change()
         self.data = validated.to_dict()
         self.selected = name
         self.dirty = True
@@ -157,9 +213,17 @@ class ReportDesignerModel:
     def delete_control(self, name):
         if name not in self.controls:
             raise KeyError(name)
+        self._record_change()
         del self.controls[name]
         if self.selected == name:
             self.selected = None
+        self.dirty = True
+
+    def replace_definition(self, definition):
+        self._record_change()
+        self.data = definition.to_dict()
+        self.root_name = definition.root_name
+        self.selected = next(iter(self.controls), None)
         self.dirty = True
 
     @property
@@ -175,6 +239,102 @@ class ReportDesignerModel:
 
     def validated_definition(self):
         return self.loader.from_dict(deepcopy(self.data))
+
+    def layout_warnings(self):
+        warnings = []
+        by_band = {}
+        for name, control in self.controls.items():
+            x, y = control["position"]
+            width, height = control["size"]
+            band_height = self.report["bands"][control["band"]]["height"]
+            if x + width > self.content_width or y + height > band_height:
+                warnings.append(f"{name} extends outside its report section")
+            if control["type"] in ("text", "image"):
+                if not control.get("collection") or not control.get("field"):
+                    warnings.append(f"{name} is missing its data binding")
+            by_band.setdefault(control["band"], []).append((name, x, y, width, height))
+        for controls in by_band.values():
+            for index, first in enumerate(controls):
+                for second in controls[index + 1:]:
+                    if self._rectangles_overlap(first[1:], second[1:]):
+                        warnings.append(f"{first[0]} overlaps {second[0]}")
+        return warnings
+
+    def align_controls(self, names, edge):
+        names = list(dict.fromkeys(names))
+        if len(names) < 2:
+            raise ValueError("Select at least two controls to align")
+        controls = [self.controls[name] for name in names]
+        if len({control["band"] for control in controls}) != 1:
+            raise ValueError("Controls must be in the same report section to align")
+        self._record_change()
+        if edge == "left":
+            target = min(control["position"][0] for control in controls)
+            for control in controls:
+                control["position"][0] = target
+        elif edge == "right":
+            target = max(control["position"][0] + control["size"][0] for control in controls)
+            for control in controls:
+                control["position"][0] = target - control["size"][0]
+        elif edge == "top":
+            target = min(control["position"][1] for control in controls)
+            for control in controls:
+                control["position"][1] = target
+        elif edge == "bottom":
+            target = max(control["position"][1] + control["size"][1] for control in controls)
+            for control in controls:
+                control["position"][1] = target - control["size"][1]
+        else:
+            raise ValueError(f"Unknown alignment edge: {edge}")
+        self.dirty = True
+
+    def distribute_controls(self, names, axis):
+        names = list(dict.fromkeys(names))
+        if len(names) < 3:
+            raise ValueError("Select at least three controls to distribute")
+        controls = [(name, self.controls[name]) for name in names]
+        if len({control["band"] for _, control in controls}) != 1:
+            raise ValueError("Controls must be in the same report section to distribute")
+        coordinate = 0 if axis == "horizontal" else 1
+        dimension = coordinate
+        controls.sort(key=lambda item: item[1]["position"][coordinate])
+        first = controls[0][1]["position"][coordinate]
+        last_control = controls[-1][1]
+        last_edge = last_control["position"][coordinate] + last_control["size"][dimension]
+        occupied = sum(control["size"][dimension] for _, control in controls)
+        gap = (last_edge - first - occupied) / (len(controls) - 1)
+        self._record_change()
+        cursor = first
+        for _, control in controls:
+            control["position"][coordinate] = round(cursor)
+            cursor += control["size"][dimension] + gap
+        self.dirty = True
+
+    def set_band_height(self, band_name, height):
+        if band_name not in self.report["bands"]:
+            raise ValueError(f"Unknown report section: {band_name}")
+        height = max(MINIMUM_SIZE, min(float(height), 2000))
+        required = max(
+            (
+                control["position"][1] + control["size"][1]
+                for control in self.controls.values()
+                if control["band"] == band_name
+            ),
+            default=MINIMUM_SIZE,
+        )
+        if height < required:
+            raise ValueError(
+                f"{band_name} must be at least {required:g} points high to contain its controls"
+            )
+        self._record_change()
+        self.report["bands"][band_name]["height"] = height
+        self.dirty = True
+
+    @staticmethod
+    def _rectangles_overlap(first, second):
+        ax, ay, aw, ah = first
+        bx, by, bw, bh = second
+        return ax < bx + bw and bx < ax + aw and ay < by + bh and by < ay + ah
 
     def save(self, path):
         definition = self.validated_definition()
@@ -192,6 +352,10 @@ class ReportCanvas(wx.ScrolledWindow):
         self.scale = scale
         self.drag_origin = None
         self.drag_mode = None
+        self.snap_enabled = False
+        self.grid_size = 6
+        self.selected_names = set()
+        self.selected_band = None
         self.SetBackgroundStyle(wx.BG_STYLE_PAINT)
         self.SetBackgroundColour(wx.Colour(170, 170, 170))
         self.SetScrollRate(10, 10)
@@ -266,10 +430,19 @@ class ReportCanvas(wx.ScrolledWindow):
     def on_left_down(self, event):
         position = self.CalcUnscrolledPosition(event.GetPosition())
         name, mode = self.hit_test(position)
+        if name and event.ControlDown():
+            if name in self.selected_names:
+                self.selected_names.remove(name)
+            else:
+                self.selected_names.add(name)
+            name = name if name in self.selected_names else next(iter(self.selected_names), None)
+        else:
+            self.selected_names = {name} if name else set()
         self.model.select(name)
         self.drag_origin = position if name else None
         self.drag_mode = mode
         if name:
+            self.model.begin_transaction()
             self.CaptureMouse()
         if self.on_selection:
             self.on_selection(name)
@@ -295,6 +468,12 @@ class ReportCanvas(wx.ScrolledWindow):
             self.ReleaseMouse()
         self.drag_origin = None
         self.drag_mode = None
+        if self.snap_enabled and self.model.selected:
+            self.model.snap_to_grid(self.model.selected, self.grid_size)
+        self.model.end_transaction()
+        if self.on_selection:
+            self.on_selection(self.model.selected)
+        self.Refresh()
 
     def on_key(self, event):
         if not self.model.selected:
@@ -337,15 +516,29 @@ class ReportCanvas(wx.ScrolledWindow):
         for band_name, band in self.model.report["bands"].items():
             top = page_y + int(positions[band_name] * self.scale)
             band_height = int(band["height"] * self.scale)
-            dc.SetPen(wx.Pen(wx.Colour(185, 195, 205), 1, wx.PENSTYLE_DOT))
-            dc.SetBrush(wx.TRANSPARENT_BRUSH)
+            band_selected = band_name == self.selected_band
+            dc.SetPen(wx.Pen(
+                wx.Colour(230, 145, 30) if band_selected else wx.Colour(185, 195, 205),
+                3 if band_selected else 1,
+                wx.PENSTYLE_SOLID if band_selected else wx.PENSTYLE_DOT,
+            ))
+            dc.SetBrush(
+                wx.Brush(wx.Colour(255, 246, 220)) if band_selected else wx.TRANSPARENT_BRUSH
+            )
             dc.DrawRectangle(content_x, top, content_width, band_height)
-            dc.SetTextForeground(wx.Colour(90, 105, 120))
+            dc.SetTextForeground(
+                wx.Colour(150, 80, 0) if band_selected else wx.Colour(90, 105, 120)
+            )
             dc.SetFont(wx.Font(7, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
             dc.DrawText(band_name, content_x + 2, top + 1)
+            if self.snap_enabled:
+                dc.SetPen(wx.Pen(wx.Colour(225, 230, 235), 1))
+                grid = max(2, int(self.grid_size * self.scale))
+                for x in range(content_x, content_x + content_width + 1, grid):
+                    dc.DrawPoint(x, top + band_height // 2)
         for name, control in self.model.controls.items():
             rect = self.control_rect(control)
-            selected = name == self.model.selected
+            selected = name in self.selected_names
             dc.SetPen(wx.Pen(wx.Colour(0, 92, 190) if selected else wx.Colour(55, 105, 145), 3 if selected else 2))
             dc.SetBrush(wx.Brush(wx.Colour(214, 234, 255) if selected else wx.Colour(235, 246, 255)))
             dc.DrawRectangle(rect)
@@ -361,37 +554,84 @@ class ReportCanvas(wx.ScrolledWindow):
 
 
 class ReportDesignerFrame(wx.Frame):
-    def __init__(self, definition_path, dataset_contract=None, preview_handler=None):
+    def __init__(
+        self, definition_path, dataset_contract=None, preview_handler=None,
+        starter_definition_path=None,
+    ):
         self.path = Path(definition_path)
         definition = ReportDefinitionLoader().load(self.path)
         self.model = ReportDesignerModel(definition)
         self.dataset_contract = dataset_contract
         self.preview_handler = preview_handler
+        self.starter_definition_path = (
+            Path(starter_definition_path) if starter_definition_path else None
+        )
         if dataset_contract is not None:
             dataset_contract.validate_definition(definition)
         super().__init__(None, title=f"JSForm Report Designer - {definition.title}", size=(1100, 850))
         panel = wx.Panel(self)
-        toolbar = wx.BoxSizer(wx.HORIZONTAL)
+        toolbar = wx.BoxSizer(wx.VERTICAL)
+        primary_toolbar = wx.BoxSizer(wx.HORIZONTAL)
+        layout_toolbar = wx.BoxSizer(wx.HORIZONTAL)
         open_button = wx.Button(panel, label="Open")
         open_button.Bind(wx.EVT_BUTTON, self.on_open)
-        toolbar.Add(open_button, 0, wx.ALL, 5)
+        primary_toolbar.Add(open_button, 0, wx.ALL, 5)
         save_button = wx.Button(panel, label="Save")
         save_button.Bind(wx.EVT_BUTTON, self.on_save)
-        toolbar.Add(save_button, 0, wx.TOP | wx.BOTTOM | wx.RIGHT, 5)
+        primary_toolbar.Add(save_button, 0, wx.TOP | wx.BOTTOM | wx.RIGHT, 5)
+        undo_button = wx.Button(panel, label="Undo")
+        undo_button.Bind(wx.EVT_BUTTON, self.on_undo)
+        primary_toolbar.Add(undo_button, 0, wx.TOP | wx.BOTTOM | wx.RIGHT, 5)
+        redo_button = wx.Button(panel, label="Redo")
+        redo_button.Bind(wx.EVT_BUTTON, self.on_redo)
+        primary_toolbar.Add(redo_button, 0, wx.TOP | wx.BOTTOM | wx.RIGHT, 5)
         if preview_handler is not None:
             preview_button = wx.Button(panel, label="Preview")
             preview_button.Bind(wx.EVT_BUTTON, self.on_preview)
-            toolbar.Add(preview_button, 0, wx.TOP | wx.BOTTOM | wx.RIGHT, 5)
+            primary_toolbar.Add(preview_button, 0, wx.TOP | wx.BOTTOM | wx.RIGHT, 5)
+        validate_button = wx.Button(panel, label="Validate")
+        validate_button.Bind(wx.EVT_BUTTON, self.on_validate)
+        primary_toolbar.Add(validate_button, 0, wx.TOP | wx.BOTTOM | wx.RIGHT, 5)
+        if self.starter_definition_path is not None:
+            restore_button = wx.Button(panel, label="Restore Starter")
+            restore_button.Bind(wx.EVT_BUTTON, self.on_restore_starter)
+            primary_toolbar.Add(restore_button, 0, wx.TOP | wx.BOTTOM | wx.RIGHT, 5)
+        primary_toolbar.Add(wx.StaticText(panel, label="Zoom:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 6)
+        self.zoom_choice = wx.Choice(panel, choices=["50%", "75%", "100%", "125%", "150%"])
+        self.zoom_choice.SetStringSelection("100%")
+        self.zoom_choice.Bind(wx.EVT_CHOICE, self.on_zoom)
+        primary_toolbar.Add(self.zoom_choice, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT, 5)
+        self.snap_checkbox = wx.CheckBox(panel, label="Snap to grid")
+        self.snap_checkbox.Bind(wx.EVT_CHECKBOX, self.on_snap_toggle)
+        primary_toolbar.Add(self.snap_checkbox, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+        for edge, label in (
+            ("left", "Align Left"), ("right", "Align Right"),
+            ("top", "Align Top"), ("bottom", "Align Bottom"),
+        ):
+            button = wx.Button(panel, label=label)
+            button.alignment_edge = edge
+            button.Bind(wx.EVT_BUTTON, self.on_align)
+            layout_toolbar.Add(button, 0, wx.TOP | wx.BOTTOM | wx.RIGHT, 5)
+        for axis, label in (
+            ("horizontal", "Distribute Across"),
+            ("vertical", "Distribute Down"),
+        ):
+            button = wx.Button(panel, label=label)
+            button.distribution_axis = axis
+            button.Bind(wx.EVT_BUTTON, self.on_distribute)
+            layout_toolbar.Add(button, 0, wx.TOP | wx.BOTTOM | wx.RIGHT, 5)
         for control_type, label in (("label", "Add Label"), ("line", "Add Line"), ("rectangle", "Add Box")):
             button = wx.Button(panel, label=label)
             button.control_type = control_type
             button.Bind(wx.EVT_BUTTON, self.on_add_control)
-            toolbar.Add(button, 0, wx.TOP | wx.BOTTOM | wx.RIGHT, 5)
+            primary_toolbar.Add(button, 0, wx.TOP | wx.BOTTOM | wx.RIGHT, 5)
         delete_button = wx.Button(panel, label="Delete")
         delete_button.Bind(wx.EVT_BUTTON, self.on_delete_control)
-        toolbar.Add(delete_button, 0, wx.TOP | wx.BOTTOM | wx.RIGHT, 5)
+        primary_toolbar.Add(delete_button, 0, wx.TOP | wx.BOTTOM | wx.RIGHT, 5)
         self.selection = wx.StaticText(panel, label="No control selected")
-        toolbar.Add(self.selection, 1, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 10)
+        layout_toolbar.Add(self.selection, 1, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 10)
+        toolbar.Add(primary_toolbar, 0, wx.EXPAND)
+        toolbar.Add(layout_toolbar, 0, wx.EXPAND | wx.LEFT, 5)
         self.canvas = ReportCanvas(
             panel, self.model, self.on_selection, self.delete_selected_control,
         )
@@ -399,7 +639,7 @@ class ReportDesignerFrame(wx.Frame):
         controls_layout = wx.BoxSizer(wx.VERTICAL)
         controls_layout.Add(wx.StaticText(controls_panel, label="Report Controls"), 0, wx.ALL, 8)
         self.control_list = wx.ListBox(
-            controls_panel, choices=list(self.model.controls.keys()), style=wx.LB_SINGLE,
+            controls_panel, choices=list(self.model.controls.keys()), style=wx.LB_EXTENDED,
         )
         self.control_list.Bind(wx.EVT_LISTBOX, self.on_control_list_selection)
         controls_layout.Add(self.control_list, 1, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
@@ -410,6 +650,15 @@ class ReportDesignerFrame(wx.Frame):
             ),
             0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8,
         )
+        controls_layout.Add(wx.StaticText(controls_panel, label="Report Sections"), 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        self.band_list = wx.ListBox(
+            controls_panel, choices=list(self.model.report["bands"]), style=wx.LB_SINGLE,
+        )
+        self.band_list.Bind(wx.EVT_LISTBOX, self.on_band_selection)
+        controls_layout.Add(self.band_list, 0, wx.EXPAND | wx.ALL, 8)
+        band_height_button = wx.Button(controls_panel, label="Change Section Height")
+        band_height_button.Bind(wx.EVT_BUTTON, self.on_change_band_height)
+        controls_layout.Add(band_height_button, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
         self.field_bindings = []
         if dataset_contract is not None:
             controls_layout.Add(wx.StaticText(controls_panel, label="Approved Data Fields"), 0, wx.ALL, 8)
@@ -478,16 +727,30 @@ class ReportDesignerFrame(wx.Frame):
         layout.Add(workspace, 1, wx.EXPAND)
         panel.SetSizer(layout)
         self.CreateStatusBar()
+        undo_id = wx.NewIdRef()
+        redo_id = wx.NewIdRef()
+        self.SetAcceleratorTable(wx.AcceleratorTable([
+            (wx.ACCEL_CTRL, ord("Z"), undo_id),
+            (wx.ACCEL_CTRL, ord("Y"), redo_id),
+        ]))
+        self.Bind(wx.EVT_MENU, self.on_undo, id=undo_id)
+        self.Bind(wx.EVT_MENU, self.on_redo, id=redo_id)
         self.Bind(wx.EVT_CLOSE, self.on_close)
         if self.model.controls:
             first_control = next(iter(self.model.controls))
             self.model.select(first_control)
+            self.canvas.selected_names = {first_control}
             self.on_selection(first_control)
 
     def on_selection(self, name):
         if name:
             control = self.model.controls[name]
-            self.control_list.SetSelection(list(self.model.controls).index(name))
+            names = list(self.model.controls)
+            for index in self.control_list.GetSelections():
+                self.control_list.Deselect(index)
+            for selected_name in self.canvas.selected_names or {name}:
+                if selected_name in self.model.controls:
+                    self.control_list.SetSelection(names.index(selected_name))
             self.selection.SetLabel(
                 f"{name}   Position {control['position']}   Size {control['size']}"
             )
@@ -564,7 +827,10 @@ class ReportDesignerFrame(wx.Frame):
         self.refresh_selected()
 
     def on_control_list_selection(self, event):
-        name = self.control_list.GetStringSelection()
+        names = list(self.model.controls)
+        indexes = self.control_list.GetSelections()
+        self.canvas.selected_names = {names[index] for index in indexes}
+        name = names[event.GetSelection()] if event.GetSelection() != wx.NOT_FOUND else None
         self.model.select(name)
         self.on_selection(name)
         self.canvas.reveal_control(name)
@@ -575,6 +841,98 @@ class ReportDesignerFrame(wx.Frame):
         self.control_list.Set(names)
         if self.model.selected:
             self.control_list.SetSelection(names.index(self.model.selected))
+
+    def on_align(self, event):
+        try:
+            self.model.align_controls(
+                self.canvas.selected_names, event.GetEventObject().alignment_edge,
+            )
+        except ValueError as error:
+            self.SetStatusText(str(error))
+            return
+        self.canvas.Refresh()
+        self.on_selection(self.model.selected)
+        self.SetStatusText(f"Aligned {len(self.canvas.selected_names)} controls")
+
+    def on_distribute(self, event):
+        try:
+            self.model.distribute_controls(
+                self.canvas.selected_names, event.GetEventObject().distribution_axis,
+            )
+        except ValueError as error:
+            self.SetStatusText(str(error))
+            return
+        self.canvas.Refresh()
+        self.on_selection(self.model.selected)
+        self.SetStatusText(f"Distributed {len(self.canvas.selected_names)} controls evenly")
+
+    def on_change_band_height(self, event):
+        band_name = self.band_list.GetStringSelection()
+        if not band_name:
+            self.SetStatusText("Select a report section first")
+            return
+        current = self.model.report["bands"][band_name]["height"]
+        dialog = wx.NumberEntryDialog(
+            self, f"Enter the height for {band_name} in points.",
+            "Section height", "Change Section Height", int(current), 4, 2000,
+        )
+        try:
+            if dialog.ShowModal() != wx.ID_OK:
+                return
+            height = dialog.GetValue()
+        finally:
+            dialog.Destroy()
+        try:
+            self.model.set_band_height(band_name, height)
+        except ValueError as error:
+            wx.MessageBox(str(error), "Cannot resize section", wx.OK | wx.ICON_WARNING, self)
+            return
+        self.canvas.refresh_extent()
+        if self.model.selected:
+            self.canvas.reveal_control(self.model.selected)
+        self.SetStatusText(f"{band_name} height changed to {height} points")
+
+    def on_band_selection(self, event):
+        self.canvas.selected_band = self.band_list.GetStringSelection() or None
+        self.canvas.Refresh()
+        if self.canvas.selected_band:
+            height = self.model.report["bands"][self.canvas.selected_band]["height"]
+            self.SetStatusText(
+                f"Selected section: {self.canvas.selected_band} ({height:g} points high)"
+            )
+
+    def refresh_after_history(self, action):
+        self.canvas.model = self.model
+        self.canvas.selected_names = {self.model.selected} if self.model.selected else set()
+        self.canvas.refresh_extent()
+        self.refresh_control_list()
+        self.on_selection(self.model.selected)
+        self.SetStatusText(action)
+
+    def on_undo(self, event):
+        if self.model.undo():
+            self.refresh_after_history("Undid last change")
+        else:
+            self.SetStatusText("Nothing to undo")
+
+    def on_redo(self, event):
+        if self.model.redo():
+            self.refresh_after_history("Redid last change")
+        else:
+            self.SetStatusText("Nothing to redo")
+
+    def on_zoom(self, event):
+        self.canvas.scale = int(self.zoom_choice.GetStringSelection().rstrip("%")) / 100
+        self.canvas.refresh_extent()
+        if self.model.selected:
+            self.canvas.reveal_control(self.model.selected)
+
+    def on_snap_toggle(self, event):
+        self.canvas.snap_enabled = self.snap_checkbox.GetValue()
+        self.canvas.Refresh()
+        self.SetStatusText(
+            "Snap to 6-point grid enabled" if self.canvas.snap_enabled else "Snap to grid disabled"
+        )
 
     def choose_band(self):
         bands = list(self.model.report["bands"])
@@ -593,6 +951,7 @@ class ReportDesignerFrame(wx.Frame):
         if not band:
             return
         name = self.model.add_control(event.GetEventObject().control_type, band=band)
+        self.canvas.selected_names = {name}
         self.refresh_control_list()
         self.on_selection(name)
         self.canvas.reveal_control(name)
@@ -610,6 +969,7 @@ class ReportDesignerFrame(wx.Frame):
         name = self.model.add_bound_field(
             collection.name, field.name, field.label, field.data_type, band,
         )
+        self.canvas.selected_names = {name}
         self.refresh_control_list()
         self.on_selection(name)
         self.canvas.reveal_control(name)
@@ -633,6 +993,7 @@ class ReportDesignerFrame(wx.Frame):
         finally:
             dialog.Destroy()
         self.model.delete_control(name)
+        self.canvas.selected_names.discard(name)
         self.refresh_control_list()
         self.on_selection(None)
         self.canvas.Refresh()
@@ -683,6 +1044,7 @@ class ReportDesignerFrame(wx.Frame):
         replacement = ReportDesignerFrame(
             selected_path, dataset_contract=self.dataset_contract,
             preview_handler=self.preview_handler,
+            starter_definition_path=self.starter_definition_path,
         )
         replacement.Show()
         self.Destroy()
@@ -698,6 +1060,56 @@ class ReportDesignerFrame(wx.Frame):
         except Exception as error:
             wx.MessageBox(str(error), "Cannot preview report", wx.OK | wx.ICON_ERROR, self)
 
+    def on_validate(self, event):
+        try:
+            definition = self.model.validated_definition()
+            if self.dataset_contract is not None:
+                self.dataset_contract.validate_definition(definition)
+            warnings = self.model.layout_warnings()
+        except (ReportDefinitionError, ValueError) as error:
+            wx.MessageBox(str(error), "Report validation failed", wx.OK | wx.ICON_ERROR, self)
+            return
+        if warnings:
+            message = "The report is valid, but these layout items need review:\n\n" + "\n".join(
+                f"• {warning}" for warning in warnings
+            )
+            wx.MessageBox(message, "Report validation", wx.OK | wx.ICON_WARNING, self)
+            self.SetStatusText(f"Valid report with {len(warnings)} layout warning(s)")
+        else:
+            wx.MessageBox(
+                "The report definition, data fields, and layout are valid.",
+                "Report validation", wx.OK | wx.ICON_INFORMATION, self,
+            )
+            self.SetStatusText("Report validation passed")
+
+    def on_restore_starter(self, event):
+        dialog = wx.MessageDialog(
+            self,
+            "Replace the current layout with the original starter layout?\n\n"
+            "The change is not permanent until you click Save.",
+            "Restore starter layout",
+            wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION,
+        )
+        try:
+            if dialog.ShowModal() != wx.ID_YES:
+                return
+        finally:
+            dialog.Destroy()
+        try:
+            definition = ReportDefinitionLoader().load(self.starter_definition_path)
+            if self.dataset_contract is not None:
+                self.dataset_contract.validate_definition(definition)
+            self.model.replace_definition(definition)
+        except (ReportDefinitionError, ValueError) as error:
+            wx.MessageBox(str(error), "Cannot restore starter", wx.OK | wx.ICON_ERROR, self)
+            return
+        self.canvas.model = self.model
+        self.canvas.selected_names = {self.model.selected} if self.model.selected else set()
+        self.canvas.refresh_extent()
+        self.refresh_control_list()
+        self.on_selection(self.model.selected)
+        self.SetStatusText("Starter layout restored; click Save to keep it")
+
     def on_close(self, event):
         if not self.confirm_discard_or_save():
             event.Veto()
@@ -705,11 +1117,15 @@ class ReportDesignerFrame(wx.Frame):
         event.Skip()
 
 
-def open_report_designer(definition_path, dataset_contract=None, preview_handler=None):
+def open_report_designer(
+    definition_path, dataset_contract=None, preview_handler=None,
+    starter_definition_path=None,
+):
     application = wx.App.Get() or wx.App(False)
     frame = ReportDesignerFrame(
         definition_path, dataset_contract=dataset_contract,
         preview_handler=preview_handler,
+        starter_definition_path=starter_definition_path,
     )
     frame.Show()
     if not wx.App.Get().IsMainLoopRunning():
