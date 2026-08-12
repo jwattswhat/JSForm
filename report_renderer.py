@@ -1,10 +1,13 @@
 """Deterministic PDF renderer for validated JSForm visual reports."""
 
+from datetime import date, datetime, time
+from decimal import Decimal, InvalidOperation
 from io import BytesIO
 from pathlib import Path
 
 from reportlab.lib.pagesizes import A4, LEGAL, LETTER, landscape
 from reportlab.lib.utils import ImageReader
+from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas
 
 
@@ -81,7 +84,7 @@ class PDFReportRenderer:
                 rows = dataset.collections[repeater["repeatcollection"]]
                 for row in rows:
                     height = self._repeater_height(repeater, row)
-                    if current_y - height < usable_bottom + footer_height:
+                    if current_y - height <= usable_bottom + footer_height + 4:
                         pdf.showPage()
                         page_number += 1
                         current_y = start_page(first=False)
@@ -128,14 +131,19 @@ class PDFReportRenderer:
         y = band_top - control["position"][1] - height
         kind = control["type"]
         if kind in {"label", "text"}:
+            self._draw_background_and_border(pdf, control, x, y, width, height)
             value = control.get("label", "") if kind == "label" else self._first_value(control, dataset)
-            self._draw_text(pdf, str(value or ""), x, y, width, height, control)
+            self._draw_text(pdf, self._format_value(value, control.get("format", "text")), x, y, width, height, control)
         elif kind == "line":
             self._set_stroke(pdf, control)
             pdf.line(x, y + height / 2, x + width, y + height / 2)
         elif kind == "rectangle":
             self._set_stroke(pdf, control)
-            pdf.rect(x, y, width, height, stroke=1, fill=0)
+            fill = 0
+            if control.get("background"):
+                pdf.setFillColorRGB(*self._hex_color(control["background"], "#FFFFFF"))
+                fill = 1
+            pdf.rect(x, y, width, height, stroke=1, fill=fill)
         elif kind == "image":
             value = self._first_value(control, dataset)
             if value:
@@ -151,18 +159,72 @@ class PDFReportRenderer:
         return rows[0].get(control["field"]) if rows else ""
 
     @staticmethod
+    def _format_value(value, format_name="text"):
+        if value is None:
+            return ""
+        if format_name == "boolean":
+            return "Yes" if bool(value) else "No"
+        if format_name in ("date", "time", "datetime"):
+            parsed = value
+            if isinstance(value, str):
+                try:
+                    parsed = datetime.fromisoformat(value)
+                except ValueError:
+                    return value
+            if format_name == "date" and isinstance(parsed, (date, datetime)):
+                return f"{parsed.month}/{parsed.day}/{parsed.year}"
+            if format_name == "time" and isinstance(parsed, (time, datetime)):
+                return parsed.strftime("%I:%M %p").lstrip("0")
+            if format_name == "datetime" and isinstance(parsed, datetime):
+                return f"{parsed.month}/{parsed.day}/{parsed.year} {parsed.strftime('%I:%M %p').lstrip('0')}"
+            return str(value)
+        if format_name in ("integer", "decimal", "currency"):
+            try:
+                number = Decimal(str(value))
+            except (InvalidOperation, ValueError):
+                return str(value)
+            if format_name == "integer":
+                return f"{number:,.0f}"
+            if format_name == "currency":
+                return f"${number:,.2f}"
+            return f"{number:,.2f}"
+        if format_name == "phone":
+            digits = "".join(character for character in str(value) if character.isdigit())
+            if len(digits) == 10:
+                return f"({digits[:3]}) {digits[3:6]}-{digits[6:]}"
+        return str(value)
+
+    @staticmethod
     def _hex_color(value, default="#000000"):
         value = value or default
         return tuple(int(value[index:index + 2], 16) / 255 for index in (1, 3, 5))
 
     def _draw_text(self, pdf, value, x, y, width, height, style):
         family = style.get("font", "Helvetica")
-        if style.get("bold") and family == "Helvetica":
-            family = "Helvetica-Bold"
+        variants = {
+            ("Helvetica", True, False): "Helvetica-Bold",
+            ("Helvetica", False, True): "Helvetica-Oblique",
+            ("Helvetica", True, True): "Helvetica-BoldOblique",
+            ("Times-Roman", True, False): "Times-Bold",
+            ("Times-Roman", False, True): "Times-Italic",
+            ("Times-Roman", True, True): "Times-BoldItalic",
+            ("Courier", True, False): "Courier-Bold",
+            ("Courier", False, True): "Courier-Oblique",
+            ("Courier", True, True): "Courier-BoldOblique",
+        }
+        family = variants.get((family, style.get("bold", False), style.get("italic", False)), family)
         size = style.get("fontsize", 10)
+        while size > 5 and stringWidth(value, family, size) > width:
+            size -= 0.5
         pdf.setFont(family, size)
         pdf.setFillColorRGB(*self._hex_color(style.get("color")))
-        baseline = y + max(1, (height - size) / 2 + 1)
+        vertical = style.get("verticalalign", "middle")
+        if vertical == "top":
+            baseline = y + max(1, height - size)
+        elif vertical == "bottom":
+            baseline = y + 1
+        else:
+            baseline = y + max(1, (height - size) / 2 + 1)
         align = style.get("align", "left")
         if align == "right":
             pdf.drawRightString(x + width, baseline, value)
@@ -174,6 +236,18 @@ class PDFReportRenderer:
     def _set_stroke(self, pdf, style):
         pdf.setStrokeColorRGB(*self._hex_color(style.get("bordercolor"), "#000000"))
         pdf.setLineWidth(style.get("borderwidth", 1))
+
+    def _draw_background_and_border(self, pdf, style, x, y, width, height):
+        fill = 0
+        stroke = 0
+        if style.get("background"):
+            pdf.setFillColorRGB(*self._hex_color(style["background"], "#FFFFFF"))
+            fill = 1
+        if style.get("borderwidth", 0) > 0:
+            self._set_stroke(pdf, style)
+            stroke = 1
+        if fill or stroke:
+            pdf.rect(x, y, width, height, stroke=stroke, fill=fill)
 
     def _draw_table_header(self, pdf, table, top, left, height):
         x = left + table["position"][0]
@@ -192,8 +266,8 @@ class PDFReportRenderer:
         pdf.setLineWidth(0.4)
         pdf.line(x, top - height, x + total_width, top - height)
         for column in table["columns"]:
-            value = row.get(column["field"], "")
-            self._draw_text(pdf, str(value or ""), x + 4, top - height, column["width"] - 8, height,
+            value = self._format_value(row.get(column["field"], ""), column.get("format", "text"))
+            self._draw_text(pdf, value, x + 4, top - height, column["width"] - 8, height,
                             {"font": "Helvetica", "fontsize": 9, "align": column.get("align", "left")})
             x += column["width"]
         return top - height
@@ -203,7 +277,15 @@ class PDFReportRenderer:
         result = []
         average = max(1, int(width / max(1, font_size * 0.52)))
         for paragraph in str(value or "").splitlines() or [""]:
-            words = paragraph.split()
+            words = []
+            for word in paragraph.split():
+                if len(word) <= average:
+                    words.append(word)
+                else:
+                    words.extend(
+                        word[index:index + average]
+                        for index in range(0, len(word), average)
+                    )
             if not words:
                 result.append("")
                 continue
@@ -219,22 +301,42 @@ class PDFReportRenderer:
 
     def _repeater_height(self, repeater, row):
         required = repeater["itemheight"]
-        for item in repeater["items"]:
+        for item, lines, effective_y in self._repeater_layout(repeater, row):
             size = item.get("fontsize", 9)
-            lines = self._wrapped_lines(row.get(item["field"], ""), item["size"][0], size)
-            required = max(required, item["position"][1] + max(item["size"][1], len(lines) * (size + 2)) + 8)
+            required = max(
+                required,
+                effective_y + max(item["size"][1], len(lines) * (size + 2)) + 8,
+            )
         return required
+
+    def _repeater_layout(self, repeater, row):
+        placed = []
+        result = []
+        for item in sorted(repeater["items"], key=lambda value: value["position"][1]):
+            size = item.get("fontsize", 9)
+            value = self._format_value(row.get(item["field"], ""), item.get("format", "text"))
+            lines = self._wrapped_lines(value, item["size"][0], size)
+            x, original_y = item["position"]
+            width = item["size"][0]
+            effective_y = original_y
+            for previous_x, previous_width, previous_bottom in placed:
+                horizontal_overlap = x < previous_x + previous_width and previous_x < x + width
+                if horizontal_overlap and effective_y < previous_bottom:
+                    effective_y = previous_bottom
+            rendered_height = max(item["size"][1], len(lines) * (size + 2))
+            placed.append((x, width, effective_y + rendered_height + 2))
+            result.append((item, lines, effective_y))
+        return result
 
     def _draw_repeater(self, pdf, repeater, row, top, left, height):
         x0 = left + repeater["position"][0]
         pdf.setStrokeColorRGB(0.82, 0.82, 0.82)
         pdf.setLineWidth(0.4)
         pdf.line(x0, top - height, x0 + repeater["size"][0], top - height)
-        for item in repeater["items"]:
+        for item, lines, effective_y in self._repeater_layout(repeater, row):
             x = x0 + item["position"][0]
-            y_top = top - item["position"][1]
+            y_top = top - effective_y
             size = item.get("fontsize", 9)
-            lines = self._wrapped_lines(row.get(item["field"], ""), item["size"][0], size)
             for index, line in enumerate(lines):
                 line_style = dict(item)
                 line_style["fontsize"] = size

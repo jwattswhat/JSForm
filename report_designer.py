@@ -2,6 +2,7 @@
 
 from copy import deepcopy
 from pathlib import Path
+import shutil
 
 import wx
 
@@ -20,6 +21,17 @@ CONTROL_DEFAULTS = {
     "line": {"size": [140, 1], "bordercolor": "#808080", "borderwidth": 1},
     "rectangle": {"size": [140, 50], "bordercolor": "#808080", "borderwidth": 1},
 }
+
+
+def export_preview_file(preview_path, target_path):
+    source = Path(preview_path)
+    target = Path(target_path)
+    if not source.is_file():
+        raise FileNotFoundError(f"Preview PDF was not created: {source}")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if source.resolve() != target.resolve():
+        shutil.copyfile(source, target)
+    return target
 
 
 class ReportDesignerModel:
@@ -376,6 +388,35 @@ class ReportDesignerModel:
         self.data = validated.to_dict()
         self.dirty = True
 
+    def copy_controls(self, names):
+        names = [name for name in names if name in self.controls]
+        return [(name, deepcopy(self.controls[name])) for name in names]
+
+    def paste_controls(self, copied_controls, offset=12):
+        if not copied_controls:
+            raise ValueError("There are no copied controls to paste")
+        candidate = deepcopy(self.data)
+        candidate_controls = candidate[self.root_name]["CONTROLS"]
+        created = []
+        for original_name, original in copied_controls:
+            name = self.unique_control_name(f"{original_name}Copy")
+            control = deepcopy(original)
+            x, y = control["position"]
+            width, height = control["size"]
+            band_height = self.report["bands"][control["band"]]["height"]
+            control["position"] = [
+                min(max(0, x + offset), max(0, self.content_width - width)),
+                min(max(0, y + offset), max(0, band_height - height)),
+            ]
+            candidate_controls[name] = control
+            created.append(name)
+        validated = self.loader.from_dict(candidate)
+        self._record_change()
+        self.data = validated.to_dict()
+        self.selected = created[-1]
+        self.dirty = True
+        return created
+
     @staticmethod
     def _rectangles_overlap(first, second):
         ax, ay, aw, ah = first
@@ -390,11 +431,15 @@ class ReportDesignerModel:
 
 
 class ReportCanvas(wx.ScrolledWindow):
-    def __init__(self, parent, model, on_selection=None, on_delete=None, scale=1.0):
+    def __init__(
+        self, parent, model, on_selection=None, on_delete=None,
+        on_activate=None, scale=1.0,
+    ):
         super().__init__(parent, style=wx.BORDER_SIMPLE | wx.WANTS_CHARS)
         self.model = model
         self.on_selection = on_selection
         self.on_delete = on_delete
+        self.on_activate = on_activate
         self.scale = scale
         self.drag_origin = None
         self.drag_mode = None
@@ -407,6 +452,7 @@ class ReportCanvas(wx.ScrolledWindow):
         self.SetScrollRate(10, 10)
         self.Bind(wx.EVT_PAINT, self.on_paint)
         self.Bind(wx.EVT_LEFT_DOWN, self.on_left_down)
+        self.Bind(wx.EVT_LEFT_DCLICK, self.on_left_double_click)
         self.Bind(wx.EVT_LEFT_UP, self.on_left_up)
         self.Bind(wx.EVT_MOTION, self.on_motion)
         self.Bind(wx.EVT_CHAR_HOOK, self.on_key)
@@ -521,6 +567,18 @@ class ReportCanvas(wx.ScrolledWindow):
             self.drag_origin = position
             self.Refresh()
 
+    def on_left_double_click(self, event):
+        position = self.CalcUnscrolledPosition(event.GetPosition())
+        name, _ = self.hit_test(position)
+        if not name:
+            return
+        self.selected_names = {name}
+        self.model.select(name)
+        if self.on_selection:
+            self.on_selection(name)
+        if self.on_activate:
+            self.on_activate(name)
+
     def on_left_up(self, event):
         if self.HasCapture():
             self.ReleaseMouse()
@@ -597,10 +655,16 @@ class ReportCanvas(wx.ScrolledWindow):
         for name, control in self.model.controls.items():
             rect = self.control_rect(control)
             selected = name in self.selected_names
-            dc.SetPen(wx.Pen(wx.Colour(0, 92, 190) if selected else wx.Colour(55, 105, 145), 3 if selected else 2))
-            dc.SetBrush(wx.Brush(wx.Colour(214, 234, 255) if selected else wx.Colour(235, 246, 255)))
+            border = wx.Colour(control.get("bordercolor", "#376991"))
+            background = wx.Colour(control.get("background", "#EBF6FF"))
+            dc.SetPen(wx.Pen(
+                wx.Colour(0, 92, 190) if selected else border,
+                3 if selected else max(1, round(control.get("borderwidth", 1))),
+                wx.PENSTYLE_SOLID if control.get("visible", True) else wx.PENSTYLE_SHORT_DASH,
+            ))
+            dc.SetBrush(wx.Brush(wx.Colour(214, 234, 255) if selected else background))
             dc.DrawRectangle(rect)
-            dc.SetTextForeground(wx.BLACK)
+            dc.SetTextForeground(wx.Colour(control.get("color", "#000000")))
             dc.SetFont(wx.Font(8, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
             label = control.get("label") or f"{name}: {control.get('field', control['type'])}"
             dc.SetClippingRegion(rect)
@@ -747,16 +811,18 @@ class PageSetupDialog(wx.Dialog):
 class ReportDesignerFrame(wx.Frame):
     def __init__(
         self, definition_path, dataset_contract=None, preview_handler=None,
-        starter_definition_path=None,
+        starter_definition_path=None, export_directory=None,
     ):
         self.path = Path(definition_path)
         definition = ReportDefinitionLoader().load(self.path)
         self.model = ReportDesignerModel(definition)
         self.dataset_contract = dataset_contract
         self.preview_handler = preview_handler
+        self.control_clipboard = []
         self.starter_definition_path = (
             Path(starter_definition_path) if starter_definition_path else None
         )
+        self.export_directory = Path(export_directory) if export_directory else self.path.parent
         if dataset_contract is not None:
             dataset_contract.validate_definition(definition)
         super().__init__(None, title=f"JSForm Report Designer - {definition.title}", size=(1100, 850))
@@ -791,6 +857,7 @@ class ReportDesignerFrame(wx.Frame):
         toolbar.Add(primary_toolbar, 0, wx.EXPAND)
         self.canvas = ReportCanvas(
             panel, self.model, self.on_selection, self.delete_selected_control,
+            self.activate_control,
         )
         controls_panel = wx.Panel(panel, style=wx.BORDER_SIMPLE)
         controls_layout = wx.BoxSizer(wx.VERTICAL)
@@ -799,6 +866,7 @@ class ReportDesignerFrame(wx.Frame):
             controls_panel, choices=list(self.model.controls.keys()), style=wx.LB_EXTENDED,
         )
         self.control_list.Bind(wx.EVT_LISTBOX, self.on_control_list_selection)
+        self.control_list.Bind(wx.EVT_LISTBOX_DCLICK, self.on_control_list_double_click)
         controls_layout.Add(self.control_list, 1, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
         controls_layout.Add(
             wx.StaticText(
@@ -831,7 +899,8 @@ class ReportDesignerFrame(wx.Frame):
             add_field_button.Bind(wx.EVT_BUTTON, self.on_add_field)
             controls_layout.Add(add_field_button, 0, wx.EXPAND | wx.ALL, 8)
         controls_panel.SetSizer(controls_layout)
-        properties_panel = wx.Panel(panel, style=wx.BORDER_SIMPLE)
+        properties_panel = wx.ScrolledWindow(panel, style=wx.BORDER_SIMPLE)
+        properties_panel.SetScrollRate(0, 10)
         properties_layout = wx.BoxSizer(wx.VERTICAL)
         properties_layout.Add(wx.StaticText(properties_panel, label="Properties"), 0, wx.ALL, 8)
         self.selection = wx.StaticText(
@@ -857,13 +926,26 @@ class ReportDesignerFrame(wx.Frame):
             editor.Bind(wx.EVT_TEXT_ENTER, self.on_geometry_change)
             self.property_controls[key] = editor
             grid.Add(editor, 1, wx.EXPAND)
-        for key, label in (("label", "Label"), ("collection", "Collection"), ("field", "Field"), ("color", "Text color")):
+        for key, label in (("label", "Label"), ("collection", "Collection"), ("field", "Field")):
             grid.Add(wx.StaticText(properties_panel, label=label), 0, wx.ALIGN_CENTER_VERTICAL)
             editor = wx.TextCtrl(properties_panel, style=wx.TE_PROCESS_ENTER)
             editor.Bind(wx.EVT_TEXT_ENTER, lambda event, property_name=key: self.on_text_property(event, property_name))
             editor.Bind(wx.EVT_KILL_FOCUS, lambda event, property_name=key: self.on_text_property(event, property_name))
             self.property_controls[key] = editor
             grid.Add(editor, 1, wx.EXPAND)
+        grid.Add(wx.StaticText(properties_panel, label="Font"), 0, wx.ALIGN_CENTER_VERTICAL)
+        font = wx.Choice(properties_panel, choices=["Helvetica", "Times-Roman", "Courier"])
+        font.Bind(wx.EVT_CHOICE, self.on_style_change)
+        self.property_controls["font"] = font
+        grid.Add(font, 1, wx.EXPAND)
+        grid.Add(wx.StaticText(properties_panel, label="Data format"), 0, wx.ALIGN_CENTER_VERTICAL)
+        data_format = wx.Choice(
+            properties_panel,
+            choices=["text", "integer", "decimal", "currency", "date", "time", "datetime", "boolean", "phone", "address"],
+        )
+        data_format.Bind(wx.EVT_CHOICE, self.on_style_change)
+        self.property_controls["format"] = data_format
+        grid.Add(data_format, 1, wx.EXPAND)
         grid.Add(wx.StaticText(properties_panel, label="Font size"), 0, wx.ALIGN_CENTER_VERTICAL)
         font_size = wx.SpinCtrlDouble(properties_panel, min=5, max=96, initial=10, inc=1)
         font_size.SetDigits(0)
@@ -881,6 +963,32 @@ class ReportDesignerFrame(wx.Frame):
         alignment.Bind(wx.EVT_CHOICE, self.on_style_change)
         self.property_controls["align"] = alignment
         grid.Add(alignment, 1, wx.EXPAND)
+        grid.Add(wx.StaticText(properties_panel, label="Vertical"), 0, wx.ALIGN_CENTER_VERTICAL)
+        vertical = wx.Choice(properties_panel, choices=["top", "middle", "bottom"])
+        vertical.Bind(wx.EVT_CHOICE, self.on_style_change)
+        self.property_controls["verticalalign"] = vertical
+        grid.Add(vertical, 1, wx.EXPAND)
+        for key, label, default in (
+            ("color", "Text color", "#000000"),
+            ("background", "Background", "#FFFFFF"),
+            ("bordercolor", "Border color", "#000000"),
+        ):
+            grid.Add(wx.StaticText(properties_panel, label=label), 0, wx.ALIGN_CENTER_VERTICAL)
+            editor = wx.ColourPickerCtrl(properties_panel, colour=default)
+            editor.Bind(wx.EVT_COLOURPICKER_CHANGED, self.on_style_change)
+            self.property_controls[key] = editor
+            grid.Add(editor, 1, wx.EXPAND)
+        grid.Add(wx.StaticText(properties_panel, label="Border width"), 0, wx.ALIGN_CENTER_VERTICAL)
+        border_width = wx.SpinCtrlDouble(properties_panel, min=0, max=10, initial=0, inc=0.5)
+        border_width.SetDigits(1)
+        border_width.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_style_change)
+        self.property_controls["borderwidth"] = border_width
+        grid.Add(border_width, 1, wx.EXPAND)
+        grid.Add(wx.StaticText(properties_panel, label="Visible"), 0, wx.ALIGN_CENTER_VERTICAL)
+        visible = wx.CheckBox(properties_panel)
+        visible.Bind(wx.EVT_CHECKBOX, self.on_style_change)
+        self.property_controls["visible"] = visible
+        grid.Add(visible, 0)
         properties_layout.Add(grid, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
         self.edit_repeater_button = wx.Button(properties_panel, label="Edit Detail Columns")
         self.edit_repeater_button.Bind(wx.EVT_BUTTON, self.on_edit_repeater)
@@ -922,9 +1030,11 @@ class ReportDesignerFrame(wx.Frame):
         file_menu.AppendSeparator()
         if self.preview_handler is not None:
             self._append_menu(file_menu, "&Preview\tCtrl+P", self.on_preview)
+            self._append_menu(file_menu, "&Export PDF...\tCtrl+E", self.on_export_pdf)
         self._append_menu(file_menu, "Page Set&up...", self.on_page_setup)
         if self.starter_definition_path is not None:
             self._append_menu(file_menu, "&Restore Starter...", self.on_restore_starter)
+        self._append_menu(file_menu, "Restore Previous &Version...", self.on_restore_previous)
         file_menu.AppendSeparator()
         self._append_menu(file_menu, "E&xit", lambda event: self.Close())
         menu_bar.Append(file_menu, "&File")
@@ -932,6 +1042,10 @@ class ReportDesignerFrame(wx.Frame):
         edit_menu = wx.Menu()
         self._append_menu(edit_menu, "&Undo\tCtrl+Z", self.on_undo)
         self._append_menu(edit_menu, "&Redo\tCtrl+Y", self.on_redo)
+        edit_menu.AppendSeparator()
+        self._append_menu(edit_menu, "&Copy\tCtrl+C", self.on_copy)
+        self._append_menu(edit_menu, "&Paste\tCtrl+V", self.on_paste)
+        self._append_menu(edit_menu, "D&uplicate\tCtrl+D", self.on_duplicate)
         edit_menu.AppendSeparator()
         self._append_menu(edit_menu, "&Delete\tDel", self.on_delete_control)
         menu_bar.Append(edit_menu, "&Edit")
@@ -992,6 +1106,7 @@ class ReportDesignerFrame(wx.Frame):
             "Ctrl-click selects multiple controls.\n"
             "Arrow keys move; Shift+Arrow moves 10 points.\n"
             "Ctrl+Arrow resizes. Delete removes the selection.\n"
+            "Ctrl+C copies, Ctrl+V pastes, and Ctrl+D duplicates.\n"
             "Ctrl+Z undoes and Ctrl+Y redoes.",
             "Report Designer Help", wx.OK | wx.ICON_INFORMATION, self,
         )
@@ -1021,7 +1136,7 @@ class ReportDesignerFrame(wx.Frame):
         width, height = control["size"]
         for key, value in (("x", x), ("y", y), ("width", width), ("height", height)):
             self.property_controls[key].SetValue(value)
-        for key in ("label", "collection", "field", "color"):
+        for key in ("label", "collection", "field"):
             editor = self.property_controls[key]
             editor.SetValue(str(control.get(key, "")))
             required = key in ("collection", "field") and control["type"] in ("text", "image")
@@ -1032,6 +1147,14 @@ class ReportDesignerFrame(wx.Frame):
         self.property_controls["bold"].SetValue(control.get("bold", False))
         self.property_controls["italic"].SetValue(control.get("italic", False))
         self.property_controls["align"].SetStringSelection(control.get("align", "left"))
+        self.property_controls["verticalalign"].SetStringSelection(control.get("verticalalign", "middle"))
+        self.property_controls["font"].SetStringSelection(control.get("font", "Helvetica"))
+        self.property_controls["format"].SetStringSelection(control.get("format", "text"))
+        self.property_controls["format"].Enable(control["type"] == "text")
+        for key, default in (("color", "#000000"), ("background", "#FFFFFF"), ("bordercolor", "#000000")):
+            self.property_controls[key].SetColour(control.get(key, default))
+        self.property_controls["borderwidth"].SetValue(control.get("borderwidth", 0))
+        self.property_controls["visible"].SetValue(control.get("visible", True))
         self.edit_repeater_button.Enable(control["type"] == "repeater")
         self.updating_properties = False
 
@@ -1070,10 +1193,13 @@ class ReportDesignerFrame(wx.Frame):
             return
         source = event.GetEventObject()
         key = next(key for key, editor in self.property_controls.items() if editor is source)
-        if key in ("bold", "italic"):
+        if key in ("bold", "italic", "visible"):
             value = source.GetValue()
-        elif key == "align":
+        elif key in ("align", "verticalalign", "font", "format"):
             value = source.GetStringSelection()
+        elif key in ("color", "background", "bordercolor"):
+            colour = source.GetColour()
+            value = f"#{colour.Red():02X}{colour.Green():02X}{colour.Blue():02X}"
         else:
             value = source.GetValue()
         try:
@@ -1092,6 +1218,29 @@ class ReportDesignerFrame(wx.Frame):
         self.on_selection(name)
         self.canvas.reveal_control(name)
         self.canvas.SetFocus()
+
+    def on_control_list_double_click(self, event):
+        name = self.control_list.GetString(event.GetSelection())
+        self.canvas.selected_names = {name}
+        self.model.select(name)
+        self.on_selection(name)
+        self.activate_control(name)
+
+    def activate_control(self, name):
+        control = self.model.controls[name]
+        if control["type"] == "repeater":
+            self.on_edit_repeater(None)
+            return
+        if control["type"] == "label":
+            editor = self.property_controls["label"]
+        elif control["type"] in ("text", "image"):
+            editor = self.property_controls["field"]
+        else:
+            editor = self.property_controls["width"]
+        editor.SetFocus()
+        if isinstance(editor, wx.TextCtrl):
+            editor.SelectAll()
+        self.SetStatusText(f"Editing {name}")
 
     def refresh_control_list(self):
         names = list(self.model.controls)
@@ -1191,6 +1340,35 @@ class ReportDesignerFrame(wx.Frame):
             self.refresh_after_history("Redid last change")
         else:
             self.SetStatusText("Nothing to redo")
+
+    def on_copy(self, event):
+        self.control_clipboard = self.model.copy_controls(self.canvas.selected_names)
+        self.SetStatusText(f"Copied {len(self.control_clipboard)} control(s)")
+
+    def on_paste(self, event):
+        try:
+            created = self.model.paste_controls(self.control_clipboard)
+        except ValueError as error:
+            self.SetStatusText(str(error))
+            return
+        self.canvas.selected_names = set(created)
+        self.refresh_control_list()
+        self.on_selection(self.model.selected)
+        self.canvas.reveal_control(self.model.selected)
+        self.SetStatusText(f"Pasted {len(created)} control(s)")
+
+    def on_duplicate(self, event):
+        copied = self.model.copy_controls(self.canvas.selected_names)
+        try:
+            created = self.model.paste_controls(copied)
+        except ValueError as error:
+            self.SetStatusText(str(error))
+            return
+        self.canvas.selected_names = set(created)
+        self.refresh_control_list()
+        self.on_selection(self.model.selected)
+        self.canvas.reveal_control(self.model.selected)
+        self.SetStatusText(f"Duplicated {len(created)} control(s)")
 
     def on_zoom(self, event):
         self.set_zoom(self.zoom_choice.GetStringSelection())
@@ -1376,6 +1554,7 @@ class ReportDesignerFrame(wx.Frame):
             selected_path, dataset_contract=self.dataset_contract,
             preview_handler=self.preview_handler,
             starter_definition_path=self.starter_definition_path,
+            export_directory=self.export_directory,
         )
         replacement.Show()
         self.Destroy()
@@ -1390,6 +1569,30 @@ class ReportDesignerFrame(wx.Frame):
             self.SetStatusText(f"Preview created: {output.name}")
         except Exception as error:
             wx.MessageBox(str(error), "Cannot preview report", wx.OK | wx.ICON_ERROR, self)
+
+    def on_export_pdf(self, event):
+        dialog = wx.FileDialog(
+            self, "Export report as PDF", defaultDir=str(self.export_directory),
+            defaultFile=f"{self.model.report['name']}.pdf",
+            wildcard="PDF files (*.pdf)|*.pdf",
+            style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
+        )
+        try:
+            if dialog.ShowModal() != wx.ID_OK:
+                return
+            target = Path(dialog.GetPath())
+        finally:
+            dialog.Destroy()
+        if target.suffix.casefold() != ".pdf":
+            target = target.with_suffix(".pdf")
+        try:
+            definition = self.model.validated_definition()
+            output = self.preview_handler(definition)
+            export_preview_file(output, target)
+        except Exception as error:
+            wx.MessageBox(str(error), "Cannot export report", wx.OK | wx.ICON_ERROR, self)
+            return
+        self.SetStatusText(f"Exported PDF: {target}")
 
     def on_validate(self, event):
         try:
@@ -1441,6 +1644,58 @@ class ReportDesignerFrame(wx.Frame):
         self.on_selection(self.model.selected)
         self.SetStatusText("Starter layout restored; click Save to keep it")
 
+    def on_restore_previous(self, event):
+        backup = self.path.with_suffix(self.path.suffix + ".bak")
+        if not backup.is_file():
+            wx.MessageBox(
+                "No previous saved version exists for this report yet.",
+                "Restore previous version", wx.OK | wx.ICON_INFORMATION, self,
+            )
+            return
+        dialog = wx.MessageDialog(
+            self,
+            "Load the previous saved version?\n\n"
+            "The current file will not change until you click Save.",
+            "Restore previous version",
+            wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION,
+        )
+        try:
+            if dialog.ShowModal() != wx.ID_YES:
+                return
+        finally:
+            dialog.Destroy()
+        try:
+            definition = ReportDefinitionLoader().load(backup)
+            if self.dataset_contract is not None:
+                self.dataset_contract.validate_definition(definition)
+            previous_controls = definition.to_dict()[definition.root_name]["CONTROLS"]
+            changed = [
+                name for name in set(self.model.controls) | set(previous_controls)
+                if self.model.controls.get(name) != previous_controls.get(name)
+            ]
+            self.model.replace_definition(definition)
+        except (ReportDefinitionError, ValueError) as error:
+            wx.MessageBox(str(error), "Cannot restore previous version", wx.OK | wx.ICON_ERROR, self)
+            return
+        self.canvas.model = self.model
+        if changed and changed[0] in self.model.controls:
+            self.model.select(changed[0])
+        self.canvas.selected_names = {self.model.selected} if self.model.selected else set()
+        self.canvas.refresh_extent()
+        self.refresh_control_list()
+        self.on_selection(self.model.selected)
+        if self.model.selected:
+            self.canvas.reveal_control(self.model.selected)
+        self.SetStatusText(
+            f"Previous version loaded ({len(changed)} changed control(s)); click Save to keep it"
+        )
+        wx.MessageBox(
+            f"The previous version is now displayed.\n\n"
+            f"Changed controls: {len(changed)}\n"
+            "Click Save to make this restoration permanent.",
+            "Previous version loaded", wx.OK | wx.ICON_INFORMATION, self,
+        )
+
     def on_close(self, event):
         if not self.confirm_discard_or_save():
             event.Veto()
@@ -1450,13 +1705,14 @@ class ReportDesignerFrame(wx.Frame):
 
 def open_report_designer(
     definition_path, dataset_contract=None, preview_handler=None,
-    starter_definition_path=None,
+    starter_definition_path=None, export_directory=None,
 ):
     application = wx.App.Get() or wx.App(False)
     frame = ReportDesignerFrame(
         definition_path, dataset_contract=dataset_contract,
         preview_handler=preview_handler,
         starter_definition_path=starter_definition_path,
+        export_directory=export_directory,
     )
     frame.Show()
     if not wx.App.Get().IsMainLoopRunning():

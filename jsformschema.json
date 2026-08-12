@@ -159,6 +159,7 @@
                     "TimePickerCtrl",
                     "CalendarCtrl",
                     "FilePickerCtrl",
+                    "ImagePickerCtrl",
                     "HTMLCtrl"
                   ]
                 },
@@ -174,6 +175,18 @@
                   "minimum": 1
                 },
                 "maxlengthmessage": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "maxbytes": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "message": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "wildcard": {
                   "type": "string",
                   "minLength": 1
                 },

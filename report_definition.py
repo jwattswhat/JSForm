@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 import json
 from pathlib import Path
+import shutil
 from types import MappingProxyType
 
 from jsonschema import Draft202012Validator, FormatChecker
@@ -125,4 +126,6 @@ def save_report_definition(definition, path):
         json.dumps(definition.to_dict(), indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
+    if target.exists():
+        shutil.copyfile(target, target.with_suffix(target.suffix + ".bak"))
     temporary.replace(target)

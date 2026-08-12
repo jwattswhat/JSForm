@@ -198,6 +198,7 @@ class clsConstantsNameSpace:
             "size",
             "style",
         ],
+        "ImagePickerCtrl": ["name", "pos", "size", "style"],
         "HTMLCtrl": [
             "id",
             "pos",

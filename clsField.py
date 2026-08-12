@@ -8,6 +8,7 @@
 from mysql.connector import FieldType
 import datetime
 import json
+import io
 import os
 import pathlib
 import itertools
@@ -187,6 +188,8 @@ class clsField:
                 self.FIELD = self.clsCalendarCtrl(self, controldescription)
             case "FilePickerCtrl":
                 self.FIELD = self.clsFilePickerCtrl(self, controldescription)
+            case "ImagePickerCtrl":
+                self.FIELD = self.clsImagePickerCtrl(self, controldescription)
             case "HTMLCtrl":
                 self.FIELD = self.clsHTMLCtrl(self, controldescription)
             case _:
@@ -1210,6 +1213,135 @@ class clsField:
             filename = os.path.splitext(os.path.basename(value))
             fn = filename[0] + filename[1]
             return fn
+
+    class clsImagePickerCtrl(wx.Panel, clsFieldExtra):
+        """Select, preview, and store an image as database bytes."""
+
+        DEFAULT_WILDCARD = (
+            "Image files (*.png;*.jpg;*.jpeg;*.bmp)|*.png;*.jpg;*.jpeg;*.bmp"
+        )
+
+        def __init__(self, parent, controldescription):
+            super().init_field(parent, controldescription)
+            parameters = getcontrolparameters(self.CONTROLDESCRIPTION)
+            super().__init__(parent.PARENT.FORM, wx.ID_ANY, **parameters)
+            self._value = None
+
+            self.preview = wx.StaticBitmap(self, wx.ID_ANY)
+            self.choose_button = wx.Button(self, wx.ID_ANY, label="Choose image...")
+            self.remove_button = wx.Button(self, wx.ID_ANY, label="Remove")
+            self.choose_button.Bind(wx.EVT_BUTTON, self._choose_image)
+            self.remove_button.Bind(wx.EVT_BUTTON, self._remove_image)
+
+            buttons = wx.BoxSizer(wx.HORIZONTAL)
+            buttons.Add(self.choose_button, 0, wx.RIGHT, 6)
+            buttons.Add(self.remove_button, 0)
+            layout = wx.BoxSizer(wx.VERTICAL)
+            layout.Add(self.preview, 1, wx.EXPAND | wx.BOTTOM, 6)
+            layout.Add(buttons, 0, wx.ALIGN_LEFT)
+            self.SetSizer(layout)
+            self.SetNormalColor()
+            self._show_placeholder()
+
+        def Enable(self, enable=True):
+            result = super().Enable(enable)
+            self.choose_button.Enable(enable)
+            self.remove_button.Enable(enable and self._value is not None)
+            return result
+
+        def Disable(self):
+            return self.Enable(False)
+
+        @staticmethod
+        def _as_bytes(value):
+            if value is None:
+                return None
+            if isinstance(value, bytes):
+                return value
+            if isinstance(value, (bytearray, memoryview)):
+                return bytes(value)
+            raise TypeError("ImagePickerCtrl values must be binary image data or None")
+
+        def SetValue(self, value):
+            self._value = self._as_bytes(value)
+            self._refresh_preview()
+
+        def GetValue(self):
+            return self._value
+
+        def _show_placeholder(self):
+            width, height = self._preview_size()
+            bitmap = wx.Bitmap(max(width, 1), max(height, 1))
+            dc = wx.MemoryDC(bitmap)
+            dc.SetBackground(wx.Brush(wx.Colour(245, 245, 245)))
+            dc.Clear()
+            dc.SetTextForeground(wx.Colour(100, 100, 100))
+            text = "No image selected"
+            text_width, text_height = dc.GetTextExtent(text)
+            dc.DrawText(text, max((width - text_width) // 2, 0), max((height - text_height) // 2, 0))
+            dc.SelectObject(wx.NullBitmap)
+            self.preview.SetBitmap(bitmap)
+            self.remove_button.Enable(False)
+
+        def _preview_size(self):
+            width, height = self.GetClientSize()
+            button_height = self.choose_button.GetBestSize().height + 8
+            return max(width, 120), max(height - button_height, 80)
+
+        def _refresh_preview(self):
+            if not self._value:
+                self._show_placeholder()
+                return
+            try:
+                image = wx.Image(io.BytesIO(self._value))
+                if not image.IsOk():
+                    raise ValueError("The stored data is not a supported image.")
+                width, height = self._preview_size()
+                scale = min(width / image.GetWidth(), height / image.GetHeight())
+                scaled_width = max(1, int(image.GetWidth() * scale))
+                scaled_height = max(1, int(image.GetHeight() * scale))
+                image.Rescale(scaled_width, scaled_height, wx.IMAGE_QUALITY_HIGH)
+                self.preview.SetBitmap(wx.Bitmap(image))
+                self.remove_button.Enable(self.IsEnabled())
+            except (TypeError, ValueError, RuntimeError):
+                self._value = None
+                self._show_placeholder()
+
+        def _choose_image(self, event):
+            wildcard = self.CONTROLDESCRIPTION.get("wildcard", self.DEFAULT_WILDCARD)
+            dialog = wx.FileDialog(
+                self,
+                message=self.CONTROLDESCRIPTION.get("message", "Choose an image"),
+                wildcard=wildcard,
+                style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
+            )
+            try:
+                if dialog.ShowModal() != wx.ID_OK:
+                    return
+                path = pathlib.Path(dialog.GetPath())
+                maximum = self.CONTROLDESCRIPTION.get("maxbytes", 5 * 1024 * 1024)
+                if path.stat().st_size > maximum:
+                    wx.MessageBox(
+                        "The image is too large. The maximum size is {:,.1f} MB.".format(
+                            maximum / (1024 * 1024)
+                        ),
+                        "Image too large",
+                        wx.OK | wx.ICON_WARNING,
+                    )
+                    return
+                value = path.read_bytes()
+                image = wx.Image(io.BytesIO(value))
+                if not image.IsOk():
+                    raise ValueError("Unsupported or damaged image file")
+                self._value = value
+                self._refresh_preview()
+            except (OSError, ValueError) as error:
+                wx.MessageBox(str(error), "Unable to load image", wx.OK | wx.ICON_ERROR)
+            finally:
+                dialog.Destroy()
+
+        def _remove_image(self, event):
+            self.SetValue(None)
 
     class clsHTMLCtrl(wx.html.HtmlWindow, clsFieldExtra):
         def __init__(self, parent, controldescription):

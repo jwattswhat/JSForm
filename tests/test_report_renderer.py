@@ -2,6 +2,8 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from datetime import datetime
+from decimal import Decimal
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -13,6 +15,12 @@ from test_report_definition import valid_definition
 
 
 class TestPDFReportRenderer(unittest.TestCase):
+    def test_native_values_use_consistent_report_formats(self):
+        renderer = PDFReportRenderer()
+        self.assertEqual(renderer._format_value(Decimal("11700"), "currency"), "$11,700.00")
+        self.assertEqual(renderer._format_value(datetime(2026, 8, 12, 14, 5), "date"), "8/12/2026")
+        self.assertEqual(renderer._format_value(datetime(2026, 8, 12, 14, 5), "time"), "2:05 PM")
+        self.assertEqual(renderer._format_value("2183871200", "phone"), "(218) 387-1200")
     def test_table_paginates_and_pdf_contains_bound_data(self):
         source = valid_definition()
         source["CMMD01REPORT"]["CONTROLS"]["FamilyName"] = {

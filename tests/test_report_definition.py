@@ -87,6 +87,19 @@ class TestReportDefinition(unittest.TestCase):
             self.assertEqual(self.loader.load(path).to_dict(), definition.to_dict())
             self.assertFalse(path.with_suffix(".json.tmp").exists())
 
+    def test_save_retains_previous_valid_version(self):
+        first = self.loader.from_dict(valid_definition())
+        changed_data = valid_definition()
+        changed_data["CMMD01REPORT"]["REPORT"]["title"] = "Changed Directory"
+        changed = self.loader.from_dict(changed_data)
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "report.json"
+            save_report_definition(first, path)
+            save_report_definition(changed, path)
+            backup = path.with_suffix(".json.bak")
+            self.assertTrue(backup.is_file())
+            self.assertEqual(self.loader.load(backup).title, first.title)
+
 
 if __name__ == "__main__":
     unittest.main()

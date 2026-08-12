@@ -34,6 +34,13 @@ EXPECTED_PUBLIC_NAMES = {
     "AllowAllAuthorizationPolicy", "AuthorizationDenied",
     "DenyAllAuthorizationPolicy", "FormSecurity",
     "LimeReportProcess", "ReportProcessError",
+    "ReportDefinition", "ReportDefinitionError", "ReportDefinitionLoader",
+    "save_report_definition",
+    "ReportCollection", "ReportDataset", "ReportDatasetContract",
+    "ReportDatasetError", "ReportField",
+    "PDFReportRenderer", "ReportRenderError",
+    "ReportCanvas", "ReportDesignerFrame", "ReportDesignerModel",
+    "open_report_designer",
     "LayoutItem", "build_layout_plan", "apply_responsive_layout",
     "supports_responsive_layout",
     "grouped_controls",
@@ -243,6 +250,19 @@ class TestControlCatalog(unittest.TestCase):
         self.assertEqual(factory_types, legacy_types)
         self.assertIn("CalendarCtrl", factory_types)
         self.assertIn("JSON", factory_types)
+        self.assertIn("ImagePickerCtrl", factory_types)
+
+    def test_image_picker_uses_binary_values_and_database_safe_metadata(self):
+        source = (ROOT / "clsField.py").read_text(encoding="utf-8-sig")
+        self.assertIn("class clsImagePickerCtrl(wx.Panel, clsFieldExtra)", source)
+        self.assertIn("return bytes(value)", source)
+        self.assertIn("path.read_bytes()", source)
+        self.assertNotIn("path.read_text()", source)
+        for path in (ROOT / "schema" / "unified_schema.json", ROOT / "jsformschema.json"):
+            schema = json.loads(path.read_text(encoding="utf-8-sig"))
+            text = json.dumps(schema)
+            self.assertIn('"ImagePickerCtrl"', text)
+            self.assertIn('"maxbytes"', text)
 
     def test_both_schemas_allow_nonempty_tooltips(self):
         for schema_path in (

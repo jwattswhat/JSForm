@@ -136,7 +136,7 @@
                     "ListCtrl", "ListCtrlID", "CheckBox", "CheckListBox",
                     "CheckListEdit", "Button", "DataViewListCtrl", "DateTime",
                     "DatePickerCtrl", "TimePickerCtrl", "CalendarCtrl",
-                    "FilePickerCtrl", "HTMLCtrl"
+                    "FilePickerCtrl", "ImagePickerCtrl", "HTMLCtrl"
                   ]
                 },
                 "name": { "type": "string" },
@@ -144,6 +144,9 @@
                 "tooltip": { "type": "string", "minLength": 1 },
                 "maxlength": { "type": "integer", "minimum": 1 },
                 "maxlengthmessage": { "type": "string", "minLength": 1 },
+                "maxbytes": { "type": "integer", "minimum": 1 },
+                "message": { "type": "string", "minLength": 1 },
+                "wildcard": { "type": "string", "minLength": 1 },
                 "layout": {
                   "type": "object",
                   "properties": {

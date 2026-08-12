@@ -6,7 +6,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from report_definition import ReportDefinitionLoader
-from report_designer import ReportDesignerModel
+from report_designer import ReportDesignerModel, export_preview_file
 from test_report_definition import valid_definition
 
 
@@ -224,6 +224,34 @@ class TestReportDesignerModel(unittest.TestCase):
             model.set_page_setup(
                 "letter", "portrait", {"top": 36, "right": 210, "bottom": 36, "left": 210},
             )
+
+    def test_copy_and_paste_preserve_properties_with_unique_name(self):
+        model = self.model()
+        copied = model.copy_controls(["FamilyName"])
+        created = model.paste_controls(copied)
+        self.assertEqual(created, ["FamilyNameCopy"])
+        original = model.controls["FamilyName"]
+        duplicate = model.controls["FamilyNameCopy"]
+        self.assertEqual(duplicate["field"], original["field"])
+        self.assertNotEqual(duplicate["position"], original["position"])
+
+    def test_pasting_multiple_controls_is_one_undoable_change(self):
+        model = self.model()
+        model.add_control("label", band="Detail", name="FirstLabel")
+        copied = model.copy_controls(["FamilyName", "FirstLabel"])
+        created = model.paste_controls(copied)
+        self.assertTrue(all(name in model.controls for name in created))
+        model.undo()
+        self.assertTrue(all(name not in model.controls for name in created))
+
+    def test_export_preview_file_creates_permanent_copy(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / "preview.pdf"
+            target = Path(folder) / "exports" / "directory.pdf"
+            source.write_bytes(b"%PDF-test")
+            result = export_preview_file(source, target)
+            self.assertEqual(result, target)
+            self.assertEqual(target.read_bytes(), b"%PDF-test")
 
 
 if __name__ == "__main__":
