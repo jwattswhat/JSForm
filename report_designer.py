@@ -400,6 +400,80 @@ class ReportDesignerModel:
         self.data = validated.to_dict()
         self.dirty = True
 
+    def set_groups(self, groups):
+        candidate = deepcopy(self.data)
+        root = candidate[self.root_name]
+        settings = root["REPORT"]
+        controls = root["CONTROLS"]
+        old_groups = {item["name"]: item for item in settings.get("groups", [])}
+        new_groups = [dict(item) for item in groups]
+        retained_names = {item["name"] for item in new_groups}
+        for name, item in old_groups.items():
+            if name in retained_names:
+                continue
+            removed_bands = {item["headerband"], item["footerband"]}
+            for control_name in [
+                key for key, control in controls.items() if control["band"] in removed_bands
+            ]:
+                del controls[control_name]
+            for band_name in removed_bands:
+                settings["bands"].pop(band_name, None)
+
+        for item in new_groups:
+            if item["name"] in old_groups:
+                continue
+            header = item["headerband"]
+            footer = item["footerband"]
+            settings["bands"][header] = {"type": "groupheader", "height": 24}
+            settings["bands"][footer] = {"type": "groupfooter", "height": 8}
+            control_name = self.unique_control_name(f"{item['name']}Value")
+            controls[control_name] = {
+                "type": "text", "band": header, "position": [0, 2],
+                "size": [self.content_width, 20], "collection": item["collection"],
+                "field": item["field"], "fontsize": 11, "bold": True,
+            }
+
+        if new_groups:
+            settings["groups"] = new_groups
+            existing_sort = settings.get("sort", [])
+            group_keys = {(item["collection"], item["field"]) for item in new_groups}
+            settings["sort"] = [
+                {"collection": item["collection"], "field": item["field"], "direction": "ascending"}
+                for item in new_groups
+            ] + [
+                item for item in existing_sort
+                if (item["collection"], item["field"]) not in group_keys
+            ]
+        else:
+            settings.pop("groups", None)
+        settings["bands"] = self._ordered_group_bands(settings["bands"], new_groups)
+        validated = self.loader.from_dict(candidate)
+        self._record_change()
+        self.data = validated.to_dict()
+        self.dirty = True
+
+    @staticmethod
+    def _ordered_group_bands(bands, groups):
+        group_band_names = {
+            item[key] for item in groups for key in ("headerband", "footerband")
+        }
+        ordinary = [(name, band) for name, band in bands.items() if name not in group_band_names]
+        result = {}
+        for name, band in ordinary:
+            if band["type"] in ("reportheader", "pageheader"):
+                result[name] = band
+        for item in groups:
+            result[item["headerband"]] = bands[item["headerband"]]
+        for name, band in ordinary:
+            if band["type"] == "detail":
+                result[name] = band
+        for item in reversed(groups):
+            result[item["footerband"]] = bands[item["footerband"]]
+        for name, band in ordinary:
+            if band["type"] not in ("reportheader", "pageheader", "detail"):
+                result[name] = band
+        return result
+
     def copy_controls(self, names):
         names = [name for name in names if name in self.controls]
         return [(name, deepcopy(self.controls[name])) for name in names]
@@ -875,6 +949,108 @@ class SortRecordsDialog(wx.Dialog):
         return [dict(item) for item in self.items]
 
 
+class GroupRecordsDialog(wx.Dialog):
+    def __init__(self, parent, dataset_contract, groups):
+        super().__init__(parent, title="Group Report Records", size=(620, 390))
+        self.fields = [
+            (collection.name, field.name, f"{collection.label}: {field.label}")
+            for collection in dataset_contract.collections
+            for field in collection.fields
+            if field.data_type != "image"
+        ]
+        self.items = [dict(item) for item in groups]
+        layout = wx.BoxSizer(wx.VERTICAL)
+        layout.Add(
+            wx.StaticText(
+                self,
+                label="Groups create editable heading and footer sections. Outer groups come first.",
+            ), 0, wx.ALL, 10,
+        )
+        self.list = wx.ListBox(self)
+        layout.Add(self.list, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
+        add_row = wx.BoxSizer(wx.HORIZONTAL)
+        self.field_choice = wx.Choice(self, choices=[item[2] for item in self.fields])
+        if self.fields:
+            self.field_choice.SetSelection(0)
+        self.keep_together = wx.CheckBox(self, label="Keep heading with first record")
+        self.keep_together.SetValue(True)
+        add_button = wx.Button(self, label="Add Group")
+        add_button.Bind(wx.EVT_BUTTON, self.on_add)
+        add_row.Add(self.field_choice, 1, wx.RIGHT, 8)
+        add_row.Add(self.keep_together, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+        add_row.Add(add_button, 0)
+        layout.Add(add_row, 0, wx.EXPAND | wx.ALL, 10)
+
+        actions = wx.BoxSizer(wx.HORIZONTAL)
+        for label, handler in (
+            ("Move Up", self.on_up), ("Move Down", self.on_down),
+            ("Remove", self.on_remove),
+        ):
+            button = wx.Button(self, label=label)
+            button.Bind(wx.EVT_BUTTON, handler)
+            actions.Add(button, 0, wx.RIGHT, 8)
+        actions.AddStretchSpacer()
+        actions.Add(wx.Button(self, wx.ID_CANCEL), 0, wx.RIGHT, 8)
+        actions.Add(wx.Button(self, wx.ID_OK), 0)
+        layout.Add(actions, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+        self.SetSizer(layout)
+        self.refresh()
+
+    def refresh(self, selection=None):
+        names = {(collection, field): label for collection, field, label in self.fields}
+        labels = [
+            f"{number}. {names.get((item['collection'], item['field']), item['collection'] + '.' + item['field'])}"
+            for number, item in enumerate(self.items, start=1)
+        ]
+        self.list.Set(labels)
+        if labels:
+            self.list.SetSelection(min(selection if selection is not None else 0, len(labels) - 1))
+
+    def on_add(self, event):
+        selection = self.field_choice.GetSelection()
+        if selection == wx.NOT_FOUND:
+            return
+        collection, field, _ = self.fields[selection]
+        if any(
+            (item["collection"], item["field"]) == (collection, field) for item in self.items
+        ):
+            return
+        used = {item["name"] for item in self.items}
+        number = 1
+        while f"Group{number}" in used:
+            number += 1
+        name = f"Group{number}"
+        self.items.append({
+            "name": name, "collection": collection, "field": field,
+            "headerband": f"{name}Header", "footerband": f"{name}Footer",
+            "keeptogether": self.keep_together.GetValue(),
+        })
+        self.refresh(len(self.items) - 1)
+
+    def on_remove(self, event):
+        selection = self.list.GetSelection()
+        if selection != wx.NOT_FOUND:
+            del self.items[selection]
+            self.refresh(max(0, selection - 1))
+
+    def _move(self, offset):
+        selection = self.list.GetSelection()
+        target = selection + offset
+        if selection == wx.NOT_FOUND or target < 0 or target >= len(self.items):
+            return
+        self.items[selection], self.items[target] = self.items[target], self.items[selection]
+        self.refresh(target)
+
+    def on_up(self, event):
+        self._move(-1)
+
+    def on_down(self, event):
+        self._move(1)
+
+    def values(self):
+        return [dict(item) for item in self.items]
+
+
 class PageSetupDialog(wx.Dialog):
     def __init__(self, parent, model):
         super().__init__(parent, title="Page Setup", size=(370, 350))
@@ -1192,6 +1368,7 @@ class ReportDesignerFrame(wx.Frame):
         if self.dataset_contract is not None:
             data_menu = wx.Menu()
             self._append_menu(data_menu, "&Sort Records...", self.on_sort_records)
+            self._append_menu(data_menu, "&Group Records...", self.on_group_records)
             menu_bar.Append(data_menu, "&Data")
 
         view_menu = wx.Menu()
@@ -1646,6 +1823,30 @@ class ReportDesignerFrame(wx.Frame):
             return
         self.SetStatusText(
             f"Report sorting updated ({len(sort_items)} field{'s' if len(sort_items) != 1 else ''})"
+        )
+
+    def on_group_records(self, event):
+        dialog = GroupRecordsDialog(
+            self, self.dataset_contract, self.model.report.get("groups", ()),
+        )
+        try:
+            if dialog.ShowModal() != wx.ID_OK:
+                return
+            groups = dialog.values()
+        finally:
+            dialog.Destroy()
+        try:
+            self.model.set_groups(groups)
+            self.dataset_contract.validate_definition(self.model.validated_definition())
+        except (ReportDefinitionError, ValueError) as error:
+            wx.MessageBox(str(error), "Cannot change grouping", wx.OK | wx.ICON_ERROR, self)
+            return
+        self.canvas.refresh_extent()
+        self.band_list.Set(list(self.model.report["bands"]))
+        self.refresh_control_list()
+        self.on_selection(self.model.selected)
+        self.SetStatusText(
+            f"Report grouping updated ({len(groups)} group{'s' if len(groups) != 1 else ''})"
         )
 
     def confirm_discard_or_save(self):

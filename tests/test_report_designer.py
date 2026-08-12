@@ -238,6 +238,26 @@ class TestReportDesignerModel(unittest.TestCase):
         model.set_sort([])
         self.assertNotIn("sort", model.report)
 
+    def test_grouping_creates_editable_bands_and_default_heading(self):
+        model = self.model()
+        groups = [{
+            "name": "CityGroup", "collection": "families", "field": "FamilyName",
+            "headerband": "CityGroupHeader", "footerband": "CityGroupFooter",
+            "keeptogether": True,
+        }]
+        model.set_groups(groups)
+        self.assertEqual(model.report["bands"]["CityGroupHeader"]["type"], "groupheader")
+        self.assertEqual(model.report["bands"]["CityGroupFooter"]["type"], "groupfooter")
+        heading = next(
+            control for control in model.controls.values()
+            if control["band"] == "CityGroupHeader"
+        )
+        self.assertEqual(heading["field"], "FamilyName")
+        self.assertEqual(model.report["sort"][0]["field"], "FamilyName")
+        model.set_groups([])
+        self.assertNotIn("CityGroupHeader", model.report["bands"])
+        self.assertNotIn("groups", model.report)
+
     def test_copy_and_paste_preserve_properties_with_unique_name(self):
         model = self.model()
         copied = model.copy_controls(["FamilyName"])

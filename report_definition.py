@@ -110,6 +110,13 @@ class ReportDefinitionLoader:
                 f"Report name {root['REPORT']['name']} does not match root {root_name}"
             )
         bands = root["REPORT"]["bands"]
+        for group in root["REPORT"].get("groups", []):
+            for key, expected_type in (("headerband", "groupheader"), ("footerband", "groupfooter")):
+                band_name = group[key]
+                if band_name not in bands or bands[band_name]["type"] != expected_type:
+                    raise ReportDefinitionError(
+                        f"Group {group['name']} uses invalid {key} {band_name}"
+                    )
         for control_name, control in root["CONTROLS"].items():
             if control["band"] not in bands:
                 raise ReportDefinitionError(

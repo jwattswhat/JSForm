@@ -153,11 +153,13 @@
     },
     "group": {
       "type": "object", "additionalProperties": false,
-      "required": ["name", "collection", "field"],
+      "required": ["name", "collection", "field", "headerband", "footerband"],
       "properties": {
         "name": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{1,63}$"},
         "collection": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"},
         "field": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"},
+        "headerband": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{1,63}$"},
+        "footerband": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{1,63}$"},
         "keeptogether": {"type": "boolean"}
       }
     }

@@ -79,6 +79,15 @@ class TestReportDefinition(unittest.TestCase):
         with self.assertRaisesRegex(ReportDefinitionError, "unknown band"):
             self.loader.from_dict(data)
 
+    def test_group_must_reference_matching_group_bands(self):
+        data = valid_definition()
+        data["CMMD01REPORT"]["REPORT"]["groups"] = [{
+            "name": "CityGroup", "collection": "families", "field": "FamilyName",
+            "headerband": "Detail", "footerband": "MissingFooter",
+        }]
+        with self.assertRaisesRegex(ReportDefinitionError, "invalid headerband"):
+            self.loader.from_dict(data)
+
     def test_save_and_reopen_preserves_definition(self):
         definition = self.loader.from_dict(valid_definition())
         with tempfile.TemporaryDirectory() as folder:

@@ -62,6 +62,52 @@ class TestReportRepeater(unittest.TestCase):
         )
         self.assertGreater(layout[1][2], 18)
 
+    def test_group_headers_render_when_field_value_changes(self):
+        source = valid_definition()
+        report = source["CMMD01REPORT"]["REPORT"]
+        report["bands"] = {
+            "GroupHeader": {"type": "groupheader", "height": 20},
+            "Detail": {"type": "detail", "height": 24},
+            "GroupFooter": {"type": "groupfooter", "height": 4},
+        }
+        report["groups"] = [{
+            "name": "CityGroup", "collection": "entries", "field": "City",
+            "headerband": "GroupHeader", "footerband": "GroupFooter",
+            "keeptogether": True,
+        }]
+        report["sort"] = [{
+            "collection": "entries", "field": "City", "direction": "ascending",
+        }]
+        source["CMMD01REPORT"]["CONTROLS"] = {
+            "GroupCity": {
+                "type": "text", "band": "GroupHeader", "position": [0, 0],
+                "size": [200, 18], "collection": "entries", "field": "City", "bold": True,
+            },
+            "Entries": {
+                "type": "repeater", "band": "Detail", "position": [0, 0], "size": [500, 24],
+                "repeatcollection": "entries", "itemheight": 24,
+                "items": [{"name": "Name", "field": "Name", "position": [0, 0], "size": [200, 14]}],
+            },
+        }
+        definition = ReportDefinitionLoader().from_dict(source)
+        contract = ReportDatasetContract(
+            "membership.directory", 1, "reports.membership.contact",
+            (ReportCollection("entries", "Entries", (
+                ReportField("Name", "Name"), ReportField("City", "City"),
+            )),),
+        )
+        dataset = ReportDataset.create(contract, {"entries": [
+            {"Name": "Zed", "City": "Duluth"}, {"Name": "Amy", "City": "Bemidji"},
+            {"Name": "Bob", "City": "Duluth"},
+        ]})
+        with tempfile.TemporaryDirectory() as folder:
+            output = Path(folder) / "groups.pdf"
+            PDFReportRenderer().render(definition, dataset, output)
+            text = "\n".join(page.extract_text() or "" for page in PdfReader(output).pages)
+            self.assertEqual(text.count("Bemidji"), 1)
+            self.assertEqual(text.count("Duluth"), 1)
+            self.assertLess(text.index("Amy"), text.index("Bob"))
+
 
 if __name__ == "__main__":
     unittest.main()

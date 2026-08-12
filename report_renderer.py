@@ -68,35 +68,129 @@ class PDFReportRenderer:
                 row_height = max(16, min(30, bands[band_name]["height"] / 2))
                 header_height = row_height
                 header_pending = True
+                groups = self._groups_for(definition, table["repeatcollection"])
+                active_values = None
+                previous_row = None
                 for row in rows:
-                    required = row_height + (header_height if header_pending else 0)
+                    changed = self._changed_group_index(groups, active_values, row)
+                    group_header_height = sum(
+                        bands[item["headerband"]]["height"] for item in groups[changed:]
+                    )
+                    required = row_height + group_header_height + (header_height if header_pending else 0)
                     if current_y - required < usable_bottom + footer_height:
                         pdf.showPage()
                         page_number += 1
                         current_y = start_page(first=False)
                         header_pending = True
+                        changed = 0
+                    elif previous_row is not None and changed < len(groups):
+                        current_y = self._draw_group_footers(
+                            pdf, definition, dataset, groups[changed:], previous_row,
+                            table["repeatcollection"], current_y, margins,
+                        )
                     if header_pending:
                         current_y = self._draw_table_header(
                             pdf, table, current_y, margins["left"], header_height
                         )
                         header_pending = False
+                    current_y = self._draw_group_headers(
+                        pdf, definition, dataset, groups[changed:], row,
+                        table["repeatcollection"], current_y, margins,
+                    )
                     current_y = self._draw_table_row(
                         pdf, table, row, current_y, margins["left"], row_height
+                    )
+                    active_values = [row.get(item["field"]) for item in groups]
+                    previous_row = row
+                if previous_row is not None:
+                    current_y = self._draw_group_footers(
+                        pdf, definition, dataset, groups, previous_row,
+                        table["repeatcollection"], current_y, margins,
                     )
             for _, repeater in repeaters:
                 rows = self._sorted_rows(
                     dataset.collections[repeater["repeatcollection"]], definition,
                     dataset, repeater["repeatcollection"],
                 )
+                groups = self._groups_for(definition, repeater["repeatcollection"])
+                active_values = None
+                previous_row = None
                 for row in rows:
                     height = self._repeater_height(repeater, row)
-                    if current_y - height <= usable_bottom + footer_height + 4:
+                    changed = self._changed_group_index(groups, active_values, row)
+                    group_header_height = sum(
+                        bands[item["headerband"]]["height"] for item in groups[changed:]
+                    )
+                    if current_y - height - group_header_height <= usable_bottom + footer_height + 4:
                         pdf.showPage()
                         page_number += 1
                         current_y = start_page(first=False)
+                        changed = 0
+                    elif previous_row is not None and changed < len(groups):
+                        current_y = self._draw_group_footers(
+                            pdf, definition, dataset, groups[changed:], previous_row,
+                            repeater["repeatcollection"], current_y, margins,
+                        )
+                    current_y = self._draw_group_headers(
+                        pdf, definition, dataset, groups[changed:], row,
+                        repeater["repeatcollection"], current_y, margins,
+                    )
                     self._draw_repeater(pdf, repeater, row, current_y, margins["left"], height)
                     current_y -= height
+                    active_values = [row.get(item["field"]) for item in groups]
+                    previous_row = row
+                if previous_row is not None:
+                    current_y = self._draw_group_footers(
+                        pdf, definition, dataset, groups, previous_row,
+                        repeater["repeatcollection"], current_y, margins,
+                    )
         pdf.showPage()
+
+    @staticmethod
+    def _groups_for(definition, collection_name):
+        return [
+            item for item in definition.settings.get("groups", ())
+            if item["collection"] == collection_name
+        ]
+
+    @staticmethod
+    def _changed_group_index(groups, active_values, row):
+        if active_values is None:
+            return 0
+        for index, item in enumerate(groups):
+            if active_values[index] != row.get(item["field"]):
+                return index
+        return len(groups)
+
+    def _draw_group_headers(
+        self, pdf, definition, dataset, groups, row, collection_name, top, margins,
+    ):
+        for group in groups:
+            top = self._draw_bound_band(
+                pdf, definition, dataset, group["headerband"], row, collection_name,
+                top, margins,
+            )
+        return top
+
+    def _draw_group_footers(
+        self, pdf, definition, dataset, groups, row, collection_name, top, margins,
+    ):
+        for group in reversed(groups):
+            top = self._draw_bound_band(
+                pdf, definition, dataset, group["footerband"], row, collection_name,
+                top, margins,
+            )
+        return top
+
+    def _draw_bound_band(
+        self, pdf, definition, dataset, band_name, row, collection_name, top, margins,
+    ):
+        for _, control in self._controls_for_band(definition.controls, band_name):
+            self._draw_control(
+                pdf, control, dataset, margins["left"], top,
+                current_row=row, current_collection=collection_name,
+            )
+        return top - definition.bands[band_name]["height"]
 
     @classmethod
     def _sorted_rows(cls, rows, definition, dataset, collection_name):
@@ -164,7 +258,10 @@ class PDFReportRenderer:
         pdf.setFillColorRGB(0.35, 0.35, 0.35)
         pdf.drawRightString(page_width - margins["right"], bottom + 6, f"Page {page_number}")
 
-    def _draw_control(self, pdf, control, dataset, origin_x, band_top):
+    def _draw_control(
+        self, pdf, control, dataset, origin_x, band_top,
+        current_row=None, current_collection=None,
+    ):
         if control.get("visible", True) is False:
             return
         x = origin_x + control["position"][0]
@@ -173,7 +270,10 @@ class PDFReportRenderer:
         kind = control["type"]
         if kind in {"label", "text"}:
             self._draw_background_and_border(pdf, control, x, y, width, height)
-            value = control.get("label", "") if kind == "label" else self._first_value(control, dataset)
+            value = (
+                control.get("label", "") if kind == "label"
+                else self._bound_value(control, dataset, current_row, current_collection)
+            )
             self._draw_text(pdf, self._format_value(value, control.get("format", "text")), x, y, width, height, control)
         elif kind == "line":
             self._set_stroke(pdf, control)
@@ -186,7 +286,7 @@ class PDFReportRenderer:
                 fill = 1
             pdf.rect(x, y, width, height, stroke=1, fill=fill)
         elif kind == "image":
-            value = self._first_value(control, dataset)
+            value = self._bound_value(control, dataset, current_row, current_collection)
             if value:
                 try:
                     pdf.drawImage(ImageReader(BytesIO(bytes(value))), x, y, width, height,
@@ -198,6 +298,12 @@ class PDFReportRenderer:
     def _first_value(control, dataset):
         rows = dataset.collections[control["collection"]]
         return rows[0].get(control["field"]) if rows else ""
+
+    @classmethod
+    def _bound_value(cls, control, dataset, current_row=None, current_collection=None):
+        if current_row is not None and control.get("collection") == current_collection:
+            return current_row.get(control["field"], "")
+        return cls._first_value(control, dataset)
 
     @staticmethod
     def _format_value(value, format_name="text"):
