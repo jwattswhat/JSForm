@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jsform.local/schema/report-definition-v1.json",
+  "title": "JSForm Visual Report Definition",
+  "type": "object",
+  "minProperties": 1,
+  "maxProperties": 1,
+  "additionalProperties": false,
+  "patternProperties": {
+    "^[A-Za-z][A-Za-z0-9_.-]{1,63}REPORT$": {"$ref": "#/$defs/reportRoot"}
+  },
+  "$defs": {
+    "reportRoot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["REPORT", "CONTROLS"],
+      "properties": {
+        "REPORT": {"$ref": "#/$defs/report"},
+        "CONTROLS": {
+          "type": "object",
+          "maxProperties": 500,
+          "propertyNames": {"pattern": "^[A-Za-z][A-Za-z0-9_.-]{1,63}$"},
+          "additionalProperties": {"$ref": "#/$defs/control"}
+        }
+      }
+    },
+    "report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "name", "title", "dataset", "datasetversion", "pagesize", "orientation", "margins", "bands"],
+      "properties": {
+        "schema_version": {"const": 1},
+        "name": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{1,63}$"},
+        "title": {"type": "string", "minLength": 1, "maxLength": 200},
+        "dataset": {"type": "string", "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9]*)+$"},
+        "datasetversion": {"type": "integer", "minimum": 1},
+        "pagesize": {"enum": ["letter", "legal", "a4"]},
+        "orientation": {"enum": ["portrait", "landscape"]},
+        "margins": {"$ref": "#/$defs/edges"},
+        "theme": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$"},
+        "bands": {
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 30,
+          "propertyNames": {"pattern": "^[A-Za-z][A-Za-z0-9_.-]{1,63}$"},
+          "additionalProperties": {"$ref": "#/$defs/band"}
+        },
+        "sort": {"type": "array", "maxItems": 12, "items": {"$ref": "#/$defs/sort"}},
+        "groups": {"type": "array", "maxItems": 6, "items": {"$ref": "#/$defs/group"}}
+      }
+    },
+    "number": {"type": "number", "minimum": 0, "maximum": 2000},
+    "edges": {
+      "type": "object", "additionalProperties": false,
+      "required": ["top", "right", "bottom", "left"],
+      "properties": {
+        "top": {"$ref": "#/$defs/number"}, "right": {"$ref": "#/$defs/number"},
+        "bottom": {"$ref": "#/$defs/number"}, "left": {"$ref": "#/$defs/number"}
+      }
+    },
+    "band": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "height"],
+      "properties": {
+        "type": {"enum": ["reportheader", "pageheader", "groupheader", "detail", "groupfooter", "pagefooter", "reportfooter"]},
+        "height": {"type": "number", "exclusiveMinimum": 0, "maximum": 2000},
+        "repeat": {"type": "boolean"},
+        "pagebreakbefore": {"type": "boolean"},
+        "pagebreakafter": {"type": "boolean"}
+      }
+    },
+    "control": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "band", "position", "size"],
+      "properties": {
+        "type": {"enum": ["label", "text", "image", "line", "rectangle", "table", "repeater"]},
+        "band": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{1,63}$"},
+        "position": {"$ref": "#/$defs/pair"},
+        "size": {"$ref": "#/$defs/positivePair"},
+        "label": {"type": "string", "maxLength": 2000},
+        "collection": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"},
+        "field": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"},
+        "format": {"enum": ["text", "integer", "decimal", "currency", "date", "time", "datetime", "boolean", "phone", "address"]},
+        "font": {"type": "string", "minLength": 1, "maxLength": 100},
+        "fontsize": {"type": "number", "minimum": 5, "maximum": 96},
+        "bold": {"type": "boolean"}, "italic": {"type": "boolean"},
+        "color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+        "background": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+        "bordercolor": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+        "borderwidth": {"type": "number", "minimum": 0, "maximum": 10},
+        "align": {"enum": ["left", "center", "right"]},
+        "verticalalign": {"enum": ["top", "middle", "bottom"]},
+        "padding": {"$ref": "#/$defs/edges"},
+        "visible": {"type": "boolean"},
+        "repeatcollection": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"},
+        "columns": {"type": "array", "maxItems": 30, "items": {"$ref": "#/$defs/column"}},
+        "itemheight": {"type": "number", "exclusiveMinimum": 0, "maximum": 1000},
+        "items": {"type": "array", "minItems": 1, "maxItems": 50, "items": {"$ref": "#/$defs/repeaterItem"}}
+      },
+      "allOf": [
+        {"if": {"properties": {"type": {"const": "label"}}}, "then": {"required": ["label"]}},
+        {"if": {"properties": {"type": {"enum": ["text", "image"]}}}, "then": {"required": ["collection", "field"]}},
+        {"if": {"properties": {"type": {"const": "table"}}}, "then": {"required": ["repeatcollection", "columns"]}},
+        {"if": {"properties": {"type": {"const": "repeater"}}}, "then": {"required": ["repeatcollection", "itemheight", "items"]}}
+      ]
+    },
+    "pair": {
+      "type": "array", "prefixItems": [{"$ref": "#/$defs/number"}, {"$ref": "#/$defs/number"}],
+      "minItems": 2, "maxItems": 2
+    },
+    "positivePair": {
+      "type": "array", "prefixItems": [
+        {"type": "number", "exclusiveMinimum": 0, "maximum": 2000},
+        {"type": "number", "exclusiveMinimum": 0, "maximum": 2000}
+      ], "minItems": 2, "maxItems": 2
+    },
+    "column": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "label", "collection", "field", "width"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{1,63}$"},
+        "label": {"type": "string", "maxLength": 200},
+        "collection": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"},
+        "field": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"},
+        "width": {"type": "number", "exclusiveMinimum": 0, "maximum": 2000},
+        "format": {"enum": ["text", "integer", "decimal", "currency", "date", "time", "datetime", "boolean", "phone", "address"]},
+        "align": {"enum": ["left", "center", "right"]}
+      }
+    },
+    "repeaterItem": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "field", "position", "size"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{1,63}$"},
+        "field": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"},
+        "position": {"$ref": "#/$defs/pair"}, "size": {"$ref": "#/$defs/positivePair"},
+        "format": {"enum": ["text", "integer", "decimal", "currency", "date", "time", "datetime", "boolean", "phone", "address"]},
+        "font": {"type": "string", "minLength": 1, "maxLength": 100},
+        "fontsize": {"type": "number", "minimum": 5, "maximum": 96},
+        "bold": {"type": "boolean"}, "italic": {"type": "boolean"},
+        "color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+        "align": {"enum": ["left", "center", "right"]}
+      }
+    },
+    "sort": {
+      "type": "object", "additionalProperties": false,
+      "required": ["collection", "field", "direction"],
+      "properties": {
+        "collection": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"},
+        "field": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"},
+        "direction": {"enum": ["ascending", "descending"]}
+      }
+    },
+    "group": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "collection", "field"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{1,63}$"},
+        "collection": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"},
+        "field": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"},
+        "keeptogether": {"type": "boolean"}
+      }
+    }
+  }
+}
