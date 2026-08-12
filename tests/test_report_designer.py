@@ -258,6 +258,31 @@ class TestReportDesignerModel(unittest.TestCase):
         self.assertNotIn("CityGroupHeader", model.report["bands"])
         self.assertNotIn("groups", model.report)
 
+    def test_report_total_creates_footer_and_is_undoable(self):
+        model = self.model()
+        name = model.add_aggregate(
+            "families", "FamilyName", "count", format_name="integer",
+        )
+        self.assertEqual(model.controls[name]["type"], "aggregate")
+        self.assertEqual(model.report["bands"]["ReportFooter"]["type"], "reportfooter")
+        self.assertTrue(model.undo())
+        self.assertNotIn(name, model.controls)
+        self.assertNotIn("ReportFooter", model.report["bands"])
+
+    def test_group_total_is_placed_in_matching_footer(self):
+        model = self.model()
+        groups = [{
+            "name": "FamilyGroup", "collection": "families", "field": "FamilyName",
+            "headerband": "FamilyGroupHeader", "footerband": "FamilyGroupFooter",
+        }]
+        model.set_groups(groups)
+        name = model.add_aggregate(
+            "families", "FamilyName", "count", scope="group", group="FamilyGroup",
+            format_name="integer",
+        )
+        self.assertEqual(model.controls[name]["band"], "FamilyGroupFooter")
+        self.assertGreaterEqual(model.report["bands"]["FamilyGroupFooter"]["height"], 28)
+
     def test_copy_and_paste_preserve_properties_with_unique_name(self):
         model = self.model()
         copied = model.copy_controls(["FamilyName"])

@@ -222,6 +222,52 @@ class ReportDesignerModel:
         self.dirty = True
         return name
 
+    def add_aggregate(
+        self, collection, field, operation, scope="report", group=None, format_name=None,
+    ):
+        candidate = deepcopy(self.data)
+        candidate_report = candidate[self.root_name]["REPORT"]
+        if scope == "group":
+            group_item = next(
+                (item for item in self.report.get("groups", []) if item["name"] == group), None
+            )
+            if group_item is None:
+                raise ValueError(f"Unknown report group: {group}")
+            band = group_item["footerband"]
+            candidate_report["bands"][band]["height"] = max(
+                28, candidate_report["bands"][band]["height"]
+            )
+        else:
+            band = next(
+                (name for name, item in self.report["bands"].items() if item["type"] == "reportfooter"),
+                None,
+            )
+            if band is None:
+                band = "ReportFooter"
+                number = 2
+                while band in candidate_report["bands"]:
+                    band = f"ReportFooter{number}"
+                    number += 1
+                candidate_report["bands"][band] = {"type": "reportfooter", "height": 28}
+        name = self.unique_control_name(f"{operation.title()}{field}")
+        control = {
+            "type": "aggregate", "band": band, "position": [self.content_width - 180, 4],
+            "size": [180, 20], "collection": collection, "field": field,
+            "operation": operation, "scope": scope, "fontsize": 10, "bold": True,
+            "align": "right",
+        }
+        if group is not None:
+            control["group"] = group
+        if format_name is not None:
+            control["format"] = format_name
+        candidate[self.root_name]["CONTROLS"][name] = control
+        validated = self.loader.from_dict(candidate)
+        self._record_change()
+        self.data = validated.to_dict()
+        self.selected = name
+        self.dirty = True
+        return name
+
     def delete_control(self, name):
         if name not in self.controls:
             raise KeyError(name)
@@ -261,7 +307,7 @@ class ReportDesignerModel:
             band_height = self.report["bands"][control["band"]]["height"]
             if x + width > self.content_width or y + height > band_height:
                 warnings.append(f"{name} extends outside its report section")
-            if control["type"] in ("text", "image"):
+            if control["type"] in ("text", "image", "aggregate"):
                 if not control.get("collection") or not control.get("field"):
                     warnings.append(f"{name} is missing its data binding")
             by_band.setdefault(control["band"], []).append((name, x, y, width, height))
@@ -1051,6 +1097,56 @@ class GroupRecordsDialog(wx.Dialog):
         return [dict(item) for item in self.items]
 
 
+class AddTotalDialog(wx.Dialog):
+    def __init__(self, parent, dataset_contract, groups):
+        super().__init__(parent, title="Add Report Total", size=(460, 300))
+        self.fields = [
+            (collection.name, field.name, field.data_type, f"{collection.label}: {field.label}")
+            for collection in dataset_contract.collections
+            for field in collection.fields
+            if field.data_type != "image"
+        ]
+        self.groups = list(groups)
+        panel = wx.Panel(self)
+        layout = wx.BoxSizer(wx.VERTICAL)
+        grid = wx.FlexGridSizer(cols=2, vgap=10, hgap=10)
+        grid.AddGrowableCol(1, 1)
+        grid.Add(wx.StaticText(panel, label="Field"), 0, wx.ALIGN_CENTER_VERTICAL)
+        self.field_choice = wx.Choice(panel, choices=[item[3] for item in self.fields])
+        if self.fields:
+            self.field_choice.SetSelection(0)
+        grid.Add(self.field_choice, 1, wx.EXPAND)
+        grid.Add(wx.StaticText(panel, label="Calculation"), 0, wx.ALIGN_CENTER_VERTICAL)
+        self.operation = wx.Choice(
+            panel, choices=["Count", "Sum", "Average", "Minimum", "Maximum"],
+        )
+        self.operation.SetSelection(0)
+        grid.Add(self.operation, 1, wx.EXPAND)
+        grid.Add(wx.StaticText(panel, label="Total for"), 0, wx.ALIGN_CENTER_VERTICAL)
+        self.scope = wx.Choice(
+            panel, choices=["Entire report"] + [f"Each {item['name']}" for item in self.groups],
+        )
+        self.scope.SetSelection(0)
+        grid.Add(self.scope, 1, wx.EXPAND)
+        layout.Add(grid, 1, wx.EXPAND | wx.ALL, 15)
+        buttons = wx.StdDialogButtonSizer()
+        buttons.AddButton(wx.Button(panel, wx.ID_OK))
+        buttons.AddButton(wx.Button(panel, wx.ID_CANCEL))
+        buttons.Realize()
+        layout.Add(buttons, 0, wx.ALIGN_RIGHT | wx.ALL, 12)
+        panel.SetSizer(layout)
+
+    def values(self):
+        collection, field, data_type, _ = self.fields[self.field_choice.GetSelection()]
+        scope_selection = self.scope.GetSelection()
+        group = self.groups[scope_selection - 1]["name"] if scope_selection > 0 else None
+        operation = self.operation.GetStringSelection().casefold()
+        format_name = data_type if data_type in ("integer", "decimal", "currency") else None
+        if operation == "count":
+            format_name = "integer"
+        return collection, field, operation, ("group" if group else "report"), group, format_name
+
+
 class PageSetupDialog(wx.Dialog):
     def __init__(self, parent, model):
         super().__init__(parent, title="Page Setup", size=(370, 350))
@@ -1369,6 +1465,8 @@ class ReportDesignerFrame(wx.Frame):
             data_menu = wx.Menu()
             self._append_menu(data_menu, "&Sort Records...", self.on_sort_records)
             self._append_menu(data_menu, "&Group Records...", self.on_group_records)
+            data_menu.AppendSeparator()
+            self._append_menu(data_menu, "Add &Total...", self.on_add_total)
             menu_bar.Append(data_menu, "&Data")
 
         view_menu = wx.Menu()
@@ -1443,7 +1541,7 @@ class ReportDesignerFrame(wx.Frame):
         self.property_controls["verticalalign"].SetStringSelection(control.get("verticalalign", "middle"))
         self.property_controls["font"].SetStringSelection(control.get("font", "Helvetica"))
         self.property_controls["format"].SetStringSelection(control.get("format", "text"))
-        self.property_controls["format"].Enable(control["type"] == "text")
+        self.property_controls["format"].Enable(control["type"] in ("text", "aggregate"))
         for key, default in (("color", "#000000"), ("background", "#FFFFFF"), ("bordercolor", "#000000")):
             self.property_controls[key].SetColour(control.get(key, default))
         self.property_controls["borderwidth"].SetValue(control.get("borderwidth", 0))
@@ -1848,6 +1946,30 @@ class ReportDesignerFrame(wx.Frame):
         self.SetStatusText(
             f"Report grouping updated ({len(groups)} group{'s' if len(groups) != 1 else ''})"
         )
+
+    def on_add_total(self, event):
+        dialog = AddTotalDialog(
+            self, self.dataset_contract, self.model.report.get("groups", ()),
+        )
+        try:
+            if dialog.ShowModal() != wx.ID_OK:
+                return
+            values = dialog.values()
+        finally:
+            dialog.Destroy()
+        try:
+            name = self.model.add_aggregate(*values)
+            self.dataset_contract.validate_definition(self.model.validated_definition())
+        except (ReportDefinitionError, ValueError) as error:
+            wx.MessageBox(str(error), "Cannot add total", wx.OK | wx.ICON_ERROR, self)
+            return
+        self.canvas.selected_names = {name}
+        self.canvas.refresh_extent()
+        self.band_list.Set(list(self.model.report["bands"]))
+        self.refresh_control_list()
+        self.on_selection(name)
+        self.canvas.reveal_control(name)
+        self.SetStatusText("Report total added; position and format it like any other control")
 
     def confirm_discard_or_save(self):
         if not self.model.dirty:

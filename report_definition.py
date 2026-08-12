@@ -122,6 +122,12 @@ class ReportDefinitionLoader:
                 raise ReportDefinitionError(
                     f"Control {control_name} uses unknown band {control['band']}"
                 )
+            if control["type"] == "aggregate" and control.get("scope") == "group":
+                groups = {item["name"] for item in root["REPORT"].get("groups", [])}
+                if control.get("group") not in groups:
+                    raise ReportDefinitionError(
+                        f"Aggregate control {control_name} uses unknown group {control.get('group')}"
+                    )
 
 
 def save_report_definition(definition, path):

@@ -144,6 +144,17 @@ class PDFReportRenderer:
                         pdf, definition, dataset, groups, previous_row,
                         repeater["repeatcollection"], current_y, margins,
                     )
+        report_footer_height = sum(
+            bands[name]["height"] for name in self._bands_of_type(bands, "reportfooter")
+        )
+        if report_footer_height:
+            if current_y - report_footer_height <= usable_bottom + footer_height + 4:
+                pdf.showPage()
+                page_number += 1
+                current_y = start_page(first=False)
+            self._draw_band_type(
+                pdf, definition, dataset, "reportfooter", current_y, page_width, margins,
+            )
         pdf.showPage()
 
     @staticmethod
@@ -189,6 +200,7 @@ class PDFReportRenderer:
             self._draw_control(
                 pdf, control, dataset, margins["left"], top,
                 current_row=row, current_collection=collection_name,
+                definition=definition,
             )
         return top - definition.bands[band_name]["height"]
 
@@ -241,7 +253,7 @@ class PDFReportRenderer:
             height = definition.bands[band_name]["height"]
             for _, control in self._controls_for_band(definition.controls, band_name):
                 if control["type"] != "table":
-                    self._draw_control(pdf, control, dataset, margins["left"], y)
+                    self._draw_control(pdf, control, dataset, margins["left"], y, definition=definition)
             y -= height
         return y
 
@@ -252,7 +264,7 @@ class PDFReportRenderer:
         )
         for band_name in self._bands_of_type(definition.bands, "pagefooter"):
             for _, control in self._controls_for_band(definition.controls, band_name):
-                self._draw_control(pdf, control, dataset, margins["left"], y)
+                self._draw_control(pdf, control, dataset, margins["left"], y, definition=definition)
             y -= definition.bands[band_name]["height"]
         pdf.setFont("Helvetica", 8)
         pdf.setFillColorRGB(0.35, 0.35, 0.35)
@@ -260,7 +272,7 @@ class PDFReportRenderer:
 
     def _draw_control(
         self, pdf, control, dataset, origin_x, band_top,
-        current_row=None, current_collection=None,
+        current_row=None, current_collection=None, definition=None,
     ):
         if control.get("visible", True) is False:
             return
@@ -268,12 +280,14 @@ class PDFReportRenderer:
         width, height = control["size"]
         y = band_top - control["position"][1] - height
         kind = control["type"]
-        if kind in {"label", "text"}:
+        if kind in {"label", "text", "aggregate"}:
             self._draw_background_and_border(pdf, control, x, y, width, height)
-            value = (
-                control.get("label", "") if kind == "label"
-                else self._bound_value(control, dataset, current_row, current_collection)
-            )
+            if kind == "label":
+                value = control.get("label", "")
+            elif kind == "aggregate":
+                value = self._aggregate_value(control, dataset, current_row, definition)
+            else:
+                value = self._bound_value(control, dataset, current_row, current_collection)
             self._draw_text(pdf, self._format_value(value, control.get("format", "text")), x, y, width, height, control)
         elif kind == "line":
             self._set_stroke(pdf, control)
@@ -304,6 +318,45 @@ class PDFReportRenderer:
         if current_row is not None and control.get("collection") == current_collection:
             return current_row.get(control["field"], "")
         return cls._first_value(control, dataset)
+
+    @staticmethod
+    def _aggregate_value(control, dataset, current_row=None, definition=None):
+        rows = list(dataset.collections[control["collection"]])
+        if control["scope"] == "group" and current_row is not None and definition is not None:
+            matching_groups = []
+            for group in definition.settings.get("groups", ()):
+                if group["collection"] != control["collection"]:
+                    continue
+                matching_groups.append(group)
+                if group["name"] == control["group"]:
+                    break
+            rows = [
+                row for row in rows
+                if all(row.get(group["field"]) == current_row.get(group["field"])
+                       for group in matching_groups)
+            ]
+        values = [row.get(control["field"]) for row in rows]
+        if control["operation"] == "count":
+            return len([value for value in values if value is not None and value != ""])
+        numeric = []
+        for value in values:
+            if value is None or value == "":
+                continue
+            try:
+                numeric.append(Decimal(str(value)))
+            except (InvalidOperation, ValueError):
+                continue
+        if not numeric:
+            return ""
+        if control["operation"] == "sum":
+            return sum(numeric, Decimal(0))
+        if control["operation"] == "average":
+            return sum(numeric, Decimal(0)) / len(numeric)
+        if control["operation"] == "minimum":
+            return min(numeric)
+        if control["operation"] == "maximum":
+            return max(numeric)
+        return ""
 
     @staticmethod
     def _format_value(value, format_name="text"):

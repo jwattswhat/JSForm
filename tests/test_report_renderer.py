@@ -71,6 +71,24 @@ class TestPDFReportRenderer(unittest.TestCase):
         self.assertEqual([row["FamilyName"] for row in result], ["Baker", "Young", "Able"])
         self.assertEqual(dataset.collections["families"][0]["FamilyName"], "Able")
 
+    def test_report_aggregate_counts_and_sums_rows(self):
+        renderer = PDFReportRenderer()
+        contract = ReportDatasetContract(
+            "membership.directory", 1, "reports.membership.contact",
+            (ReportCollection("families", "Families", (
+                ReportField("Amount", "Amount", "currency"),
+            )),),
+        )
+        dataset = ReportDataset.create(contract, {"families": [
+            {"Amount": Decimal("10.50")}, {"Amount": Decimal("4.50")}, {"Amount": None},
+        ]})
+        count = {
+            "collection": "families", "field": "Amount", "operation": "count", "scope": "report",
+        }
+        total = dict(count, operation="sum")
+        self.assertEqual(renderer._aggregate_value(count, dataset), 2)
+        self.assertEqual(renderer._aggregate_value(total, dataset), Decimal("15.00"))
+
 
 if __name__ == "__main__":
     unittest.main()
