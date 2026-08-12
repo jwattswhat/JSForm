@@ -6,7 +6,10 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from report_definition import ReportDefinitionError, ReportDefinitionLoader, save_report_definition
+from report_definition import (
+    ReportDefinitionError, ReportDefinitionLoader, ReportProtectionManifest,
+    save_report_definition,
+)
 
 
 def valid_definition():
@@ -114,6 +117,25 @@ class TestReportDefinition(unittest.TestCase):
             backup = path.with_suffix(".json.bak")
             self.assertTrue(backup.is_file())
             self.assertEqual(self.loader.load(backup).title, first.title)
+
+    def test_external_manifest_rejects_missing_or_rebound_required_control(self):
+        definition = self.loader.from_dict(valid_definition())
+        manifest = ReportProtectionManifest(
+            required_controls={"FamilyName": {
+                "type": "text", "collection": "families", "field": "FamilyName",
+            }},
+            required_bands=("Detail",),
+            required_settings={"classification": "official"},
+        )
+        official = valid_definition()
+        official["CMMD01REPORT"]["REPORT"]["classification"] = "official"
+        definition = self.loader.from_dict(official)
+        self.assertIs(manifest.validate(definition), definition)
+        changed = valid_definition()
+        changed["CMMD01REPORT"]["REPORT"]["classification"] = "official"
+        changed["CMMD01REPORT"]["CONTROLS"]["FamilyName"]["field"] = "OtherName"
+        with self.assertRaisesRegex(ReportDefinitionError, "must keep field"):
+            manifest.validate(self.loader.from_dict(changed))
 
 
 if __name__ == "__main__":

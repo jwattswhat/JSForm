@@ -13,6 +13,15 @@ from test_report_definition import valid_definition
 
 
 class TestReportDataset(unittest.TestCase):
+    def test_condition_and_matrix_fields_must_be_approved(self):
+        source = valid_definition()
+        source["CMMD01REPORT"]["CONTROLS"]["FamilyName"]["visiblewhen"] = {
+            "collection": "families", "field": "Secret", "operator": "not_empty",
+        }
+        definition = ReportDefinitionLoader().from_dict(source)
+        with self.assertRaisesRegex(ReportDatasetError, "Unknown report field"):
+            self.contract().validate_definition(definition)
+
     def contract(self):
         return ReportDatasetContract(
             "membership.directory", 1, "reports.membership.contact",

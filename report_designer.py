@@ -36,8 +36,11 @@ def export_preview_file(preview_path, target_path):
 
 
 class ReportDesignerModel:
-    def __init__(self, definition, loader=None):
+    def __init__(self, definition, loader=None, protection_manifest=None):
         self.loader = loader or ReportDefinitionLoader()
+        self.protection_manifest = protection_manifest
+        if protection_manifest is not None:
+            protection_manifest.validate(definition)
         self.data = definition.to_dict()
         self.root_name = definition.root_name
         self.selected = None
@@ -152,12 +155,36 @@ class ReportDesignerModel:
         self.set_geometry(name, position=snapped)
 
     def set_property(self, name, key, value):
+        required = (
+            self.protection_manifest.required_controls.get(name, {})
+            if self.protection_manifest else {}
+        )
+        if key in required and value != required[key]:
+            raise ValueError(f"{name} is required and its {key} cannot be changed")
+        if self.protection_manifest and name in self.protection_manifest.required_controls and key == "visible" and value is False:
+            raise ValueError(f"{name} is required and cannot be hidden")
         candidate = deepcopy(self.data)
         candidate_control = candidate[self.root_name]["CONTROLS"][name]
         if value is None:
             candidate_control.pop(key, None)
         else:
             candidate_control[key] = value
+        validated = self.loader.from_dict(candidate)
+        self._record_change()
+        self.data = validated.to_dict()
+        self.dirty = True
+
+    def set_visibility_condition(self, name, condition=None):
+        if self.protection_manifest and name in self.protection_manifest.required_controls:
+            required = self.protection_manifest.required_controls[name]
+            if required.get("visiblewhen") != condition:
+                raise ValueError(f"{name} is required and its visibility condition cannot be changed")
+        candidate = deepcopy(self.data)
+        control = candidate[self.root_name]["CONTROLS"][name]
+        if condition:
+            control["visiblewhen"] = dict(condition)
+        else:
+            control.pop("visiblewhen", None)
         validated = self.loader.from_dict(candidate)
         self._record_change()
         self.data = validated.to_dict()
@@ -269,9 +296,37 @@ class ReportDesignerModel:
         self.dirty = True
         return name
 
+    def add_matrix(self, collection, rowfield, columnfield, valuefield, rowlabel, band=None):
+        band = band or next(
+            (name for name, item in self.report["bands"].items() if item["type"] == "detail"),
+            None,
+        )
+        if band is None:
+            raise ValueError("A matrix requires a detail report section")
+        name = self.unique_control_name("Matrix")
+        control = {
+            "type": "matrix", "band": band, "position": [0, 0],
+            "size": [self.content_width, min(60, self.report["bands"][band]["height"])],
+            "repeatcollection": collection, "rowfield": rowfield,
+            "columnfield": columnfield, "valuefield": valuefield,
+            "rowlabel": rowlabel, "rowwidth": min(220, self.content_width / 3),
+            "format": "currency", "showrowtotals": True,
+            "showcolumntotals": True, "showgrandtotal": True,
+        }
+        candidate = deepcopy(self.data)
+        candidate[self.root_name]["CONTROLS"][name] = control
+        validated = self.loader.from_dict(candidate)
+        self._record_change()
+        self.data = validated.to_dict()
+        self.selected = name
+        self.dirty = True
+        return name
+
     def delete_control(self, name):
         if name not in self.controls:
             raise KeyError(name)
+        if self.protection_manifest and name in self.protection_manifest.required_controls:
+            raise ValueError(f"{name} is required and cannot be deleted")
         self._record_change()
         del self.controls[name]
         if self.selected == name:
@@ -279,6 +334,8 @@ class ReportDesignerModel:
         self.dirty = True
 
     def replace_definition(self, definition):
+        if self.protection_manifest is not None:
+            self.protection_manifest.validate(definition)
         self._record_change()
         self.data = definition.to_dict()
         self.root_name = definition.root_name
@@ -297,7 +354,10 @@ class ReportDesignerModel:
         return width - margins["left"] - margins["right"]
 
     def validated_definition(self):
-        return self.loader.from_dict(deepcopy(self.data))
+        definition = self.loader.from_dict(deepcopy(self.data))
+        if self.protection_manifest is not None:
+            self.protection_manifest.validate(definition)
+        return definition
 
     def layout_warnings(self):
         warnings = []
@@ -837,7 +897,7 @@ class ReportCanvas(wx.ScrolledWindow):
             dc.DestroyClippingRegion()
             if control["type"] == "repeater":
                 self.draw_repeater_items(dc, rect, control, selected)
-            elif control["type"] == "table":
+            elif control["type"] in ("table", "matrix"):
                 self.draw_table_columns(dc, rect, control)
             if selected:
                 dc.SetBrush(wx.Brush(wx.Colour(0, 100, 220)))
@@ -863,8 +923,14 @@ class ReportCanvas(wx.ScrolledWindow):
             dc.DestroyClippingRegion()
 
     def draw_table_columns(self, dc, table_rect, control):
+        if control["type"] == "matrix":
+            labels = [control["rowlabel"], "Dynamic columns"]
+            widths = [control["rowwidth"], control["size"][0] - control["rowwidth"]]
+            columns = ({"label": label, "width": width} for label, width in zip(labels, widths))
+        else:
+            columns = control["columns"]
         x = table_rect.x
-        for column in control["columns"]:
+        for column in columns:
             width = max(1, int(column["width"] * self.scale))
             rect = wx.Rect(x, table_rect.y, width, table_rect.height)
             dc.SetPen(wx.Pen(wx.Colour(90, 145, 180), 1, wx.PENSTYLE_DOT))
@@ -1315,11 +1381,12 @@ class PageSetupDialog(wx.Dialog):
 class ReportDesignerFrame(wx.Frame):
     def __init__(
         self, definition_path, dataset_contract=None, preview_handler=None,
-        starter_definition_path=None, export_directory=None,
+        starter_definition_path=None, export_directory=None, protection_manifest=None,
     ):
         self.path = Path(definition_path)
         definition = ReportDefinitionLoader().load(self.path)
-        self.model = ReportDesignerModel(definition)
+        self.protection_manifest = protection_manifest
+        self.model = ReportDesignerModel(definition, protection_manifest=protection_manifest)
         self.dataset_contract = dataset_contract
         self.preview_handler = preview_handler
         self.control_clipboard = []
@@ -1596,6 +1663,9 @@ class ReportDesignerFrame(wx.Frame):
             self._append_menu(data_menu, "&Group Records...", self.on_group_records)
             data_menu.AppendSeparator()
             self._append_menu(data_menu, "Add &Total...", self.on_add_total)
+            self._append_menu(data_menu, "Add &Matrix...", self.on_add_matrix)
+            data_menu.AppendSeparator()
+            self._append_menu(data_menu, "Set Conditional &Visibility...", self.on_visibility_condition)
             menu_bar.Append(data_menu, "&Data")
 
         view_menu = wx.Menu()
@@ -1713,7 +1783,7 @@ class ReportDesignerFrame(wx.Frame):
         try:
             self.model.set_property(self.model.selected, key, value or None)
             self.SetStatusText(f"Updated {key}")
-        except ReportDefinitionError as error:
+        except (ReportDefinitionError, ValueError) as error:
             self.SetStatusText(str(error))
         self.refresh_selected()
         event.Skip()
@@ -1735,7 +1805,7 @@ class ReportDesignerFrame(wx.Frame):
         try:
             self.model.set_property(self.model.selected, key, value)
             self.SetStatusText(f"Updated {key}")
-        except ReportDefinitionError as error:
+        except (ReportDefinitionError, ValueError) as error:
             self.SetStatusText(str(error))
         self.refresh_selected()
 
@@ -1990,7 +2060,11 @@ class ReportDesignerFrame(wx.Frame):
                 return
         finally:
             dialog.Destroy()
-        self.model.delete_control(name)
+        try:
+            self.model.delete_control(name)
+        except ValueError as error:
+            wx.MessageBox(str(error), "Protected report control", wx.OK | wx.ICON_INFORMATION, self)
+            return
         self.canvas.selected_names.discard(name)
         self.refresh_control_list()
         self.on_selection(None)
@@ -2114,6 +2188,110 @@ class ReportDesignerFrame(wx.Frame):
         self.canvas.reveal_control(name)
         self.SetStatusText("Report total added; position and format it like any other control")
 
+    def on_add_matrix(self, event):
+        collections = [item for item in self.dataset_contract.collections if len(item.fields) >= 3]
+        if not collections:
+            self.SetStatusText("No approved collection has enough fields for a matrix")
+            return
+        dialog = wx.SingleChoiceDialog(
+            self, "Choose the repeating data collection.", "Add Matrix",
+            [item.label for item in collections],
+        )
+        try:
+            if dialog.ShowModal() != wx.ID_OK:
+                return
+            collection = collections[dialog.GetSelection()]
+        finally:
+            dialog.Destroy()
+
+        def choose(prompt, candidates):
+            if not candidates:
+                return None
+            chooser = wx.SingleChoiceDialog(
+                self, prompt, "Add Matrix", [item.label for item in candidates],
+            )
+            try:
+                if chooser.ShowModal() != wx.ID_OK:
+                    return None
+                return candidates[chooser.GetSelection()]
+            finally:
+                chooser.Destroy()
+
+        fields = list(collection.fields)
+        row = choose("Choose the row field.", fields)
+        if row is None:
+            return
+        column = choose("Choose the dynamic column field.", fields)
+        if column is None:
+            return
+        numeric = [item for item in fields if item.data_type in ("integer", "decimal", "currency")]
+        value = choose("Choose the numeric value field.", numeric)
+        if value is None:
+            self.SetStatusText("A matrix requires an approved numeric value field")
+            return
+        try:
+            name = self.model.add_matrix(
+                collection.name, row.name, column.name, value.name, row.label,
+            )
+            self.dataset_contract.validate_definition(self.model.validated_definition())
+        except (ReportDefinitionError, ValueError) as error:
+            wx.MessageBox(str(error), "Cannot add matrix", wx.OK | wx.ICON_ERROR, self)
+            return
+        self.canvas.selected_names = {name}
+        self.refresh_control_list()
+        self.on_selection(name)
+        self.canvas.reveal_control(name)
+        self.SetStatusText("Matrix added; dynamic columns will appear in preview")
+
+    def on_visibility_condition(self, event):
+        name = self.model.selected
+        if not name:
+            self.SetStatusText("Select a report control first")
+            return
+        bindings = [
+            (collection.name, field.name, f"{collection.label}: {field.label}")
+            for collection in self.dataset_contract.collections for field in collection.fields
+        ]
+        field_dialog = wx.SingleChoiceDialog(
+            self, "Show this control based on which approved field?",
+            "Conditional Visibility", [item[2] for item in bindings],
+        )
+        try:
+            if field_dialog.ShowModal() != wx.ID_OK:
+                return
+            collection, field, _ = bindings[field_dialog.GetSelection()]
+        finally:
+            field_dialog.Destroy()
+        operators = ["equals", "not_equals", "empty", "not_empty"]
+        operator_dialog = wx.SingleChoiceDialog(
+            self, "Choose the condition.", "Conditional Visibility", operators,
+        )
+        try:
+            if operator_dialog.ShowModal() != wx.ID_OK:
+                return
+            operator = operators[operator_dialog.GetSelection()]
+        finally:
+            operator_dialog.Destroy()
+        condition = {"collection": collection, "field": field, "operator": operator}
+        if operator in ("equals", "not_equals"):
+            value_dialog = wx.TextEntryDialog(
+                self, "Enter the exact value to compare.", "Conditional Visibility",
+            )
+            try:
+                if value_dialog.ShowModal() != wx.ID_OK:
+                    return
+                condition["value"] = value_dialog.GetValue()
+            finally:
+                value_dialog.Destroy()
+        try:
+            self.model.set_visibility_condition(name, condition)
+            self.dataset_contract.validate_definition(self.model.validated_definition())
+        except (ReportDefinitionError, ValueError) as error:
+            wx.MessageBox(str(error), "Cannot set condition", wx.OK | wx.ICON_ERROR, self)
+            return
+        self.refresh_selected()
+        self.SetStatusText(f"Conditional visibility set for {name}")
+
     def confirm_discard_or_save(self):
         if not self.model.dirty:
             return True
@@ -2147,6 +2325,8 @@ class ReportDesignerFrame(wx.Frame):
             dialog.Destroy()
         try:
             definition = ReportDefinitionLoader().load(selected_path)
+            if self.protection_manifest is not None:
+                self.protection_manifest.validate(definition)
             if self.dataset_contract is not None:
                 self.dataset_contract.validate_definition(definition)
         except (ReportDefinitionError, ValueError) as error:
@@ -2157,6 +2337,7 @@ class ReportDesignerFrame(wx.Frame):
             preview_handler=self.preview_handler,
             starter_definition_path=self.starter_definition_path,
             export_directory=self.export_directory,
+            protection_manifest=self.protection_manifest,
         )
         replacement.Show()
         self.Destroy()
@@ -2307,7 +2488,7 @@ class ReportDesignerFrame(wx.Frame):
 
 def open_report_designer(
     definition_path, dataset_contract=None, preview_handler=None,
-    starter_definition_path=None, export_directory=None,
+    starter_definition_path=None, export_directory=None, protection_manifest=None,
 ):
     application = wx.App.Get() or wx.App(False)
     frame = ReportDesignerFrame(
@@ -2315,6 +2496,7 @@ def open_report_designer(
         preview_handler=preview_handler,
         starter_definition_path=starter_definition_path,
         export_directory=export_directory,
+        protection_manifest=protection_manifest,
     )
     frame.Show()
     if not wx.App.Get().IsMainLoopRunning():

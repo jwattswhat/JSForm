@@ -1,6 +1,6 @@
 """Validated immutable definitions for JSForm visual reports."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import json
 from pathlib import Path
 import shutil
@@ -14,6 +14,35 @@ SCHEMA_PATH = Path(__file__).resolve().parent / "schema" / "report_definition_sc
 
 class ReportDefinitionError(ValueError):
     pass
+
+
+@dataclass(frozen=True)
+class ReportProtectionManifest:
+    """Application-owned invariants that customized report JSON cannot weaken."""
+
+    required_controls: dict = field(default_factory=dict)
+    required_bands: tuple[str, ...] = ()
+    required_settings: dict = field(default_factory=dict)
+
+    def validate(self, definition):
+        for key, expected in self.required_settings.items():
+            if definition.settings.get(key) != expected:
+                raise ReportDefinitionError(
+                    f"Required report setting {key} must remain {expected!r}"
+                )
+        for band_name in self.required_bands:
+            if band_name not in definition.bands:
+                raise ReportDefinitionError(f"Required report section is missing: {band_name}")
+        for control_name, required in self.required_controls.items():
+            control = definition.controls.get(control_name)
+            if control is None:
+                raise ReportDefinitionError(f"Required report control is missing: {control_name}")
+            for key, expected in required.items():
+                if control.get(key) != expected:
+                    raise ReportDefinitionError(
+                        f"Required report control {control_name} must keep {key}={expected!r}"
+                    )
+        return definition
 
 
 def _freeze(value):

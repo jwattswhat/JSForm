@@ -45,6 +45,8 @@ class ReportDatasetContract:
                 f"provider supplies {self.name}.v{self.version}."
             )
         for control in definition.controls.values():
+            if control.get("visiblewhen"):
+                self._validate_binding(control["visiblewhen"])
             if control.get("collection") and control.get("field"):
                 self._validate_binding(control)
             if control["type"] == "table":
@@ -64,6 +66,16 @@ class ReportDatasetContract:
                 for item in control["items"]:
                     self._validate_binding({
                         "collection": control["repeatcollection"], "field": item["field"]
+                    })
+            if control["type"] == "matrix":
+                collection = self.collection(control["repeatcollection"])
+                if collection is None:
+                    raise ReportDatasetError(
+                        f"Unknown report collection: {control['repeatcollection']}"
+                    )
+                for key in ("rowfield", "columnfield", "valuefield"):
+                    self._validate_binding({
+                        "collection": control["repeatcollection"], "field": control[key]
                     })
         for sort in definition.settings.get("sort", ()):
             self._validate_binding(sort)

@@ -22,7 +22,7 @@ from JSForm.form_services import (
 )
 from JSForm.report_runtime import LimeReportProcess, ReportProcessError
 from JSForm.report_definition import (
-    ReportDefinition, ReportDefinitionError, ReportDefinitionLoader,
+    ReportDefinition, ReportDefinitionError, ReportDefinitionLoader, ReportProtectionManifest,
     save_report_definition,
 )
 from JSForm.report_dataset import (

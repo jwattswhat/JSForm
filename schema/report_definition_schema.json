@@ -38,6 +38,7 @@
         "orientation": {"enum": ["portrait", "landscape"]},
         "margins": {"$ref": "#/$defs/edges"},
         "theme": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$"},
+        "classification": {"enum": ["draft", "preview", "official", "confidential", "completed_proof"]},
         "emptytext": {"type": "string", "maxLength": 500},
         "bands": {
           "type": "object",
@@ -76,12 +77,12 @@
       "type": "object", "additionalProperties": false,
       "required": ["type", "band", "position", "size"],
       "properties": {
-        "type": {"enum": ["label", "text", "systemtext", "image", "aggregate", "line", "rectangle", "table", "repeater"]},
+        "type": {"enum": ["label", "text", "systemtext", "image", "aggregate", "line", "rectangle", "table", "repeater", "matrix"]},
         "band": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{1,63}$"},
         "position": {"$ref": "#/$defs/pair"},
         "size": {"$ref": "#/$defs/positivePair"},
         "label": {"type": "string", "maxLength": 2000},
-        "systemvalue": {"enum": ["run_date", "run_datetime", "page_number", "report_title", "report_code"]},
+        "systemvalue": {"enum": ["run_date", "run_datetime", "run_user", "page_number", "report_title", "report_code", "classification"]},
         "prefix": {"type": "string", "maxLength": 200},
         "collection": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"},
         "field": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"},
@@ -100,11 +101,20 @@
         "verticalalign": {"enum": ["top", "middle", "bottom"]},
         "padding": {"$ref": "#/$defs/edges"},
         "visible": {"type": "boolean"},
+        "visiblewhen": {"$ref": "#/$defs/condition"},
         "affectautofit": {"type": "boolean"},
         "repeatcollection": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"},
         "columns": {"type": "array", "maxItems": 30, "items": {"$ref": "#/$defs/column"}},
         "itemheight": {"type": "number", "exclusiveMinimum": 0, "maximum": 1000},
         "items": {"type": "array", "minItems": 1, "maxItems": 50, "items": {"$ref": "#/$defs/repeaterItem"}}
+        ,"rowfield": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"}
+        ,"columnfield": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"}
+        ,"valuefield": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"}
+        ,"rowlabel": {"type": "string", "maxLength": 200}
+        ,"rowwidth": {"type": "number", "exclusiveMinimum": 0, "maximum": 2000}
+        ,"showrowtotals": {"type": "boolean"}
+        ,"showcolumntotals": {"type": "boolean"}
+        ,"showgrandtotal": {"type": "boolean"}
       },
       "allOf": [
         {"if": {"properties": {"type": {"const": "label"}}}, "then": {"required": ["label"]}},
@@ -114,7 +124,18 @@
         {"if": {"properties": {"type": {"const": "aggregate"}, "scope": {"const": "group"}}, "required": ["scope"]}, "then": {"required": ["group"]}},
         {"if": {"properties": {"type": {"const": "table"}}}, "then": {"required": ["repeatcollection", "columns"]}},
         {"if": {"properties": {"type": {"const": "repeater"}}}, "then": {"required": ["repeatcollection", "itemheight", "items"]}}
+        ,{"if": {"properties": {"type": {"const": "matrix"}}}, "then": {"required": ["repeatcollection", "rowfield", "columnfield", "valuefield", "rowlabel", "rowwidth"]}}
       ]
+    },
+    "condition": {
+      "type": "object", "additionalProperties": false,
+      "required": ["collection", "field", "operator"],
+      "properties": {
+        "collection": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"},
+        "field": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"},
+        "operator": {"enum": ["equals", "not_equals", "empty", "not_empty"]},
+        "value": {"type": ["string", "number", "integer", "boolean", "null"]}
+      }
     },
     "pair": {
       "type": "array", "prefixItems": [{"$ref": "#/$defs/number"}, {"$ref": "#/$defs/number"}],

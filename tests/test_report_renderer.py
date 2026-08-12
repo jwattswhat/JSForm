@@ -122,6 +122,7 @@ class TestPDFReportRenderer(unittest.TestCase):
         renderer = PDFReportRenderer()
         renderer._rendered_at = datetime(2026, 8, 12, 14, 5)
         renderer._page_number = 3
+        renderer._context = {"run_user": "Jonathan Watt"}
         definition = ReportDefinitionLoader().from_dict(valid_definition())
         self.assertEqual(renderer._system_value(
             {"systemvalue": "run_date", "prefix": "Run: "}, definition
@@ -129,6 +130,56 @@ class TestPDFReportRenderer(unittest.TestCase):
         self.assertEqual(renderer._system_value(
             {"systemvalue": "page_number", "prefix": "Page "}, definition
         ), "Page 3")
+        self.assertEqual(renderer._system_value(
+            {"systemvalue": "run_user", "prefix": "Run by: "}, definition
+        ), "Run by: Jonathan Watt")
+
+    def test_approved_condition_operators_are_deterministic(self):
+        contract = ReportDatasetContract(
+            "membership.directory", 1, "reports.membership.contact",
+            (ReportCollection("status", "Status", (ReportField("Ready", "Ready", "boolean"),)),),
+        )
+        dataset = ReportDataset.create(contract, {"status": [{"Ready": True}]})
+        renderer = PDFReportRenderer()
+        self.assertTrue(renderer._condition_matches(
+            {"collection": "status", "field": "Ready", "operator": "equals", "value": True},
+            dataset,
+        ))
+        self.assertFalse(renderer._condition_matches(
+            {"collection": "status", "field": "Ready", "operator": "not_equals", "value": True},
+            dataset,
+        ))
+
+    def test_matrix_pivots_dynamic_columns_and_renders_totals(self):
+        source = valid_definition()
+        source["CMMD01REPORT"]["REPORT"]["orientation"] = "landscape"
+        source["CMMD01REPORT"]["CONTROLS"]["FamilyName"] = {
+            "type": "matrix", "band": "Detail", "position": [0, 0], "size": [700, 60],
+            "repeatcollection": "expenses", "rowfield": "Account", "columnfield": "Function",
+            "valuefield": "Amount", "rowlabel": "Expense account", "rowwidth": 220,
+            "format": "currency", "showrowtotals": True, "showcolumntotals": True,
+            "showgrandtotal": True,
+        }
+        definition = ReportDefinitionLoader().from_dict(source)
+        contract = ReportDatasetContract(
+            "membership.directory", 1, "reports.membership.contact",
+            (ReportCollection("expenses", "Expenses", (
+                ReportField("Account", "Account"), ReportField("Function", "Function"),
+                ReportField("Amount", "Amount", "currency"),
+            )),),
+        )
+        dataset = ReportDataset.create(contract, {"expenses": [
+            {"Account": "Supplies", "Function": "Worship", "Amount": Decimal("100")},
+            {"Account": "Supplies", "Function": "Education", "Amount": Decimal("25")},
+            {"Account": "Utilities", "Function": "Worship", "Amount": Decimal("50")},
+        ]})
+        contract.validate_definition(definition)
+        with tempfile.TemporaryDirectory() as folder:
+            output = Path(folder) / "matrix.pdf"
+            PDFReportRenderer().render(definition, dataset, output)
+            text = PdfReader(output).pages[0].extract_text() or ""
+            for expected in ("Expense account", "Education", "Worship", "Supplies", "Utilities", "$175.00"):
+                self.assertIn(expected, text)
 
 
 if __name__ == "__main__":

@@ -19,7 +19,7 @@ class ReportRenderError(RuntimeError):
 
 
 class PDFReportRenderer:
-    def render(self, definition, dataset, output):
+    def render(self, definition, dataset, output, context=None):
         dataset.contract.validate_definition(definition)
         settings = definition.settings
         page_size = PAGE_SIZES[settings["pagesize"]]
@@ -29,6 +29,7 @@ class PDFReportRenderer:
         target.parent.mkdir(parents=True, exist_ok=True)
         pdf = canvas.Canvas(str(target), pagesize=page_size, pageCompression=1)
         pdf.setTitle(definition.title)
+        self._context = dict(context or {})
         self._render_document(pdf, page_size, definition, dataset)
         pdf.save()
         return target
@@ -63,6 +64,7 @@ class PDFReportRenderer:
             band_controls = self._controls_for_band(controls, band_name)
             tables = [(name, item) for name, item in band_controls if item["type"] == "table"]
             repeaters = [(name, item) for name, item in band_controls if item["type"] == "repeater"]
+            matrices = [(name, item) for name, item in band_controls if item["type"] == "matrix"]
             for _, table in tables:
                 rows = self._sorted_rows(
                     dataset.collections[table["repeatcollection"]], definition,
@@ -76,11 +78,21 @@ class PDFReportRenderer:
                 previous_row = None
                 for row in rows:
                     changed = self._changed_group_index(groups, active_values, row)
+                    forced_break = previous_row is not None and changed < len(groups) and any(
+                        bands[item["headerband"]].get("pagebreakbefore")
+                        or bands[item["footerband"]].get("pagebreakafter")
+                        for item in groups[changed:]
+                    )
                     group_header_height = sum(
                         bands[item["headerband"]]["height"] for item in groups[changed:]
                     )
                     required = row_height + group_header_height + (header_height if header_pending else 0)
-                    if current_y - required < usable_bottom + footer_height:
+                    if forced_break:
+                        current_y = self._draw_group_footers(
+                            pdf, definition, dataset, groups[changed:], previous_row,
+                            table["repeatcollection"], current_y, margins,
+                        )
+                    if forced_break or current_y - required < usable_bottom + footer_height:
                         pdf.showPage()
                         page_number += 1
                         self._page_number = page_number
@@ -115,6 +127,39 @@ class PDFReportRenderer:
                     current_y = self._draw_empty_message(
                         pdf, definition, current_y, margins, page_width
                     )
+            for _, matrix in matrices:
+                rows = list(dataset.collections[matrix["repeatcollection"]])
+                matrix_rows, column_values = self._matrix_values(matrix, rows)
+                row_height, header_height = 20, 22
+                header_pending = True
+                for label, values, total in matrix_rows:
+                    required = row_height + (header_height if header_pending else 0)
+                    if current_y - required < usable_bottom + footer_height:
+                        pdf.showPage()
+                        page_number += 1
+                        self._page_number = page_number
+                        current_y = start_page(first=False)
+                        header_pending = True
+                    if header_pending:
+                        current_y = self._draw_matrix_header(
+                            pdf, matrix, column_values, current_y, margins["left"], header_height
+                        )
+                        header_pending = False
+                    current_y = self._draw_matrix_row(
+                        pdf, matrix, column_values, label, values, total,
+                        current_y, margins["left"], row_height,
+                    )
+                if matrix_rows and matrix.get("showcolumntotals", True):
+                    totals = [sum((row[1][index] for row in matrix_rows), Decimal(0))
+                              for index in range(len(column_values))]
+                    current_y = self._draw_matrix_row(
+                        pdf, matrix, column_values, "Total", totals, sum(totals, Decimal(0)),
+                        current_y, margins["left"], row_height, bold=True,
+                    )
+                if not matrix_rows:
+                    current_y = self._draw_empty_message(
+                        pdf, definition, current_y, margins, page_width
+                    )
             for _, repeater in repeaters:
                 rows = self._sorted_rows(
                     dataset.collections[repeater["repeatcollection"]], definition,
@@ -126,10 +171,20 @@ class PDFReportRenderer:
                 for row in rows:
                     height = self._repeater_height(repeater, row)
                     changed = self._changed_group_index(groups, active_values, row)
+                    forced_break = previous_row is not None and changed < len(groups) and any(
+                        bands[item["headerband"]].get("pagebreakbefore")
+                        or bands[item["footerband"]].get("pagebreakafter")
+                        for item in groups[changed:]
+                    )
                     group_header_height = sum(
                         bands[item["headerband"]]["height"] for item in groups[changed:]
                     )
-                    if current_y - height - group_header_height <= usable_bottom + footer_height + 4:
+                    if forced_break:
+                        current_y = self._draw_group_footers(
+                            pdf, definition, dataset, groups[changed:], previous_row,
+                            repeater["repeatcollection"], current_y, margins,
+                        )
+                    if forced_break or current_y - height - group_header_height <= usable_bottom + footer_height + 4:
                         pdf.showPage()
                         page_number += 1
                         self._page_number = page_number
@@ -240,6 +295,8 @@ class PDFReportRenderer:
     def _control_has_content(cls, control, dataset, row, collection_name):
         if control.get("visible", True) is False:
             return False
+        if not cls._condition_matches(control.get("visiblewhen"), dataset, row, collection_name):
+            return False
         if control["type"] in ("label", "line", "rectangle"):
             return bool(control.get("label")) or control["type"] in ("line", "rectangle")
         if control.get("collection") == collection_name and control.get("field"):
@@ -325,6 +382,8 @@ class PDFReportRenderer:
     ):
         if control.get("visible", True) is False:
             return
+        if not self._condition_matches(control.get("visiblewhen"), dataset, current_row, current_collection):
+            return
         x = origin_x + control["position"][0]
         width, height = control["size"]
         y = band_top - control["position"][1] - height
@@ -364,12 +423,31 @@ class PDFReportRenderer:
         values = {
             "run_date": f"{self._rendered_at.month}/{self._rendered_at.day}/{self._rendered_at.year}",
             "run_datetime": self._rendered_at,
+            "run_user": self._context.get("run_user", ""),
             "page_number": self._page_number,
             "report_title": definition.title,
             "report_code": definition.report_id,
+            "classification": definition.settings.get("classification", "official").replace("_", " ").title(),
         }
         value = values[value_name]
         return f"{control.get('prefix', '')}{value}"
+
+    @classmethod
+    def _condition_matches(cls, condition, dataset, current_row=None, current_collection=None):
+        if not condition:
+            return True
+        if current_row is not None and condition["collection"] == current_collection:
+            value = current_row.get(condition["field"])
+        else:
+            rows = dataset.collections[condition["collection"]]
+            value = rows[0].get(condition["field"]) if rows else None
+        operator = condition["operator"]
+        if operator == "empty":
+            return value in (None, "", (), [])
+        if operator == "not_empty":
+            return value not in (None, "", (), [])
+        expected = condition.get("value")
+        return value == expected if operator == "equals" else value != expected
 
     @staticmethod
     def _first_value(control, dataset):
@@ -541,6 +619,68 @@ class PDFReportRenderer:
             self._draw_text(pdf, value, x + 4, top - height, column["width"] - 8, height,
                             {"font": "Helvetica", "fontsize": 9, "align": column.get("align", "left")})
             x += column["width"]
+        return top - height
+
+    @staticmethod
+    def _matrix_values(matrix, rows):
+        columns = sorted({row.get(matrix["columnfield"]) for row in rows}, key=lambda value: str(value))
+        row_labels = sorted({row.get(matrix["rowfield"]) for row in rows}, key=lambda value: str(value))
+        values = {}
+        for row in rows:
+            key = (row.get(matrix["rowfield"]), row.get(matrix["columnfield"]))
+            try:
+                amount = Decimal(str(row.get(matrix["valuefield"]) or 0))
+            except (InvalidOperation, ValueError):
+                amount = Decimal(0)
+            values[key] = values.get(key, Decimal(0)) + amount
+        matrix_rows = []
+        for label in row_labels:
+            amounts = [values.get((label, column), Decimal(0)) for column in columns]
+            matrix_rows.append((label, amounts, sum(amounts, Decimal(0))))
+        return matrix_rows, columns
+
+    @staticmethod
+    def _matrix_widths(matrix, column_count):
+        row_width = matrix["rowwidth"]
+        total_width = matrix["size"][0]
+        total_column = 70 if matrix.get("showrowtotals", True) else 0
+        value_width = (total_width - row_width - total_column) / max(1, column_count)
+        return row_width, value_width, total_column
+
+    def _draw_matrix_header(self, pdf, matrix, columns, top, left, height):
+        x = left + matrix["position"][0]
+        row_width, value_width, total_width = self._matrix_widths(matrix, len(columns))
+        pdf.setFillColorRGB(0.90, 0.90, 0.90)
+        pdf.rect(x, top - height, matrix["size"][0], height, fill=1, stroke=0)
+        self._draw_text(pdf, matrix["rowlabel"], x + 4, top - height, row_width - 8, height,
+                        {"fontsize": 8, "bold": True})
+        x += row_width
+        for column in columns:
+            self._draw_text(pdf, str(column), x + 3, top - height, value_width - 6, height,
+                            {"fontsize": 8, "bold": True, "align": "right"})
+            x += value_width
+        if total_width:
+            self._draw_text(pdf, "Total", x + 3, top - height, total_width - 6, height,
+                            {"fontsize": 8, "bold": True, "align": "right"})
+        return top - height
+
+    def _draw_matrix_row(self, pdf, matrix, columns, label, values, total, top, left, height, bold=False):
+        x = left + matrix["position"][0]
+        row_width, value_width, total_width = self._matrix_widths(matrix, len(columns))
+        pdf.setStrokeColorRGB(0.82, 0.82, 0.82)
+        pdf.setLineWidth(0.4)
+        pdf.line(x, top - height, x + matrix["size"][0], top - height)
+        self._draw_text(pdf, str(label), x + 4, top - height, row_width - 8, height,
+                        {"fontsize": 8, "bold": bold})
+        x += row_width
+        format_name = matrix.get("format", "currency")
+        for value in values:
+            self._draw_text(pdf, self._format_value(value, format_name), x + 3, top - height,
+                            value_width - 6, height, {"fontsize": 8, "bold": bold, "align": "right"})
+            x += value_width
+        if total_width:
+            self._draw_text(pdf, self._format_value(total, format_name), x + 3, top - height,
+                            total_width - 6, height, {"fontsize": 8, "bold": True, "align": "right"})
         return top - height
 
     @staticmethod

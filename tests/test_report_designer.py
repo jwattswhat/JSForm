@@ -5,12 +5,47 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from report_definition import ReportDefinitionLoader
+from report_definition import ReportDefinitionLoader, ReportProtectionManifest
 from report_designer import ReportDesignerModel, export_preview_file
 from test_report_definition import valid_definition
 
 
 class TestReportDesignerModel(unittest.TestCase):
+    def test_matrix_can_be_added_to_detail_band(self):
+        model = self.model()
+        name = model.add_matrix(
+            "families", "FamilyName", "FamilyName", "FamilyName", "Family",
+        )
+        self.assertEqual(model.controls[name]["type"], "matrix")
+        self.assertEqual(model.controls[name]["repeatcollection"], "families")
+
+    def test_visibility_condition_is_validated_and_undoable(self):
+        model = self.model()
+        model.set_visibility_condition("FamilyName", {
+            "collection": "families", "field": "FamilyName",
+            "operator": "not_empty",
+        })
+        self.assertEqual(model.controls["FamilyName"]["visiblewhen"]["operator"], "not_empty")
+        self.assertTrue(model.undo())
+        self.assertNotIn("visiblewhen", model.controls["FamilyName"])
+
+    def test_protected_control_can_move_but_cannot_hide_rebind_or_delete(self):
+        manifest = ReportProtectionManifest(required_controls={"FamilyName": {
+            "type": "text", "collection": "families", "field": "FamilyName",
+        }})
+        model = ReportDesignerModel(
+            ReportDefinitionLoader().from_dict(valid_definition()),
+            protection_manifest=manifest,
+        )
+        model.move("FamilyName", 5, 2)
+        self.assertEqual(model.controls["FamilyName"]["position"], [5, 2])
+        with self.assertRaisesRegex(ValueError, "cannot be hidden"):
+            model.set_property("FamilyName", "visible", False)
+        with self.assertRaisesRegex(ValueError, "field cannot be changed"):
+            model.set_property("FamilyName", "field", "OtherName")
+        with self.assertRaisesRegex(ValueError, "cannot be deleted"):
+            model.delete_control("FamilyName")
+
     def test_system_report_value_can_be_added_and_edited(self):
         model = self.model()
         name = model.add_control("systemtext", band=next(iter(model.report["bands"])))
