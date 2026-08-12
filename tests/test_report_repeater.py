@@ -62,6 +62,19 @@ class TestReportRepeater(unittest.TestCase):
         )
         self.assertGreater(layout[1][2], 18)
 
+    def test_repeater_image_uses_fixed_geometry_without_text_wrapping(self):
+        repeater = {
+            "itemheight": 72,
+            "items": [{
+                "name": "Photo", "type": "image", "field": "Photo",
+                "position": [0, 0], "size": [64, 64],
+            }],
+        }
+        renderer = PDFReportRenderer()
+        layout = renderer._repeater_layout(repeater, {"Photo": b"image"})
+        self.assertEqual(layout[0][1], [])
+        self.assertEqual(renderer._repeater_height(repeater, {"Photo": b"image"}), 72)
+
     def test_group_headers_render_when_field_value_changes(self):
         source = valid_definition()
         report = source["CMMD01REPORT"]["REPORT"]

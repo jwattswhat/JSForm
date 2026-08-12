@@ -137,6 +137,7 @@
       "required": ["name", "field", "position", "size"],
       "properties": {
         "name": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{1,63}$"},
+        "type": {"enum": ["text", "image"]},
         "field": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"},
         "position": {"$ref": "#/$defs/pair"}, "size": {"$ref": "#/$defs/positivePair"},
         "format": {"enum": ["text", "integer", "decimal", "currency", "date", "time", "datetime", "boolean", "phone", "address"]},

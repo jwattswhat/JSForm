@@ -414,24 +414,32 @@ class PDFReportRenderer:
         }
         family = variants.get((family, style.get("bold", False), style.get("italic", False)), family)
         size = style.get("fontsize", 10)
-        while size > 5 and stringWidth(value, family, size) > width:
-            size -= 0.5
+        lines = self._wrapped_lines(value, width, size)
+        if len(lines) == 1:
+            while size > 5 and stringWidth(lines[0], family, size) > width:
+                size -= 0.5
         pdf.setFont(family, size)
         pdf.setFillColorRGB(*self._hex_color(style.get("color")))
         vertical = style.get("verticalalign", "middle")
-        if vertical == "top":
+        line_height = size + 2
+        text_height = len(lines) * line_height
+        if vertical == "top" or len(lines) > 1:
             baseline = y + max(1, height - size)
         elif vertical == "bottom":
             baseline = y + 1
         else:
             baseline = y + max(1, (height - size) / 2 + 1)
         align = style.get("align", "left")
-        if align == "right":
-            pdf.drawRightString(x + width, baseline, value)
-        elif align == "center":
-            pdf.drawCentredString(x + width / 2, baseline, value)
-        else:
-            pdf.drawString(x, baseline, value)
+        for index, line in enumerate(lines):
+            line_baseline = baseline - index * line_height
+            if line_baseline < y - 1:
+                break
+            if align == "right":
+                pdf.drawRightString(x + width, line_baseline, line)
+            elif align == "center":
+                pdf.drawCentredString(x + width / 2, line_baseline, line)
+            else:
+                pdf.drawString(x, line_baseline, line)
 
     def _set_stroke(self, pdf, style):
         pdf.setStrokeColorRGB(*self._hex_color(style.get("bordercolor"), "#000000"))
@@ -502,6 +510,9 @@ class PDFReportRenderer:
     def _repeater_height(self, repeater, row):
         required = repeater["itemheight"]
         for item, lines, effective_y in self._repeater_layout(repeater, row):
+            if item.get("type", "text") == "image":
+                required = max(required, effective_y + item["size"][1] + 8)
+                continue
             size = item.get("fontsize", 9)
             required = max(
                 required,
@@ -513,6 +524,11 @@ class PDFReportRenderer:
         placed = []
         result = []
         for item in sorted(repeater["items"], key=lambda value: value["position"][1]):
+            if item.get("type", "text") == "image":
+                x, original_y = item["position"]
+                placed.append((x, item["size"][0], original_y + item["size"][1] + 2))
+                result.append((item, [], original_y))
+                continue
             size = item.get("fontsize", 9)
             value = self._format_value(row.get(item["field"], ""), item.get("format", "text"))
             lines = self._wrapped_lines(value, item["size"][0], size)
@@ -536,6 +552,18 @@ class PDFReportRenderer:
         for item, lines, effective_y in self._repeater_layout(repeater, row):
             x = x0 + item["position"][0]
             y_top = top - effective_y
+            if item.get("type", "text") == "image":
+                value = row.get(item["field"])
+                if value:
+                    try:
+                        pdf.drawImage(
+                            ImageReader(BytesIO(bytes(value))), x, y_top - item["size"][1],
+                            item["size"][0], item["size"][1], preserveAspectRatio=True,
+                            anchor="c", mask="auto",
+                        )
+                    except Exception as error:
+                        raise ReportRenderError("Unable to render repeating report image") from error
+                continue
             size = item.get("fontsize", 9)
             for index, line in enumerate(lines):
                 line_style = dict(item)

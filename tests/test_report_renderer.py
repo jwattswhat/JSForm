@@ -21,6 +21,12 @@ class TestPDFReportRenderer(unittest.TestCase):
         self.assertEqual(renderer._format_value(datetime(2026, 8, 12, 14, 5), "date"), "8/12/2026")
         self.assertEqual(renderer._format_value(datetime(2026, 8, 12, 14, 5), "time"), "2:05 PM")
         self.assertEqual(renderer._format_value("2183871200", "phone"), "(218) 387-1200")
+
+    def test_multiline_text_preserves_explicit_line_breaks(self):
+        self.assertEqual(
+            PDFReportRenderer._wrapped_lines("100 Main St\nDuluth, MN 55802", 200, 10),
+            ["100 Main St", "Duluth, MN 55802"],
+        )
     def test_table_paginates_and_pdf_contains_bound_data(self):
         source = valid_definition()
         source["CMMD01REPORT"]["CONTROLS"]["FamilyName"] = {
