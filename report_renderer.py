@@ -61,7 +61,10 @@ class PDFReportRenderer:
             tables = [(name, item) for name, item in band_controls if item["type"] == "table"]
             repeaters = [(name, item) for name, item in band_controls if item["type"] == "repeater"]
             for _, table in tables:
-                rows = dataset.collections[table["repeatcollection"]]
+                rows = self._sorted_rows(
+                    dataset.collections[table["repeatcollection"]], definition,
+                    dataset, table["repeatcollection"],
+                )
                 row_height = max(16, min(30, bands[band_name]["height"] / 2))
                 header_height = row_height
                 header_pending = True
@@ -81,7 +84,10 @@ class PDFReportRenderer:
                         pdf, table, row, current_y, margins["left"], row_height
                     )
             for _, repeater in repeaters:
-                rows = dataset.collections[repeater["repeatcollection"]]
+                rows = self._sorted_rows(
+                    dataset.collections[repeater["repeatcollection"]], definition,
+                    dataset, repeater["repeatcollection"],
+                )
                 for row in rows:
                     height = self._repeater_height(repeater, row)
                     if current_y - height <= usable_bottom + footer_height + 4:
@@ -91,6 +97,41 @@ class PDFReportRenderer:
                     self._draw_repeater(pdf, repeater, row, current_y, margins["left"], height)
                     current_y -= height
         pdf.showPage()
+
+    @classmethod
+    def _sorted_rows(cls, rows, definition, dataset, collection_name):
+        result = list(rows)
+        specifications = [
+            item for item in definition.settings.get("sort", ())
+            if item["collection"] == collection_name
+        ]
+        collection = dataset.contract.collection(collection_name)
+        for item in reversed(specifications):
+            field = collection.field(item["field"])
+            result.sort(
+                key=lambda row, name=item["field"], kind=field.data_type:
+                    cls._sort_value(row.get(name), kind),
+                reverse=item["direction"] == "descending",
+            )
+        return result
+
+    @staticmethod
+    def _sort_value(value, data_type):
+        if value is None or value == "":
+            return (1, "")
+        if data_type in ("integer", "decimal", "currency"):
+            try:
+                return (0, Decimal(str(value)))
+            except (InvalidOperation, ValueError):
+                return (0, Decimal(0))
+        if data_type in ("date", "time", "datetime") and isinstance(value, str):
+            try:
+                value = datetime.fromisoformat(value)
+            except ValueError:
+                pass
+        if isinstance(value, (date, datetime, time)):
+            return (0, value.isoformat())
+        return (0, str(value).casefold())
 
     @staticmethod
     def _bands_of_type(bands, band_type):

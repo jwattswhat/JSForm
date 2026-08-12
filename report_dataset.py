@@ -65,6 +65,10 @@ class ReportDatasetContract:
                     self._validate_binding({
                         "collection": control["repeatcollection"], "field": item["field"]
                     })
+        for sort in definition.settings.get("sort", ()):
+            self._validate_binding(sort)
+        for group in definition.settings.get("groups", ()):
+            self._validate_binding(group)
 
     def _validate_binding(self, binding):
         collection = self.collection(binding["collection"])

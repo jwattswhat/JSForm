@@ -44,6 +44,15 @@ class TestReportDataset(unittest.TestCase):
         with self.assertRaises(TypeError):
             dataset.collections["families"][0]["FamilyName"] = "Changed"
 
+    def test_sort_and_group_fields_must_be_approved(self):
+        source = valid_definition()
+        source["CMMD01REPORT"]["REPORT"]["sort"] = [{
+            "collection": "families", "field": "PrivateNote", "direction": "ascending",
+        }]
+        definition = ReportDefinitionLoader().from_dict(source)
+        with self.assertRaisesRegex(ReportDatasetError, "Unknown report field"):
+            self.contract().validate_definition(definition)
+
 
 if __name__ == "__main__":
     unittest.main()

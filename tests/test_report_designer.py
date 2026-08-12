@@ -225,6 +225,19 @@ class TestReportDesignerModel(unittest.TestCase):
                 "letter", "portrait", {"top": 36, "right": 210, "bottom": 36, "left": 210},
             )
 
+    def test_report_sort_is_undoable_and_can_be_cleared(self):
+        model = self.model()
+        sort_items = [{
+            "collection": "families", "field": "FamilyName", "direction": "descending",
+        }]
+        model.set_sort(sort_items)
+        self.assertEqual(model.report["sort"], sort_items)
+        self.assertTrue(model.undo())
+        self.assertNotIn("sort", model.report)
+        self.assertTrue(model.redo())
+        model.set_sort([])
+        self.assertNotIn("sort", model.report)
+
     def test_copy_and_paste_preserve_properties_with_unique_name(self):
         model = self.model()
         copied = model.copy_controls(["FamilyName"])

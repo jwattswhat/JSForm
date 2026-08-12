@@ -47,6 +47,30 @@ class TestPDFReportRenderer(unittest.TestCase):
             self.assertIn("Test Family 000", text)
             self.assertIn("Test Family 099", text)
 
+    def test_rows_follow_multiple_sort_levels_without_mutating_dataset(self):
+        source = valid_definition()
+        source["CMMD01REPORT"]["REPORT"]["sort"] = [
+            {"collection": "families", "field": "City", "direction": "ascending"},
+            {"collection": "families", "field": "FamilyName", "direction": "descending"},
+        ]
+        definition = ReportDefinitionLoader().from_dict(source)
+        contract = ReportDatasetContract(
+            "membership.directory", 1, "reports.membership.contact",
+            (ReportCollection("families", "Families", (
+                ReportField("FamilyName", "Family Name"), ReportField("City", "City"),
+            )),),
+        )
+        dataset = ReportDataset.create(contract, {"families": [
+            {"FamilyName": "Able", "City": "Duluth"},
+            {"FamilyName": "Young", "City": "Duluth"},
+            {"FamilyName": "Baker", "City": "Bemidji"},
+        ]})
+        result = PDFReportRenderer._sorted_rows(
+            dataset.collections["families"], definition, dataset, "families",
+        )
+        self.assertEqual([row["FamilyName"] for row in result], ["Baker", "Young", "Able"])
+        self.assertEqual(dataset.collections["families"][0]["FamilyName"], "Able")
+
 
 if __name__ == "__main__":
     unittest.main()

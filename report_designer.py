@@ -388,6 +388,18 @@ class ReportDesignerModel:
         self.data = validated.to_dict()
         self.dirty = True
 
+    def set_sort(self, sort_items):
+        candidate = deepcopy(self.data)
+        settings = candidate[self.root_name]["REPORT"]
+        if sort_items:
+            settings["sort"] = [dict(item) for item in sort_items]
+        else:
+            settings.pop("sort", None)
+        validated = self.loader.from_dict(candidate)
+        self._record_change()
+        self.data = validated.to_dict()
+        self.dirty = True
+
     def copy_controls(self, names):
         names = [name for name in names if name in self.controls]
         return [(name, deepcopy(self.controls[name])) for name in names]
@@ -764,6 +776,105 @@ class RepeaterItemsDialog(wx.Dialog):
         self.GetParent().SetStatusText(f"Updated detail column {item['name']}")
 
 
+class SortRecordsDialog(wx.Dialog):
+    def __init__(self, parent, dataset_contract, sort_items):
+        super().__init__(parent, title="Sort Report Records", size=(620, 390))
+        self.fields = [
+            (collection.name, field.name, f"{collection.label}: {field.label}")
+            for collection in dataset_contract.collections
+            for field in collection.fields
+            if field.data_type != "image"
+        ]
+        self.items = [dict(item) for item in sort_items]
+        layout = wx.BoxSizer(wx.VERTICAL)
+        layout.Add(
+            wx.StaticText(
+                self,
+                label="Add fields in priority order. The first field is the primary sort.",
+            ), 0, wx.ALL, 10,
+        )
+        self.list = wx.ListBox(self)
+        layout.Add(self.list, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
+
+        choices = wx.BoxSizer(wx.HORIZONTAL)
+        self.field_choice = wx.Choice(self, choices=[item[2] for item in self.fields])
+        if self.fields:
+            self.field_choice.SetSelection(0)
+        self.direction_choice = wx.Choice(self, choices=["Ascending", "Descending"])
+        self.direction_choice.SetSelection(0)
+        add_button = wx.Button(self, label="Add Sort")
+        add_button.Bind(wx.EVT_BUTTON, self.on_add)
+        choices.Add(self.field_choice, 1, wx.RIGHT, 8)
+        choices.Add(self.direction_choice, 0, wx.RIGHT, 8)
+        choices.Add(add_button, 0)
+        layout.Add(choices, 0, wx.EXPAND | wx.ALL, 10)
+
+        actions = wx.BoxSizer(wx.HORIZONTAL)
+        for label, handler in (
+            ("Move Up", self.on_up), ("Move Down", self.on_down),
+            ("Remove", self.on_remove),
+        ):
+            button = wx.Button(self, label=label)
+            button.Bind(wx.EVT_BUTTON, handler)
+            actions.Add(button, 0, wx.RIGHT, 8)
+        actions.AddStretchSpacer()
+        actions.Add(wx.Button(self, wx.ID_CANCEL), 0, wx.RIGHT, 8)
+        actions.Add(wx.Button(self, wx.ID_OK), 0)
+        layout.Add(actions, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+        self.SetSizer(layout)
+        self.refresh()
+
+    def refresh(self, selection=None):
+        names = {(collection, field): label for collection, field, label in self.fields}
+        labels = [
+            f"{number}. {names.get((item['collection'], item['field']), item['collection'] + '.' + item['field'])}"
+            f" — {item['direction'].title()}"
+            for number, item in enumerate(self.items, start=1)
+        ]
+        self.list.Set(labels)
+        if labels:
+            self.list.SetSelection(min(selection if selection is not None else 0, len(labels) - 1))
+
+    def on_add(self, event):
+        selection = self.field_choice.GetSelection()
+        if selection == wx.NOT_FOUND:
+            return
+        collection, field, _ = self.fields[selection]
+        self.items = [
+            item for item in self.items
+            if (item["collection"], item["field"]) != (collection, field)
+        ]
+        self.items.append({
+            "collection": collection,
+            "field": field,
+            "direction": self.direction_choice.GetStringSelection().casefold(),
+        })
+        self.refresh(len(self.items) - 1)
+
+    def on_remove(self, event):
+        selection = self.list.GetSelection()
+        if selection != wx.NOT_FOUND:
+            del self.items[selection]
+            self.refresh(max(0, selection - 1))
+
+    def _move(self, offset):
+        selection = self.list.GetSelection()
+        target = selection + offset
+        if selection == wx.NOT_FOUND or target < 0 or target >= len(self.items):
+            return
+        self.items[selection], self.items[target] = self.items[target], self.items[selection]
+        self.refresh(target)
+
+    def on_up(self, event):
+        self._move(-1)
+
+    def on_down(self, event):
+        self._move(1)
+
+    def values(self):
+        return [dict(item) for item in self.items]
+
+
 class PageSetupDialog(wx.Dialog):
     def __init__(self, parent, model):
         super().__init__(parent, title="Page Setup", size=(370, 350))
@@ -1077,6 +1188,11 @@ class ReportDesignerFrame(wx.Frame):
             lambda event: self.apply_distribution("vertical"),
         )
         menu_bar.Append(layout_menu, "&Layout")
+
+        if self.dataset_contract is not None:
+            data_menu = wx.Menu()
+            self._append_menu(data_menu, "&Sort Records...", self.on_sort_records)
+            menu_bar.Append(data_menu, "&Data")
 
         view_menu = wx.Menu()
         self._append_menu(view_menu, "Fit Page", lambda event: self.set_zoom("Fit Page"))
@@ -1511,6 +1627,26 @@ class ReportDesignerFrame(wx.Frame):
         if self.zoom_choice.GetStringSelection() == "Fit Page":
             self.canvas.fit_page()
         self.SetStatusText(f"Page setup changed to {pagesize.upper()} {orientation}")
+
+    def on_sort_records(self, event):
+        dialog = SortRecordsDialog(
+            self, self.dataset_contract, self.model.report.get("sort", ()),
+        )
+        try:
+            if dialog.ShowModal() != wx.ID_OK:
+                return
+            sort_items = dialog.values()
+        finally:
+            dialog.Destroy()
+        try:
+            self.model.set_sort(sort_items)
+            self.dataset_contract.validate_definition(self.model.validated_definition())
+        except (ReportDefinitionError, ValueError) as error:
+            wx.MessageBox(str(error), "Cannot change sorting", wx.OK | wx.ICON_ERROR, self)
+            return
+        self.SetStatusText(
+            f"Report sorting updated ({len(sort_items)} field{'s' if len(sort_items) != 1 else ''})"
+        )
 
     def confirm_discard_or_save(self):
         if not self.model.dirty:
