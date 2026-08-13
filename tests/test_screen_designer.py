@@ -65,6 +65,18 @@ class TestScreenDesignerModel(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "developer-controlled"):
             model.set_property("Name", "security", {})
 
+    def test_visual_style_properties_validate_and_round_trip(self):
+        model = self.model()
+        for key, value in (
+            ("fontface", "Arial"), ("fontsize", 12), ("bold", True),
+            ("italic", True), ("foreground", "#112233"),
+            ("background", "#F0F0F0"),
+        ):
+            model.set_property("Name", key, value)
+        control = model.validated_definition().controls["Name"]
+        self.assertEqual(control["fontface"], "Arial")
+        self.assertEqual(control["foreground"], "#112233")
+
     def test_validation_warns_about_overlap(self):
         model = self.model()
         model.set_geometry("Name", [1, 1], [8, 1])

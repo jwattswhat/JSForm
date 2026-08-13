@@ -38,7 +38,8 @@ from JSForm.screen_definition import (
     ScreenDefinition, ScreenDefinitionLoader, save_screen_definition,
 )
 from JSForm.screen_designer import (
-    ScreenCanvas, ScreenDesignerFrame, ScreenDesignerModel, open_screen_designer,
+    ScreenCanvas, ScreenDesignerFrame, ScreenDesignerModel, ScreenPreviewFrame,
+    open_screen_designer, open_screen_preview,
 )
 from JSForm.screen_catalog import ScreenCatalogModel, open_screen_catalog
 from JSForm.security import (

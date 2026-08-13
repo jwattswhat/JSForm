@@ -558,6 +558,28 @@ class FormSizeDialog(wx.Dialog):
     def values(self): return [self.width.GetValue(), self.height.GetValue()]
 
 
+class ScreenPreviewFrame(wx.Frame):
+    """Read-only, data-free visual preview of a validated screen definition."""
+
+    def __init__(self, definition):
+        title = definition.form.get("title", definition.form_name)
+        super().__init__(None, title="Screen Preview - {}".format(title), size=(1000, 700))
+        self.canvas = ScreenCanvas(self, ScreenDesignerModel(definition))
+        self.canvas.show_grid = False
+        self.canvas.Enable(False)
+        self.Bind(wx.EVT_SHOW, self.on_show)
+
+    def on_show(self, event):
+        if event.IsShown(): wx.CallAfter(self.canvas.fit_form)
+        event.Skip()
+
+
+def open_screen_preview(definition):
+    preview = ScreenPreviewFrame(definition)
+    preview.Show()
+    return preview
+
+
 class ScreenDesignerFrame(wx.Frame):
     def __init__(self, definition_path, preview_handler=None, starter_definition_path=None, allowed_directory=None, audit_hook=None):
         self.path = Path(definition_path)
@@ -565,7 +587,7 @@ class ScreenDesignerFrame(wx.Frame):
         definition = self.loader.load(self.path)
         self.model = ScreenDesignerModel(definition, self.loader)
         super().__init__(None, title="JSForm Screen Designer - {}".format(definition.form.get("title", definition.form_name)), size=(1500, 900))
-        self.preview_handler = preview_handler
+        self.preview_handler = preview_handler or open_screen_preview
         self.starter_definition_path = Path(starter_definition_path) if starter_definition_path else None
         self.allowed_directory = Path(allowed_directory).resolve() if allowed_directory else None
         self.audit_hook = audit_hook
@@ -696,7 +718,27 @@ class ScreenDesignerFrame(wx.Frame):
             self.property_controls[key] = control
             grid.Add(wx.StaticText(properties, label=label), 0, wx.ALIGN_CENTER_VERTICAL)
             grid.Add(control, 1, wx.EXPAND)
-        for key, label in (("readonly", "Read only"), ("required", "Required"), ("hidden", "Hidden")):
+        self.property_controls["fontface"] = wx.Choice(
+            properties, choices=sorted(wx.FontEnumerator.GetFacenames())
+        )
+        self.property_controls["fontface"].Bind(
+            wx.EVT_CHOICE, lambda event: self.on_text_property(event, "fontface")
+        )
+        grid.Add(wx.StaticText(properties, label="Font"), 0, wx.ALIGN_CENTER_VERTICAL)
+        grid.Add(self.property_controls["fontface"], 1, wx.EXPAND)
+        self.property_controls["fontsize"] = wx.SpinCtrl(properties, min=6, max=72, initial=10)
+        self.property_controls["fontsize"].Bind(
+            wx.EVT_SPINCTRL, lambda event: self.on_number_property(event, "fontsize")
+        )
+        grid.Add(wx.StaticText(properties, label="Font size"), 0, wx.ALIGN_CENTER_VERTICAL)
+        grid.Add(self.property_controls["fontsize"], 1, wx.EXPAND)
+        for key, label in (("foreground", "Text color"), ("background", "Background")):
+            control = wx.ColourPickerCtrl(properties)
+            control.Bind(wx.EVT_COLOURPICKER_CHANGED, lambda event, value=key: self.on_color_property(event, value))
+            self.property_controls[key] = control
+            grid.Add(wx.StaticText(properties, label=label), 0, wx.ALIGN_CENTER_VERTICAL)
+            grid.Add(control, 1, wx.EXPAND)
+        for key, label in (("bold", "Bold"), ("italic", "Italic"), ("readonly", "Read only"), ("required", "Required"), ("hidden", "Hidden")):
             control = wx.CheckBox(properties)
             control.Bind(wx.EVT_CHECKBOX, lambda event, value=key: self.on_boolean_property(event, value))
             self.property_controls[key] = control
@@ -731,6 +773,13 @@ class ScreenDesignerFrame(wx.Frame):
         for key in ("x", "y", "width", "height"): self.property_controls[key].SetValue(values[key])
         self.property_controls["label"].SetValue(str(control.get("label", "")))
         self.property_controls["tooltip"].SetValue(str(control.get("tooltip", "")))
+        fontface = str(control.get("fontface", ""))
+        self.property_controls["fontface"].SetStringSelection(fontface)
+        self.property_controls["fontsize"].SetValue(int(control.get("fontsize", 10)))
+        self.property_controls["foreground"].SetColour(control.get("foreground", "#000000"))
+        self.property_controls["background"].SetColour(control.get("background", "#FFFFFF"))
+        self.property_controls["bold"].SetValue(bool(control.get("bold", False)))
+        self.property_controls["italic"].SetValue(bool(control.get("italic", False)))
         self.property_controls["readonly"].SetValue(bool(control.get("readonly", False)))
         self.property_controls["required"].SetValue(bool(control.get("required", False)))
         self.property_controls["hidden"].SetValue(bool(control.get("layout", {}).get("hidden", False)))
@@ -751,10 +800,25 @@ class ScreenDesignerFrame(wx.Frame):
 
     def on_text_property(self, event, key):
         if self.model.selected:
-            try: self.model.set_property(self.model.selected, key, event.GetEventObject().GetValue())
+            source = event.GetEventObject()
+            value = source.GetStringSelection() if isinstance(source, wx.Choice) else source.GetValue()
+            try: self.model.set_property(self.model.selected, key, value)
             except (FormDefinitionError, ValueError) as error: wx.MessageBox(str(error), "Invalid property", wx.OK | wx.ICON_ERROR, self)
             self.canvas.Refresh()
         event.Skip()
+
+    def on_number_property(self, event, key):
+        if self.model.selected:
+            try: self.model.set_property(self.model.selected, key, int(event.GetEventObject().GetValue()))
+            except (FormDefinitionError, ValueError) as error: wx.MessageBox(str(error), "Invalid property", wx.OK | wx.ICON_ERROR, self)
+            self.canvas.Refresh()
+
+    def on_color_property(self, event, key):
+        if self.model.selected:
+            color = event.GetColour().GetAsString(wx.C2S_HTML_SYNTAX)
+            try: self.model.set_property(self.model.selected, key, color)
+            except (FormDefinitionError, ValueError) as error: wx.MessageBox(str(error), "Invalid property", wx.OK | wx.ICON_ERROR, self)
+            self.canvas.Refresh()
 
     def on_boolean_property(self, event, key):
         name = self.model.selected
@@ -882,7 +946,6 @@ class ScreenDesignerFrame(wx.Frame):
         replacement.Show(); self.Destroy()
 
     def on_preview(self, event):
-        if not self.preview_handler: self.SetStatusText("No safe preview adapter is available for this screen"); return
         try: self.preview_handler(self.model.validated_definition()); self.audit("SCREEN_DESIGN_PREVIEWED")
         except Exception as error: wx.MessageBox(str(error), "Cannot preview screen", wx.OK | wx.ICON_ERROR, self)
 

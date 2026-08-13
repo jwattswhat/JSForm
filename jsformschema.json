@@ -170,6 +170,13 @@
                   "type": "string",
                   "minLength": 1
                 },
+                "fontface": { "type": "string", "minLength": 1 },
+                "fontsize": { "type": "integer", "minimum": 6, "maximum": 72 },
+                "bold": { "type": "boolean" },
+                "italic": { "type": "boolean" },
+                "foreground": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+                "background": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+                "required": { "type": "boolean" },
                 "maxlength": {
                   "type": "integer",
                   "minimum": 1

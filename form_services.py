@@ -4,6 +4,8 @@ import json
 import os
 from pathlib import Path
 
+import wx
+
 
 class FormDefinitionError(RuntimeError):
     pass
@@ -88,4 +90,18 @@ class ControlFactory:
             descriptions[name] = description
             field = self.field_class(owner, self.control_id, description, connection)
             controls[name] = field.FIELD
+            control = field.FIELD
+            if description.get("foreground"):
+                control.SetForegroundColour(description["foreground"])
+            if description.get("background"):
+                control.SetBackgroundColour(description["background"])
+            if any(key in description for key in ("fontface", "fontsize", "bold", "italic")):
+                font = control.GetFont()
+                if description.get("fontface"):
+                    font.SetFaceName(str(description["fontface"]))
+                if description.get("fontsize"):
+                    font.SetPointSize(int(description["fontsize"]))
+                font.SetWeight(wx.FONTWEIGHT_BOLD if description.get("bold") else wx.FONTWEIGHT_NORMAL)
+                font.SetStyle(wx.FONTSTYLE_ITALIC if description.get("italic") else wx.FONTSTYLE_NORMAL)
+                control.SetFont(font)
         return controls
