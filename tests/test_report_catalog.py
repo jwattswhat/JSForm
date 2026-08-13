@@ -42,7 +42,11 @@ class TestReportCatalog(unittest.TestCase):
             changed = valid_definition()
             changed["CMMD01REPORT"]["REPORT"]["title"] = "Changed"
             save_report_definition(ReportDefinitionLoader().from_dict(changed), users / "CMMD01.json")
-            self.assertTrue(ReportCatalogModel(users, starters).entries()[0]["customized"])
+            model = ReportCatalogModel(users, starters)
+            entry = model.entries()[0]
+            self.assertTrue(entry["customized"])
+            self.assertEqual(model.delete_customization(entry), "starter")
+            self.assertFalse(model.entries()[0]["customized"])
 
     def test_catalog_rejects_invalid_or_duplicate_codes(self):
         with tempfile.TemporaryDirectory() as folder:

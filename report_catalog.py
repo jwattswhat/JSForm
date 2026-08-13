@@ -69,6 +69,23 @@ class ReportCatalogModel:
         if backup.exists():
             backup.unlink()
 
+    def delete_customization(self, entry):
+        path = Path(entry["path"])
+        if path.parent.resolve() != self.user_directory.resolve():
+            raise ValueError("Only user report definitions can be deleted.")
+        starter = self.starters / path.name
+        if starter.is_file():
+            if not entry.get("customized"):
+                raise ValueError("This report is already using its starter definition.")
+            definition = self.loader.load(starter)
+            save_report_definition(definition, path)
+            backup = path.with_suffix(path.suffix + ".bak")
+            if backup.exists():
+                backup.unlink()
+            return "starter"
+        self.delete(path)
+        return "deleted"
+
 
 class ReportCatalogDialog(wx.Dialog):
     def __init__(self, parent, model, open_handler):
@@ -86,7 +103,7 @@ class ReportCatalogDialog(wx.Dialog):
         buttons = wx.BoxSizer(wx.HORIZONTAL)
         for label, handler in (
             ("Open Designer", self.on_open), ("New from Selected", self.on_new),
-            ("Delete Custom Report", self.on_delete),
+            ("Delete Customization", self.on_delete),
         ):
             button = wx.Button(self, label=label)
             button.Bind(wx.EVT_BUTTON, handler)
@@ -149,15 +166,19 @@ class ReportCatalogDialog(wx.Dialog):
         entry = self.selected()
         if not entry:
             return
-        if entry["has_starter"]:
-            wx.MessageBox("Starter reports cannot be deleted.", "Protected report", wx.OK | wx.ICON_INFORMATION, self)
+        if entry["has_starter"] and not entry["customized"]:
+            wx.MessageBox("This report is already using its starter definition.", "No customization", wx.OK | wx.ICON_INFORMATION, self)
             return
+        message = (
+            f"Delete the customization for {entry['title']} and return to its starter?"
+            if entry["has_starter"] else f"Permanently delete {entry['title']}?"
+        )
         if wx.MessageBox(
-            f"Delete {entry['title']}?", "Delete custom report",
+            message, "Delete customization",
             wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION, self,
         ) != wx.YES:
             return
-        self.model.delete(entry["path"])
+        self.model.delete_customization(entry)
         self.refresh()
 
 

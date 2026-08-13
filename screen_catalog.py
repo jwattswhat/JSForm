@@ -140,7 +140,7 @@ class ScreenCatalogDialog(wx.Dialog):
     def on_restore(self, event):
         entry = self.selected()
         if not entry or not entry["has_custom_file"]: return
-        if wx.MessageBox("Remove this customization and return to the shipped starter?", "Restore Starter", wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION, self) != wx.YES: return
+        if wx.MessageBox("Delete this customization and return to the shipped starter?", "Delete Customization", wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION, self) != wx.YES: return
         self.model.delete_customization(entry["name"])
         self.refresh()
 

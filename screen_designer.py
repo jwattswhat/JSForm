@@ -502,7 +502,7 @@ class ScreenCanvas(wx.ScrolledWindow):
         event.Skip()
 
     def on_paint(self, event):
-        dc = wx.AutoBufferedPaintDC(self)
+        dc = wx.PaintDC(self)
         self.PrepareDC(dc)
         dc.SetBackground(wx.Brush(self.GetBackgroundColour()))
         dc.Clear()

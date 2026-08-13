@@ -23,6 +23,9 @@ class TestScreenDesignerModel(unittest.TestCase):
         source = Path(__file__).resolve().parents[1].joinpath("screen_designer.py").read_text(encoding="utf-8")
         constructor = source.split("class ScreenCanvas", 1)[1].split("def scale_x", 1)[0]
         self.assertIn("SetBackgroundStyle(wx.BG_STYLE_PAINT)", constructor)
+        paint = source.split("def on_paint", 1)[1].split("class Repeater", 1)[0]
+        self.assertIn("wx.PaintDC(self)", paint)
+        self.assertNotIn("AutoBufferedPaintDC", paint)
 
     def model(self): return ScreenDesignerModel(definition())
 
