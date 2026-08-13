@@ -1,7 +1,35 @@
+import json
+
 import mysql
 import mysql.connector
 
 import JSForm
+
+
+def parse_choice_values(value):
+    """Read valid JSON arrays and the historical bracketed line format."""
+    if value in (None, ""):
+        return []
+    if isinstance(value, (list, tuple)):
+        raw_values = value
+    else:
+        text = str(value).strip()
+        try:
+            parsed = json.loads(text)
+        except (TypeError, ValueError):
+            parsed = None
+        if isinstance(parsed, list):
+            raw_values = parsed
+        else:
+            if text.startswith("[") and text.endswith("]"):
+                text = text[1:-1]
+            raw_values = text.splitlines()
+    result = []
+    for raw in raw_values:
+        item = str(raw).strip()
+        if item and item not in result:
+            result.append(item)
+    return result
 
 
 class clsChoice:
@@ -37,7 +65,7 @@ class clsChoice:
         self.fielddata = []  # list of fielddata
 
     def load_choices(self, controldescription):
-        if controldescription != None:
+        if controldescription is None:
             controldescription = self.controldescription
 
         if "choices" in controldescription:
@@ -87,20 +115,12 @@ class clsChoice:
         Choices are loaded automaticlly based on the field name.
         Returns None if no choices are found.
         """
-        choicesSQL = "SELECT Choices FROM tblChoices WHERE field='{fieldname}';".format(
-            fieldname=self.fieldname
-        )
         cursor = self.dbconnection.cursor()
-        cursor.execute(choicesSQL)
+        marker = "%s" if cursor.__class__.__module__.startswith("mysql.connector") else "?"
+        cursor.execute("SELECT Choices FROM tblChoices WHERE Field={}".format(marker), (self.fieldname,))
         row = cursor.fetchone()
         cursor.close()
-        choices = None
-        if row != None:
-            choices = row[0].replace("[", "")
-            choices = choices.replace("]", "")
-            choices = choices.replace(",", "")
-            choices = choices.splitlines()
-        return choices
+        return None if row is None else parse_choice_values(row[0])
 
     def _loadchoicesfromtable(self):
         """

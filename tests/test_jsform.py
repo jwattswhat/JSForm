@@ -50,6 +50,19 @@ EXPECTED_PUBLIC_NAMES = {
 
 
 class TestChoiceRefresh(unittest.TestCase):
+    def test_choice_parser_supports_json_and_preserves_punctuation(self):
+        from clsChoice import parse_choice_values
+
+        self.assertEqual(parse_choice_values('["White, Scarlet or Violet","Blue"]'), ["White, Scarlet or Violet", "Blue"])
+        self.assertEqual(parse_choice_values("[First\rSecond\rFirst]"), ["First", "Second"])
+
+    def test_choice_editor_normalizes_blanks_and_duplicates(self):
+        from choice_manager import normalized_choices
+
+        self.assertEqual(normalized_choices([" General ", "", "general", "Special"]), ["General", "Special"])
+        with self.assertRaises(ValueError):
+            normalized_choices(["", "  "])
+
     def test_lookup_refresh_replaces_stale_mappings(self):
         from clsChoice import clsChoice
 
@@ -78,7 +91,7 @@ class TestChoiceRefresh(unittest.TestCase):
         from clsChoice import clsChoice
 
         class Cursor:
-            def execute(self, _sql): pass
+            def execute(self, _sql, _values=()): pass
             def fetchone(self): return None
             def fetchall(self): return [(3, "LSB")]
             def close(self): pass

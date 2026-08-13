@@ -8,6 +8,10 @@ from JSForm.clsMonitor import PMON
 from JSForm.clsForm import clsForm
 from JSForm.clsDB import clsDB, clsRecord
 from JSForm.clsChoice import clsChoice
+from JSForm.choice_manager import (
+    ChoiceCatalogRepository, ChoiceManagerDialog, normalized_choices,
+    show_choice_manager,
+)
 from JSForm.clsError import clsErrorHandler
 from JSForm.clsSMTP import clsSMTP
 from JSForm.clsSQL import clsSQL
