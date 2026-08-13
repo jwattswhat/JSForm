@@ -394,7 +394,7 @@ class clsForm:
                     self.CONTROLDESCRIPTION[field]
                 )
                 if choices != None:
-                    self.CONTROLDESCRIPTION.update({"choices": choices})
+                    self.CONTROLDESCRIPTION[field].update({"choices": choices})
                     value = self.CONTROLID[field].GetValue()
                     self.CONTROLID[field].Set(choices)
                     self.CONTROLID[field].ChangeValue(value)

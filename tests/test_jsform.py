@@ -49,6 +49,31 @@ EXPECTED_PUBLIC_NAMES = {
 }
 
 
+class TestChoiceRefresh(unittest.TestCase):
+    def test_lookup_refresh_replaces_stale_mappings(self):
+        from clsChoice import clsChoice
+
+        choices = object.__new__(clsChoice)
+        choices.controldescription = {
+            "name": "HymnID",
+            "lookupchoices": {"name": "tblHymn", "fields": ["ID", "Title"]},
+        }
+        choices.id = [1]
+        choices.display = ["Old hymn"]
+        choices.fielddata = [["Old hymn"]]
+        choices._loadfromchoicestable = lambda: None
+
+        def load_current():
+            choices._addchoiceanddata(2, "Current hymn", ["Current hymn"])
+            return choices.display
+
+        choices._loadchoicesfromtable = load_current
+
+        self.assertEqual(choices.load_choices(choices.controldescription), ["Current hymn"])
+        self.assertEqual(choices.id, [2])
+        self.assertEqual(choices.fielddata, [["Current hymn"]])
+
+
 class TestControlValues(unittest.TestCase):
     def test_multiline_preserves_strings_and_joins_sequences(self):
         from control_values import multiline_text

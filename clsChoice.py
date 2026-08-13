@@ -43,6 +43,11 @@ class clsChoice:
         if "choices" in controldescription:
             return controldescription["choices"]
 
+        # A lookup-backed control may be refreshed after its catalog is edited.
+        # Rebuild the mappings instead of appending duplicate/stale entries.
+        self.id = []
+        self.display = []
+        self.fielddata = []
         self.choiceslist = None
         self.subfields = []
         choices = None
