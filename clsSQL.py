@@ -279,8 +279,14 @@ class clsSQL:
 
             #   string types
 
-            case "VAR_STRING"|"STRING"|"BLOB":
+            case "VAR_STRING"|"STRING":
                 value = self._string_to_list(value)
+
+            case "BLOB":
+                # Binary BLOB values such as images must remain connector-native
+                # bytes. Historical text BLOBs retain the legacy list parsing.
+                if not isinstance(value, (bytes, bytearray, memoryview)):
+                    value = self._string_to_list(value)
 
             #   Boolean types
 

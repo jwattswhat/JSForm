@@ -369,6 +369,7 @@ class ScreenCanvas(wx.ScrolledWindow):
         self.zoom = 1.0
         self.snap = False
         self.show_grid = True
+        self.fit_to_window = False
         self.drag_start = None
         self.drag_geometry = None
         self.drag_mode = None
@@ -388,7 +389,10 @@ class ScreenCanvas(wx.ScrolledWindow):
 
     def refresh_extent(self):
         width, height = self.model.form_size
-        self.SetVirtualSize((int(width * self.scale_x() + 80), int(height * self.scale_y() + 80)))
+        if self.fit_to_window:
+            self.SetVirtualSize(self.GetClientSize())
+        else:
+            self.SetVirtualSize((int(width * self.scale_x() + 60), int(height * self.scale_y() + 60)))
         self.Refresh()
 
     def fit_form(self):
@@ -396,6 +400,7 @@ class ScreenCanvas(wx.ScrolledWindow):
         available = self.GetClientSize()
         if width and height and available.width > 80 and available.height > 80:
             self.zoom = max(.25, min(2.0, (available.width - 60) / (width * CELL_WIDTH), (available.height - 60) / (height * CELL_HEIGHT)))
+            self.fit_to_window = True
             self.refresh_extent()
 
     def form_origin(self): return (30, 30)
@@ -666,7 +671,7 @@ class ScreenDesignerFrame(wx.Frame):
         panel = wx.Panel(self)
         root = wx.BoxSizer(wx.VERTICAL)
         first = wx.BoxSizer(wx.HORIZONTAL)
-        for label, handler in (("Open", self.on_open), ("Save", self.on_save), ("Undo", self.on_undo), ("Redo", self.on_redo), ("Preview", self.on_preview), ("Validate", self.on_validate)):
+        for label, handler in (("Open", self.on_open), ("Save", self.on_save), ("Undo", self.on_undo), ("Redo", self.on_redo), ("Preview", self.on_preview), ("Validate", self.on_validate), ("Delete Custom", self.on_delete_customization)):
             self.toolbar_button(panel, first, label, handler)
         first.Add(wx.StaticText(panel, label="Zoom:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 8)
         self.zoom_choice = wx.Choice(panel, choices=["Fit Form", "50%", "75%", "100%", "125%", "150%", "200%"])
@@ -903,7 +908,7 @@ class ScreenDesignerFrame(wx.Frame):
     def on_zoom(self, event):
         value = self.zoom_choice.GetStringSelection()
         if value == "Fit Form": self.canvas.fit_form()
-        else: self.canvas.zoom = int(value.rstrip("%")) / 100; self.canvas.refresh_extent()
+        else: self.canvas.fit_to_window = False; self.canvas.zoom = int(value.rstrip("%")) / 100; self.canvas.refresh_extent()
     def on_snap(self, event): self.canvas.snap = event.IsChecked()
 
     def on_form_size(self, event):

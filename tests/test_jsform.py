@@ -146,6 +146,15 @@ class TestControlValues(unittest.TestCase):
                 formatter.sqldescription = {"Value": {"type": field_type}}
                 self.assertIs(formatter._format_for_record("Value", value), value)
 
+    def test_sql_record_formatter_preserves_binary_blobs(self):
+        from clsSQL import clsSQL
+
+        formatter = object.__new__(clsSQL)
+        formatter.sqldescription = {"Value": {"type": "BLOB"}}
+        value = b"\x89PNG\r\n\x1a\n"
+        self.assertIs(formatter._format_for_record("Value", value), value)
+        self.assertEqual(formatter._format_for_record("Value", "plain text"), "plain text")
+
 
 class TestControlCatalog(unittest.TestCase):
     def test_data_view_constructor_does_not_receive_json_field_name(self):
