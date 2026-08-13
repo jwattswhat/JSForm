@@ -27,9 +27,16 @@ class ReportCatalogModel:
             except Exception:
                 continue
             starter = self.starters / path.name
+            customized = not starter.is_file()
+            if starter.is_file():
+                try:
+                    customized = definition.to_dict() != self.loader.load(starter).to_dict()
+                except Exception:
+                    customized = True
             result.append({
                 "code": definition.report_id, "title": definition.title,
                 "path": path, "has_starter": starter.is_file(),
+                "customized": customized,
             })
         return result
 
@@ -72,7 +79,8 @@ class ReportCatalogDialog(wx.Dialog):
         layout.Add(wx.StaticText(self, label="Reports"), 0, wx.ALL, 10)
         self.list = wx.ListCtrl(self, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
         self.list.InsertColumn(0, "Report", width=130)
-        self.list.InsertColumn(1, "Title", width=420)
+        self.list.InsertColumn(1, "Title", width=350)
+        self.list.InsertColumn(2, "Status", width=120)
         self.list.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_open)
         layout.Add(self.list, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
         buttons = wx.BoxSizer(wx.HORIZONTAL)
@@ -97,6 +105,9 @@ class ReportCatalogDialog(wx.Dialog):
         for entry in self.entries:
             row = self.list.InsertItem(self.list.GetItemCount(), entry["code"])
             self.list.SetItem(row, 1, entry["title"])
+            self.list.SetItem(row, 2, "Customized" if entry["customized"] else "Starter")
+            if entry["customized"]:
+                self.list.SetItemTextColour(row, wx.Colour(0, 102, 204))
         if self.entries:
             self.list.Select(0)
 

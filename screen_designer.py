@@ -621,6 +621,7 @@ class ScreenDesignerFrame(wx.Frame):
         self.add_menu_item(file_menu, "Save &As...", self.on_save_as, wx.ID_SAVEAS)
         file_menu.AppendSeparator()
         self.add_menu_item(file_menu, "Restore &Starter", self.on_restore_starter)
+        self.add_menu_item(file_menu, "&Delete Customization", self.on_delete_customization)
         self.add_menu_item(file_menu, "Restore &Previous", self.on_restore_previous)
         file_menu.AppendSeparator()
         self.add_menu_item(file_menu, "&Close", lambda event: self.Close(), wx.ID_CLOSE)
@@ -673,6 +674,12 @@ class ScreenDesignerFrame(wx.Frame):
         self.snap_check = wx.CheckBox(panel, label="Snap to grid")
         self.snap_check.Bind(wx.EVT_CHECKBOX, self.on_snap)
         first.Add(self.snap_check, 0, wx.ALIGN_CENTER_VERTICAL)
+        self.customized_label = wx.StaticText(panel, label="CUSTOMIZED")
+        self.customized_label.SetForegroundColour(wx.Colour(0, 102, 204))
+        font = self.customized_label.GetFont()
+        font.SetWeight(wx.FONTWEIGHT_BOLD)
+        self.customized_label.SetFont(font)
+        first.Add(self.customized_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 10)
         root.Add(first, 0, wx.EXPAND | wx.ALL, 6)
         second = wx.BoxSizer(wx.HORIZONTAL)
         for label, handler in (("Align Left", lambda e: self.apply_alignment("left")), ("Align Right", lambda e: self.apply_alignment("right")), ("Align Top", lambda e: self.apply_alignment("top")), ("Align Bottom", lambda e: self.apply_alignment("bottom")), ("Distribute Across", lambda e: self.apply_distribution("horizontal")), ("Distribute Down", lambda e: self.apply_distribution("vertical")), ("Screen Size", self.on_form_size), ("Delete", lambda e: self.delete_selected())):
@@ -754,6 +761,7 @@ class ScreenDesignerFrame(wx.Frame):
         splitter.SetMinimumPaneSize(220)
         root.Add(splitter, 1, wx.EXPAND)
         panel.SetSizer(root)
+        self.refresh_customized_indicator()
 
     def refresh_control_list(self):
         names = list(self.model.controls)
@@ -898,7 +906,7 @@ class ScreenDesignerFrame(wx.Frame):
         self.canvas.refresh_extent()
 
     def on_save(self, event):
-        try: self.model.save(self.path); self.audit("SCREEN_DESIGN_SAVED"); self.SetStatusText("Screen definition saved")
+        try: self.model.save(self.path); self.refresh_customized_indicator(); self.audit("SCREEN_DESIGN_SAVED"); self.SetStatusText("Screen definition saved")
         except (FormDefinitionError, OSError) as error: wx.MessageBox(str(error), "Cannot save screen", wx.OK | wx.ICON_ERROR, self)
 
     def _path_allowed(self, path):
@@ -922,6 +930,20 @@ class ScreenDesignerFrame(wx.Frame):
             self.model.data, self.model.root_name, self.model.selected = old
             wx.MessageBox(str(error), "Cannot save screen", wx.OK | wx.ICON_ERROR, self); return
         self.path = target; self.audit("SCREEN_DESIGN_SAVED_AS"); self.SetTitle("JSForm Screen Designer - {}".format(target.stem))
+        self.refresh_customized_indicator()
+
+    def refresh_customized_indicator(self):
+        customized = False
+        if self.starter_definition_path and self.starter_definition_path.is_file():
+            try:
+                starter = self.loader.load(self.starter_definition_path)
+                customized = self.model.data != starter.to_dict()
+            except Exception:
+                customized = True
+        elif self.starter_definition_path is None:
+            customized = True
+        self.customized_label.Show(customized)
+        self.customized_label.GetParent().Layout()
 
     def confirm_discard_or_save(self):
         if not self.model.dirty: return True
@@ -965,6 +987,7 @@ class ScreenDesignerFrame(wx.Frame):
         try: self.model.replace_definition(self.loader.load(self.starter_definition_path))
         except FormDefinitionError as error: wx.MessageBox(str(error), "Cannot restore starter", wx.OK | wx.ICON_ERROR, self); return
         self.canvas.model = self.model; self.canvas.selected_names = {self.model.selected} if self.model.selected else set(); self.refresh_control_list(); self.canvas.refresh_extent(); self.on_selection(self.model.selected); self.audit("SCREEN_DESIGN_STARTER_LOADED")
+        self.refresh_customized_indicator()
 
     def on_restore_previous(self, event):
         previous = self.path.with_suffix(self.path.suffix + ".bak")
@@ -972,6 +995,28 @@ class ScreenDesignerFrame(wx.Frame):
         try: self.model.replace_definition(self.loader.load(previous))
         except FormDefinitionError as error: wx.MessageBox(str(error), "Cannot restore previous", wx.OK | wx.ICON_ERROR, self); return
         self.canvas.model = self.model; self.canvas.selected_names = {self.model.selected} if self.model.selected else set(); self.refresh_control_list(); self.canvas.refresh_extent(); self.on_selection(self.model.selected); self.audit("SCREEN_DESIGN_PREVIOUS_LOADED")
+
+    def on_delete_customization(self, event):
+        has_starter = bool(
+            self.starter_definition_path and self.starter_definition_path.is_file()
+        )
+        if has_starter and self.path.resolve() == self.starter_definition_path.resolve():
+            wx.MessageBox("This screen is already using its starter definition.", "No customization", wx.OK | wx.ICON_INFORMATION, self)
+            return
+        message = (
+            "Delete this customized screen and return to the shipped starter?"
+            if has_starter else
+            "Permanently delete this user-created screen definition?"
+        )
+        dialog = wx.MessageDialog(self, message, "Delete customization", wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING)
+        try:
+            if dialog.ShowModal() != wx.ID_YES: return
+        finally: dialog.Destroy()
+        for target in (self.path, self.path.with_suffix(self.path.suffix + ".bak")):
+            if target.is_file(): target.unlink()
+        self.audit("SCREEN_DESIGN_CUSTOMIZATION_DELETED")
+        self.model.dirty = False
+        self.Destroy()
 
     def on_close(self, event):
         if not self.confirm_discard_or_save(): event.Veto(); return

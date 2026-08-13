@@ -26,9 +26,23 @@ class TestReportCatalog(unittest.TestCase):
             entries = model.entries()
             self.assertEqual([item["code"] for item in entries], ["CMMD01", "CMMD02"])
             self.assertTrue(entries[0]["has_starter"])
+            self.assertFalse(entries[0]["customized"])
             self.assertFalse(entries[1]["has_starter"])
+            self.assertTrue(entries[1]["customized"])
             model.delete(custom)
             self.assertEqual([item["code"] for item in model.entries()], ["CMMD01"])
+
+    def test_changed_working_copy_is_marked_customized(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            users, starters = root / "users", root / "starters"
+            users.mkdir(); starters.mkdir()
+            original = ReportDefinitionLoader().from_dict(valid_definition())
+            save_report_definition(original, starters / "CMMD01.json")
+            changed = valid_definition()
+            changed["CMMD01REPORT"]["REPORT"]["title"] = "Changed"
+            save_report_definition(ReportDefinitionLoader().from_dict(changed), users / "CMMD01.json")
+            self.assertTrue(ReportCatalogModel(users, starters).entries()[0]["customized"])
 
     def test_catalog_rejects_invalid_or_duplicate_codes(self):
         with tempfile.TemporaryDirectory() as folder:

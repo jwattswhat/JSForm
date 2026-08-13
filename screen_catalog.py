@@ -30,13 +30,20 @@ class ScreenCatalogModel:
                 definition = self.loader.load(selected)
             except Exception:
                 continue
+            customized = custom.is_file() and not starter.is_file()
+            if custom.is_file() and starter.is_file():
+                try:
+                    customized = definition.to_dict() != self.loader.load(starter).to_dict()
+                except Exception:
+                    customized = True
             result.append({
                 "name": definition.form_name,
                 "title": definition.form.get("title", definition.form_name),
                 "type": definition.form.get("type", "Panel"),
                 "path": selected,
                 "starter": starter if starter.is_file() else None,
-                "customized": custom.is_file(),
+                "customized": customized,
+                "has_custom_file": custom.is_file(),
             })
         return result
 
@@ -101,6 +108,8 @@ class ScreenCatalogDialog(wx.Dialog):
             row = self.list.InsertItem(self.list.GetItemCount(), entry["name"])
             self.list.SetItem(row, 1, entry["title"])
             self.list.SetItem(row, 2, "Customized" if entry["customized"] else "Starter")
+            if entry["customized"]:
+                self.list.SetItemTextColour(row, wx.Colour(0, 102, 204))
         if self.entries: self.list.Select(0)
 
     def selected(self):
@@ -130,7 +139,7 @@ class ScreenCatalogDialog(wx.Dialog):
 
     def on_restore(self, event):
         entry = self.selected()
-        if not entry or not entry["customized"]: return
+        if not entry or not entry["has_custom_file"]: return
         if wx.MessageBox("Remove this customization and return to the shipped starter?", "Restore Starter", wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION, self) != wx.YES: return
         self.model.delete_customization(entry["name"])
         self.refresh()

@@ -1425,11 +1425,18 @@ class ReportDesignerFrame(wx.Frame):
         self.snap_checkbox = wx.CheckBox(panel, label="Snap to grid")
         self.snap_checkbox.Bind(wx.EVT_CHECKBOX, self.on_snap_toggle)
         primary_toolbar.Add(self.snap_checkbox, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+        self.customized_label = wx.StaticText(panel, label="CUSTOMIZED")
+        self.customized_label.SetForegroundColour(wx.Colour(0, 102, 204))
+        font = self.customized_label.GetFont()
+        font.SetWeight(wx.FONTWEIGHT_BOLD)
+        self.customized_label.SetFont(font)
+        primary_toolbar.Add(self.customized_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 8)
         toolbar.Add(primary_toolbar, 0, wx.EXPAND)
         self.canvas = ReportCanvas(
             panel, self.model, self.on_selection, self.delete_selected_control,
             self.activate_control,
         )
+        self.refresh_customized_indicator()
         controls_panel = wx.Panel(panel, style=wx.BORDER_SIMPLE)
         controls_layout = wx.BoxSizer(wx.VERTICAL)
         controls_layout.Add(wx.StaticText(controls_panel, label="Report Controls"), 0, wx.ALL, 8)
@@ -1613,6 +1620,7 @@ class ReportDesignerFrame(wx.Frame):
         self._append_menu(file_menu, "Page Set&up...", self.on_page_setup)
         if self.starter_definition_path is not None:
             self._append_menu(file_menu, "&Restore Starter...", self.on_restore_starter)
+        self._append_menu(file_menu, "&Delete Customization...", self.on_delete_customization)
         self._append_menu(file_menu, "Restore Previous &Version...", self.on_restore_previous)
         file_menu.AppendSeparator()
         self._append_menu(file_menu, "E&xit", lambda event: self.Close())
@@ -2071,8 +2079,22 @@ class ReportDesignerFrame(wx.Frame):
         self.canvas.Refresh()
         self.SetStatusText(f"Deleted {name}")
 
+    def refresh_customized_indicator(self):
+        customized = False
+        if self.starter_definition_path and self.starter_definition_path.is_file():
+            try:
+                starter = ReportDefinitionLoader().load(self.starter_definition_path)
+                customized = self.model.data != starter.to_dict()
+            except Exception:
+                customized = True
+        elif self.starter_definition_path is None:
+            customized = True
+        self.customized_label.Show(customized)
+        self.customized_label.GetParent().Layout()
+
     def on_save(self, event):
         self.model.save(self.path)
+        self.refresh_customized_indicator()
         self.SetStatusText("Report definition saved") if self.GetStatusBar() else None
 
     def on_save_as(self, event):
@@ -2099,6 +2121,7 @@ class ReportDesignerFrame(wx.Frame):
             wx.MessageBox(str(error), "Cannot save report", wx.OK | wx.ICON_ERROR, self)
             return
         self.path = target
+        self.refresh_customized_indicator()
         self.SetTitle(f"JSForm Report Designer - {definition.title}")
         self.SetStatusText(f"Report saved as {target.name}")
 
@@ -2426,6 +2449,7 @@ class ReportDesignerFrame(wx.Frame):
         self.refresh_control_list()
         self.on_selection(self.model.selected)
         self.SetStatusText("Starter layout restored; click Save to keep it")
+        self.refresh_customized_indicator()
 
     def on_restore_previous(self, event):
         backup = self.path.with_suffix(self.path.suffix + ".bak")
@@ -2478,6 +2502,36 @@ class ReportDesignerFrame(wx.Frame):
             "Click Save to make this restoration permanent.",
             "Previous version loaded", wx.OK | wx.ICON_INFORMATION, self,
         )
+
+    def on_delete_customization(self, event):
+        has_starter = bool(
+            self.starter_definition_path and self.starter_definition_path.is_file()
+        )
+        if has_starter and self.path.resolve() == self.starter_definition_path.resolve():
+            wx.MessageBox(
+                "This report is already using its starter definition.",
+                "No customization", wx.OK | wx.ICON_INFORMATION, self,
+            )
+            return
+        message = (
+            "Delete this customized layout and return to the shipped starter?"
+            if has_starter else
+            "Permanently delete this user-created report definition?"
+        )
+        dialog = wx.MessageDialog(
+            self, message, "Delete customization",
+            wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING,
+        )
+        try:
+            if dialog.ShowModal() != wx.ID_YES:
+                return
+        finally:
+            dialog.Destroy()
+        for target in (self.path, self.path.with_suffix(self.path.suffix + ".bak")):
+            if target.is_file():
+                target.unlink()
+        self.model.dirty = False
+        self.Destroy()
 
     def on_close(self, event):
         if not self.confirm_discard_or_save():
