@@ -771,6 +771,28 @@ class TestJSFormPython(unittest.TestCase):
         recordset.setfieldvalue("Time", datetime.time(9, 31))
         self.assertEqual(recordset.recordisdirty(), ["Time"])
 
+    def test_form_baseline_uses_loaded_control_values_not_raw_database_values(self):
+        import types
+        from record_state import RecordState
+        from JSForm.clsForm import clsForm
+
+        recordset = RecordState()
+        recordset.add({"ID": 1, "Choice": "[1\r2]", "Date": "2027-01-01"})
+        recordset.first()
+        form = types.SimpleNamespace(
+            RECORDS=recordset,
+            CONTROLID={
+                "Choice": types.SimpleNamespace(GetValue=lambda: ["1", "2"]),
+                "Date": types.SimpleNamespace(GetValue=lambda: "01/01/2027"),
+            },
+        )
+        clsForm._save_control_value_baseline(form, recordset.current())
+        recordset.setfieldvalue("Choice", ["1", "2"])
+        recordset.setfieldvalue("Date", "01/01/2027")
+        self.assertEqual(recordset.recordisdirty(), [])
+        recordset.setfieldvalue("Choice", ["1", "3"])
+        self.assertEqual(recordset.recordisdirty(), ["Choice"])
+
 
 class TestJSFormDefinitions(unittest.TestCase):
     def test_framework_forms_match_canonical_schema(self):

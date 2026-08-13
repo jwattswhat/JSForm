@@ -451,7 +451,21 @@ class clsForm:
                 self.CONTROLID[field].SetValueTable(
                     record, self.CONTROLDESCRIPTION[field]["table"]
                 )
+        self._save_control_value_baseline(record)
         return False
+
+    def _save_control_value_baseline(self, record):
+        """Compare later edits with the values controls show after loading."""
+        if record is None or not self.RECORDS:
+            return
+        for field in record:
+            if field == "ID" or field not in self.CONTROLID:
+                continue
+            try:
+                value = self.CONTROLID[field].GetValue()
+            except (AttributeError, TypeError, ValueError):
+                value = record[field]
+            self.RECORDS.original.savefield(field, value)
 
     def initialize_linked_forms(self):
         JSForm.LG.log()
