@@ -25,6 +25,12 @@ class TestScreenDefinition(unittest.TestCase):
             save_screen_definition(ScreenDefinitionLoader().from_dict(changed), path)
             self.assertEqual(path.with_suffix(".json.bak").read_text(encoding="utf-8"), first)
 
+    def test_legacy_internal_form_name_is_preserved(self):
+        source = definition().to_dict()
+        source["frmTestFORM"]["FORM"]["name"] = "HistoricalInternalName"
+        loaded = ScreenDefinitionLoader().from_dict(source, "frmTest")
+        self.assertEqual(loaded.form["name"], "HistoricalInternalName")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -317,7 +317,8 @@ class ScreenDesignerModel:
             control_width, control_height = size
             if x < 0 or y < 0 or x + control_width > width or y + control_height > height:
                 warnings.append("{} extends outside the screen".format(name))
-            rectangles.append((name, x, y, control_width, control_height))
+            if "sizech" in self.controls[name]:
+                rectangles.append((name, x, y, control_width, control_height))
         for index, first in enumerate(rectangles):
             if self.controls[first[0]]["type"] == "StaticBox":
                 continue
@@ -679,6 +680,7 @@ class ScreenDesignerFrame(wx.Frame):
         font = self.customized_label.GetFont()
         font.SetWeight(wx.FONTWEIGHT_BOLD)
         self.customized_label.SetFont(font)
+        self.customized_label.SetToolTip("This saved screen differs from the shipped starter.")
         first.Add(self.customized_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 10)
         root.Add(first, 0, wx.EXPAND | wx.ALL, 6)
         second = wx.BoxSizer(wx.HORIZONTAL)
@@ -691,18 +693,23 @@ class ScreenDesignerFrame(wx.Frame):
         left_center = wx.SplitterWindow(splitter, style=wx.SP_LIVE_UPDATE)
         left = wx.Panel(left_center)
         left_sizer = wx.BoxSizer(wx.VERTICAL)
-        left_sizer.Add(wx.StaticText(left, label="Screen Controls"), 0, wx.BOTTOM, 4)
+        controls_heading = wx.StaticText(left, label="Screen Controls")
+        controls_font = controls_heading.GetFont(); controls_font.SetWeight(wx.FONTWEIGHT_BOLD); controls_heading.SetFont(controls_font)
+        left_sizer.Add(controls_heading, 0, wx.BOTTOM, 6)
         self.control_list = wx.ListBox(left, style=wx.LB_EXTENDED)
         self.control_list.Bind(wx.EVT_LISTBOX, self.on_list_selection)
         self.control_list.Bind(wx.EVT_LISTBOX_DCLICK, self.on_list_double_click)
         left_sizer.Add(self.control_list, 1, wx.EXPAND | wx.BOTTOM, 8)
-        left_sizer.Add(wx.StaticText(left, label="Add Control"), 0, wx.BOTTOM, 4)
+        add_heading = wx.StaticText(left, label="Add Control")
+        add_font = add_heading.GetFont(); add_font.SetWeight(wx.FONTWEIGHT_BOLD); add_heading.SetFont(add_font)
+        left_sizer.Add(add_heading, 0, wx.BOTTOM, 4)
         self.type_choice = wx.Choice(left, choices=list(CONTROL_TYPES))
         self.type_choice.SetStringSelection("StaticText")
         left_sizer.Add(self.type_choice, 0, wx.EXPAND | wx.BOTTOM, 5)
         add = wx.Button(left, label="Add Selected Control")
         add.Bind(wx.EVT_BUTTON, lambda event: self.add_control(self.type_choice.GetStringSelection()))
         left_sizer.Add(add, 0, wx.EXPAND)
+        left_sizer.Add(wx.StaticText(left, label="Tip: Ctrl-click selects several controls."), 0, wx.TOP, 8)
         left.SetSizer(left_sizer)
         self.canvas = ScreenCanvas(left_center, self.model, self.on_selection)
         left_center.SplitVertically(left, self.canvas, 260)
@@ -710,7 +717,9 @@ class ScreenDesignerFrame(wx.Frame):
         properties = wx.ScrolledWindow(splitter)
         properties.SetScrollRate(5, 5)
         property_sizer = wx.BoxSizer(wx.VERTICAL)
-        property_sizer.Add(wx.StaticText(properties, label="Properties"), 0, wx.ALL, 6)
+        properties_heading = wx.StaticText(properties, label="Properties")
+        properties_font = properties_heading.GetFont(); properties_font.SetWeight(wx.FONTWEIGHT_BOLD); properties_heading.SetFont(properties_font)
+        property_sizer.Add(properties_heading, 0, wx.ALL, 8)
         grid = wx.FlexGridSizer(0, 2, 6, 6)
         grid.AddGrowableCol(1, 1)
         for key, label in (("x", "X"), ("y", "Y"), ("width", "Width"), ("height", "Height")):

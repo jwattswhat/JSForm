@@ -78,13 +78,18 @@ class ScreenCatalogModel:
 
 class ScreenCatalogDialog(wx.Dialog):
     def __init__(self, parent, model, open_handler):
-        super().__init__(parent, title="Screen Designer", size=(780, 520))
+        super().__init__(parent, title="Screen Designer", size=(840, 560))
         self.model = model
         self.open_handler = open_handler
         root = wx.BoxSizer(wx.VERTICAL)
-        root.Add(wx.StaticText(self, label="ChurchManager Screens"), 0, wx.ALL, 10)
+        heading = wx.StaticText(self, label="ChurchManager Screen Layouts")
+        heading_font = heading.GetFont(); heading_font.SetPointSize(12); heading_font.SetWeight(wx.FONTWEIGHT_BOLD); heading.SetFont(heading_font)
+        root.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP, 12)
+        legend = wx.StaticText(self, label="Blue items have a saved customization. Starter screens remain available for recovery.")
+        legend.SetForegroundColour(wx.Colour(0, 102, 204))
+        root.Add(legend, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM, 12)
         self.list = wx.ListCtrl(self, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
-        for index, (label, width) in enumerate((("Screen", 150), ("Title", 420), ("Status", 120))):
+        for index, (label, width) in enumerate((("Screen", 160), ("Title", 440), ("Status", 130))):
             self.list.InsertColumn(index, label, width=width)
         self.list.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_open)
         root.Add(self.list, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)

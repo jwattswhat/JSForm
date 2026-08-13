@@ -89,14 +89,19 @@ class ReportCatalogModel:
 
 class ReportCatalogDialog(wx.Dialog):
     def __init__(self, parent, model, open_handler):
-        super().__init__(parent, title="Report Writer", size=(720, 470))
+        super().__init__(parent, title="Report Writer", size=(820, 540))
         self.model = model
         self.open_handler = open_handler
         layout = wx.BoxSizer(wx.VERTICAL)
-        layout.Add(wx.StaticText(self, label="Reports"), 0, wx.ALL, 10)
+        heading = wx.StaticText(self, label="Report Layouts")
+        heading_font = heading.GetFont(); heading_font.SetPointSize(12); heading_font.SetWeight(wx.FONTWEIGHT_BOLD); heading.SetFont(heading_font)
+        layout.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP, 12)
+        legend = wx.StaticText(self, label="Blue items have a saved customization. Starter layouts remain available for recovery.")
+        legend.SetForegroundColour(wx.Colour(0, 102, 204))
+        layout.Add(legend, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM, 12)
         self.list = wx.ListCtrl(self, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
         self.list.InsertColumn(0, "Report", width=130)
-        self.list.InsertColumn(1, "Title", width=350)
+        self.list.InsertColumn(1, "Title", width=430)
         self.list.InsertColumn(2, "Status", width=120)
         self.list.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_open)
         layout.Add(self.list, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)

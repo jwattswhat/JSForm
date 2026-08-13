@@ -51,10 +51,6 @@ class ScreenDefinitionLoader:
             schema = json.loads(self.schema_path.read_text(encoding="utf-8-sig"))
             validate(instance=data, schema=schema)
             root = data[root_name]
-            if root["FORM"].get("name") != form_name:
-                raise FormDefinitionError(
-                    "FORM.name must match the filename and named root"
-                )
         except FormDefinitionError:
             raise
         except Exception as error:

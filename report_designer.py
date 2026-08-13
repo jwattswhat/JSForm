@@ -1430,6 +1430,7 @@ class ReportDesignerFrame(wx.Frame):
         font = self.customized_label.GetFont()
         font.SetWeight(wx.FONTWEIGHT_BOLD)
         self.customized_label.SetFont(font)
+        self.customized_label.SetToolTip("This saved report differs from the shipped starter.")
         primary_toolbar.Add(self.customized_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 8)
         toolbar.Add(primary_toolbar, 0, wx.EXPAND)
         self.canvas = ReportCanvas(
