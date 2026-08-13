@@ -25,5 +25,17 @@ class TestScreenCatalog(unittest.TestCase):
             save_screen_definition(ScreenDefinitionLoader().from_dict(changed), custom)
             self.assertTrue(model.entries()[0]["customized"])
 
+    def test_theme_upgrade_alone_does_not_mark_old_copy_customized(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            users, starters = root / "users", root / "starters"
+            users.mkdir(); starters.mkdir()
+            old = definition().to_dict()
+            themed = definition().to_dict()
+            themed["frmTestFORM"]["FORM"]["theme"] = "churchmanager"
+            save_screen_definition(ScreenDefinitionLoader().from_dict(old), users / "frmTest.json")
+            save_screen_definition(ScreenDefinitionLoader().from_dict(themed), starters / "frmTest.json")
+            self.assertFalse(ScreenCatalogModel(users, starters).entries()[0]["customized"])
+
 
 if __name__ == "__main__": unittest.main()

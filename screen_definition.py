@@ -68,6 +68,16 @@ class ScreenDefinitionLoader:
         return definition
 
 
+def screen_definitions_equal(first, second, ignore_theme=False):
+    left = first.to_dict()
+    right = second.to_dict()
+    if ignore_theme:
+        for data in (left, right):
+            root = data[next(iter(data))]
+            root["FORM"].pop("theme", None)
+    return left == right
+
+
 def save_screen_definition(definition, path):
     path = Path(path)
     loader = ScreenDefinitionLoader()

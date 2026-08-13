@@ -80,6 +80,7 @@
         "title": {
           "type": "string"
         },
+        "theme": { "type": "string", "enum": ["churchmanager"] },
         "table": {"$ref":"#/definitions/tableproperties"},
         "security": {"$ref":"#/definitions/formsecurity"},
         "stylelist": {"$ref":"#/definitions/formstylelist"},

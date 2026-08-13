@@ -83,6 +83,12 @@ class ControlFactory:
     def build(self, owner, descriptions, connection, readonly=False, readonly_fields=()):
         controls = {}
         readonly_fields = set(readonly_fields)
+        theme = (
+            getattr(owner, "FORMDESCRIPTON", {}).get("theme")
+            or os.environ.get("JSFORM_DEFAULT_THEME")
+        )
+        if theme == "churchmanager":
+            owner.FORM.SetBackgroundColour("#F5F8FB")
         for name, source in descriptions.items():
             description = source.copy()
             if readonly or name in readonly_fields:
@@ -91,6 +97,19 @@ class ControlFactory:
             field = self.field_class(owner, self.control_id, description, connection)
             controls[name] = field.FIELD
             control = field.FIELD
+            if theme == "churchmanager":
+                control_type = description.get("type")
+                security_action = description.get("security", {}).get("invoke")
+                font = control.GetFont()
+                font.SetFaceName("Segoe UI")
+                if control_type in ("StaticBox", "Button") or security_action:
+                    font.SetWeight(wx.FONTWEIGHT_BOLD)
+                    control.SetForegroundColour("#155A8A")
+                if control_type == "Button":
+                    control.SetBackgroundColour("#E5F0F7")
+                elif control_type not in ("StaticText", "StaticBox", "CheckBox"):
+                    control.SetBackgroundColour("#FFFFFF")
+                control.SetFont(font)
             if description.get("foreground"):
                 control.SetForegroundColour(description["foreground"])
             if description.get("background"):

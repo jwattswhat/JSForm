@@ -9,6 +9,7 @@ from JSForm.form_services import FormDefinitionError
 from JSForm.screen_definition import (
     ScreenDefinition,
     ScreenDefinitionLoader,
+    screen_definitions_equal,
     save_screen_definition,
 )
 
@@ -946,7 +947,9 @@ class ScreenDesignerFrame(wx.Frame):
         if self.starter_definition_path and self.starter_definition_path.is_file():
             try:
                 starter = self.loader.load(self.starter_definition_path)
-                customized = self.model.data != starter.to_dict()
+                customized = not screen_definitions_equal(
+                    ScreenDefinition(self.model.data), starter, ignore_theme=True,
+                )
             except Exception:
                 customized = True
         elif self.starter_definition_path is None:

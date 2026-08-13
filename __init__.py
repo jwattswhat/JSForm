@@ -36,6 +36,7 @@ from JSForm.report_designer import (
 from JSForm.report_catalog import ReportCatalogModel, open_report_catalog
 from JSForm.screen_definition import (
     ScreenDefinition, ScreenDefinitionLoader, save_screen_definition,
+    screen_definitions_equal,
 )
 from JSForm.screen_designer import (
     ScreenCanvas, ScreenDesignerFrame, ScreenDesignerModel, ScreenPreviewFrame,

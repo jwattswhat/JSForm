@@ -5,7 +5,9 @@ import re
 
 import wx
 
-from JSForm.screen_definition import ScreenDefinitionLoader, save_screen_definition
+from JSForm.screen_definition import (
+    ScreenDefinitionLoader, save_screen_definition, screen_definitions_equal,
+)
 
 
 SCREEN_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_]{1,63}$")
@@ -33,7 +35,9 @@ class ScreenCatalogModel:
             customized = custom.is_file() and not starter.is_file()
             if custom.is_file() and starter.is_file():
                 try:
-                    customized = definition.to_dict() != self.loader.load(starter).to_dict()
+                    customized = not screen_definitions_equal(
+                        definition, self.loader.load(starter), ignore_theme=True,
+                    )
                 except Exception:
                     customized = True
             result.append({
