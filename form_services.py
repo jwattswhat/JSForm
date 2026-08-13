@@ -1,6 +1,7 @@
 """Small, testable services used by the JSForm form coordinator."""
 
 import json
+import os
 from pathlib import Path
 
 
@@ -29,6 +30,11 @@ class FormDefinitionLoader:
         self.validator = validator
 
     def _path(self, form_name):
+        overlay = os.environ.get("JSFORM_SCREEN_OVERLAY")
+        if overlay:
+            candidate = Path(overlay) / "{}.json".format(form_name)
+            if candidate.is_file():
+                return candidate
         primary = self.primary_directory / "{}.json".format(form_name)
         if primary.is_file():
             return primary
