@@ -98,6 +98,10 @@ class TestControlValues(unittest.TestCase):
             self.assertFalse(checked_value(value))
         self.assertEqual(value_sequence("single"), ["single"])
         self.assertEqual(value_sequence(None), [])
+        self.assertEqual(value_sequence("[1\r3\r2\r4]"), ["1", "3", "2", "4"])
+        self.assertEqual(value_sequence("[Sunday]"), ["Sunday"])
+        self.assertEqual(value_sequence("1;3"), ["1", "3"])
+        self.assertEqual(value_sequence('["A", "B"]'), ["A", "B"])
 
     def test_date_time_inputs_accept_native_database_values(self):
         import datetime

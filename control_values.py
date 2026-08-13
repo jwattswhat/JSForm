@@ -2,6 +2,7 @@
 
 import datetime
 import json
+import re
 from decimal import Decimal
 
 
@@ -48,6 +49,18 @@ def value_sequence(value):
         return []
     if isinstance(value, (list, tuple, set)):
         return list(value)
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return []
+        if text.startswith("[") and text.endswith("]"):
+            try:
+                parsed = json.loads(text)
+                if isinstance(parsed, list):
+                    return parsed
+            except json.JSONDecodeError:
+                text = text[1:-1].strip()
+        return [part.strip() for part in re.split(r"[\r\n;,]+", text) if part.strip()]
     return [value]
 
 

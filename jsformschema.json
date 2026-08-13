@@ -48,7 +48,7 @@
       "type": "array",
       "items": {
         "type":"string",
-        "enum": ["CAPTION","READONLY"]}
+        "enum": ["CAPTION","CLOSEBOX","MINIMIZEBOX","MAXIMIZEBOX","READONLY"]}
     },
     "formsecurity": {
       "type": "object",

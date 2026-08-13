@@ -108,7 +108,7 @@ class ScreenCatalogDialog(wx.Dialog):
         self.list.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_open)
         root.Add(self.list, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
         buttons = wx.BoxSizer(wx.HORIZONTAL)
-        for label, handler in (("Open Designer", self.on_open), ("New from Selected", self.on_new), ("Restore Starter", self.on_restore)):
+        for label, handler in (("Open Designer", self.on_open), ("New from Selected", self.on_new), ("Delete Custom", self.on_restore)):
             button = wx.Button(self, label=label)
             button.Bind(wx.EVT_BUTTON, handler)
             buttons.Add(button, 0, wx.RIGHT, 8)
@@ -158,7 +158,7 @@ class ScreenCatalogDialog(wx.Dialog):
 
     def on_restore(self, event):
         entry = self.selected()
-        if not entry or not entry["has_custom_file"]: return
+        if not entry or not entry["customized"]: return
         if wx.MessageBox("Delete this customization and return to the shipped starter?", "Delete Customization", wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION, self) != wx.YES: return
         self.model.delete_customization(entry["name"])
         self.refresh()
