@@ -121,8 +121,10 @@ class clsSQL:
             if start != -1:
                 end = condition.find("}")
                 fieldname = condition[start + 1 : end]
+                value = parentrecord[fieldname]
+                sql_value = "NULL" if value is None else str(value)
                 condition = condition.replace(
-                    "{" + fieldname + "}", str(parentrecord[fieldname])
+                    "{" + fieldname + "}", sql_value
                 )
         return condition
 
