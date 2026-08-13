@@ -13,6 +13,13 @@ from JSForm.screen_definition import (
 SCREEN_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_]{1,63}$")
 
 
+def display_screen_title(form_name, title):
+    """Remove a technical form-name prefix from a user-facing catalog title."""
+    title = str(title or form_name).strip()
+    match = re.match(r"^frm[A-Za-z0-9_]+\s*:\s*(.+)$", title, re.IGNORECASE)
+    return match.group(1).strip() if match else title
+
+
 class ScreenCatalogModel:
     def __init__(self, user_directory, starters, loader=None):
         self.user_directory = Path(user_directory)
@@ -42,7 +49,10 @@ class ScreenCatalogModel:
                     customized = True
             result.append({
                 "name": definition.form_name,
-                "title": definition.form.get("title", definition.form_name),
+                "title": display_screen_title(
+                    definition.form_name,
+                    definition.form.get("title", definition.form_name),
+                ),
                 "type": definition.form.get("type", "Panel"),
                 "path": selected,
                 "starter": starter if starter.is_file() else None,

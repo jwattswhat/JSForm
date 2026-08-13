@@ -3,12 +3,23 @@ import shutil
 import tempfile
 import unittest
 
-from JSForm.screen_catalog import ScreenCatalogModel
+from JSForm.screen_catalog import ScreenCatalogModel, display_screen_title
 from JSForm.tests.test_screen_designer import definition
 from JSForm.screen_definition import ScreenDefinitionLoader, save_screen_definition
 
 
 class TestScreenCatalog(unittest.TestCase):
+    def test_catalog_title_omits_technical_form_identifier(self):
+        self.assertEqual(
+            display_screen_title("frmChurch", "frmChurch: Church Edit Form"),
+            "Church Edit Form",
+        )
+        self.assertEqual(
+            display_screen_title("frmPerson", "frmPerson : Person Edit Form"),
+            "Person Edit Form",
+        )
+        self.assertEqual(display_screen_title("frmMain", "Church Manager"), "Church Manager")
+
     def test_equal_copy_is_starter_and_changed_copy_is_customized(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
