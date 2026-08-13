@@ -129,6 +129,11 @@ class clsChoice:
         cursor.close()
 
         choice = []
+        lookup = self.controldescription["lookupchoices"]
+        if lookup.get("allowblank"):
+            blank_label = str(lookup.get("blanklabel") or "None")
+            choice.append(blank_label)
+            self._addchoiceanddata(None, blank_label, [])
         for row in rows:
             combinevalues = ""
             fields = []

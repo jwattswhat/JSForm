@@ -73,6 +73,40 @@ class TestChoiceRefresh(unittest.TestCase):
         self.assertEqual(choices.id, [2])
         self.assertEqual(choices.fielddata, [["Current hymn"]])
 
+    def test_lookup_can_offer_an_explicit_sql_null_choice(self):
+        import JSForm
+        from clsChoice import clsChoice
+
+        class Cursor:
+            def execute(self, _sql): pass
+            def fetchone(self): return None
+            def fetchall(self): return [(3, "LSB")]
+            def close(self): pass
+
+        class Connection:
+            def cursor(self): return Cursor()
+
+        original_sql = JSForm.clsSQL
+        JSForm.clsSQL = lambda *_args: type("SQL", (), {"select": lambda self: "SELECT"})()
+        try:
+            choices = clsChoice(
+                Connection(),
+                {
+                    "name": "HymnalID",
+                    "lookupchoices": {
+                        "name": "tblHymnal", "fields": ["ID", "Hymnal"],
+                        "allowblank": True, "blanklabel": "No primary hymnal",
+                    },
+                },
+            )
+            self.assertEqual(
+                choices.load_choices(choices.controldescription),
+                ["No primary hymnal", "LSB"],
+            )
+            self.assertEqual(choices.getchoiceid("No primary hymnal"), None)
+        finally:
+            JSForm.clsSQL = original_sql
+
 
 class TestControlValues(unittest.TestCase):
     def test_multiline_preserves_strings_and_joins_sequences(self):

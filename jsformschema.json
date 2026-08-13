@@ -28,6 +28,13 @@
         },
         "orderby": {
           "type": "string"
+        },
+        "allowblank": {
+          "type": "boolean"
+        },
+        "blanklabel": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "required": [
