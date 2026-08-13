@@ -566,7 +566,12 @@ class clsForm:
                     case "process":
                         self.CONTROLID[field].Bind(wx.EVT_BUTTON, self._processaction)
                     case "onchange":
-                        self.CONTROLID[field].Bind(wx.EVT_COMBOBOX, self._processaction)
+                        change_event = (
+                            wx.EVT_LIST_ITEM_SELECTED
+                            if self.CONTROLDESCRIPTION[field].get("type") in {"ListCtrl", "ListCtrlID"}
+                            else wx.EVT_COMBOBOX
+                        )
+                        self.CONTROLID[field].Bind(change_event, self._processaction)
                     case _:
                         pass
         #

@@ -186,6 +186,7 @@
                 "defaultvalue": { "type": ["string", "number", "boolean", "null"] },
                 "value": { "type": ["string", "number", "boolean", "null"] },
                 "list": { "type": "boolean" },
+                "singleselect": { "type": "boolean" },
                 "linkedfield": { "type": "string" },
                 "savestyle": { "type": "string" },
                 "format": { "type": "string" },

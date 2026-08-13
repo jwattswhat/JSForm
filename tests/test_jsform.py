@@ -273,6 +273,17 @@ class TestControlCatalog(unittest.TestCase):
             self.assertIn('"ImagePickerCtrl"', text)
             self.assertIn('"maxbytes"', text)
 
+    def test_id_list_catalog_support_is_kept_in_code_and_both_schemas(self):
+        source = (ROOT / "clsField.py").read_text(encoding="utf-8-sig")
+        form_source = (ROOT / "clsForm.py").read_text(encoding="utf-8-sig")
+        self.assertIn("def SetCatalogRows(self, rows):", source)
+        self.assertIn("wx.LC_SINGLE_SEL", source)
+        self.assertIn("wx.EVT_LIST_ITEM_SELECTED", form_source)
+        for path in (ROOT / "schema" / "unified_schema.json", ROOT / "jsformschema.json"):
+            schema = json.loads(path.read_text(encoding="utf-8-sig"))
+            text = json.dumps(schema)
+            self.assertIn('"singleselect"', text)
+
     def test_both_schemas_allow_nonempty_tooltips(self):
         for schema_path in (
             ROOT / "schema" / "unified_schema.json",

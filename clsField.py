@@ -655,6 +655,8 @@ class clsField:
                 controldescription.update({"choices": choices})
 
             controldescription["style"] = wx.LC_REPORT
+            if controldescription.get("singleselect", False):
+                controldescription["style"] |= wx.LC_SINGLE_SEL
 
             super().__init__(
                 parent.PARENT.FORM,
@@ -662,12 +664,14 @@ class clsField:
                 **getcontrolparameters(controldescription),
             )
 
-            self.InsertColumn(
-                0,
-                controldescription["label"],
-                wx.LIST_FORMAT_LEFT,
-                controldescription["size"][0],
-            )
+            columns = controldescription.get("column") or [
+                {"label": controldescription.get("label", "Item"), "widthch": 20}
+            ]
+            for index, column in enumerate(columns):
+                self.InsertColumn(
+                    index, column.get("label", ""), wx.LIST_FORMAT_LEFT,
+                    JSForm.FONT.chtopt(column.get("widthch", 20)),
+                )
             if "choices" in controldescription:
                 for i in range(0, len(controldescription["choices"])):
                     self.InsertItem(i, controldescription["choices"][i])
@@ -675,6 +679,29 @@ class clsField:
             self.SetNormalColor()
 
             # clsListCtrl postprocess
+
+        def SetCatalogRows(self, rows):
+            """Populate an ID-backed, optionally colored multi-column catalog."""
+            self.DeleteAllItems()
+            self.choices.id = []
+            self.choices.display = []
+            self.choices.fielddata = []
+            for row_number, row in enumerate(rows):
+                row_id = row["id"]
+                values = [str(value) for value in row.get("values", [])]
+                if not values:
+                    values = [str(row_id)]
+                item = self.InsertItem(row_number, values[0])
+                for column, value in enumerate(values[1:], 1):
+                    self.SetItem(item, column, value)
+                foreground = row.get("foreground")
+                if foreground:
+                    self.SetItemTextColour(item, wx.Colour(foreground))
+                self.choices.id.append(row_id)
+                self.choices.display.append(values[0])
+                self.choices.fielddata.append(values)
+            if self.GetItemCount():
+                self.Select(0)
 
         def SetValue(self, value):
             #   clear all the selections
@@ -703,6 +730,8 @@ class clsField:
                 )
             if selecteditems == []:
                 return None
+            if self.CONTROLDESCRIPTION.get("singleselect", False):
+                return int(selecteditems[0])
             return selecteditems
 
     class clsCheckBox(wx.CheckBox, clsFieldExtra):
