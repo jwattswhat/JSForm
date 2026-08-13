@@ -19,6 +19,11 @@ def definition():
 
 
 class TestScreenDesignerModel(unittest.TestCase):
+    def test_buffered_canvas_declares_paint_background_style(self):
+        source = Path(__file__).resolve().parents[1].joinpath("screen_designer.py").read_text(encoding="utf-8")
+        constructor = source.split("class ScreenCanvas", 1)[1].split("def scale_x", 1)[0]
+        self.assertIn("SetBackgroundStyle(wx.BG_STYLE_PAINT)", constructor)
+
     def model(self): return ScreenDesignerModel(definition())
 
     def test_move_resize_and_round_trip_preserve_security(self):

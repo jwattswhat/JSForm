@@ -370,6 +370,7 @@ class ScreenCanvas(wx.ScrolledWindow):
         self.drag_start = None
         self.drag_geometry = None
         self.drag_mode = None
+        self.SetBackgroundStyle(wx.BG_STYLE_PAINT)
         self.SetBackgroundColour(wx.Colour(150, 150, 150))
         self.SetScrollRate(10, 10)
         self.Bind(wx.EVT_PAINT, self.on_paint)
