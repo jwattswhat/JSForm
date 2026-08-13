@@ -32,6 +32,8 @@ DEFAULT_SIZES = {
     "CheckListBox": [20, 6], "CheckListEdit": [20, 6],
     "CalendarCtrl": [22, 10], "HTMLCtrl": [24, 10], "JSON": [24, 8],
     "ImagePickerCtrl": [20, 4], "FilePickerCtrl": [20, 2],
+    "DatePickerCtrl": [18, 2], "TimePickerCtrl": [14, 2],
+    "DateTime": [32, 2],
 }
 LABEL_TYPES = {"StaticText", "StaticBox", "CheckBox", "Button"}
 PROTECTED_PROPERTIES = {"lookupchoices", "action", "security", "table"}

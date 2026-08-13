@@ -112,6 +112,10 @@ FORMColors = {
     "Normal": {"fcolor": "Black", "bcolor": "White"},
 }
 
+DATE_PICKER_SIZE = [130, -1]
+TIME_PICKER_SIZE = [115, -1]
+DATETIME_GAP = 2
+
 
 class clsField:
     """
@@ -976,7 +980,8 @@ class clsField:
         def __init__(self, parent, controldescription):
             super().init_field(parent, controldescription)
             description = self.CONTROLDESCRIPTION.copy()
-            size = list(description.get("size", [300, 28]))
+            requested_size = list(description.get("size", [247, 28]))
+            size = [DATE_PICKER_SIZE[0] + DATETIME_GAP + TIME_PICKER_SIZE[0], requested_size[1]]
             position = description.get("pos", wx.DefaultPosition)
             wx.Panel.__init__(
                 self, parent.PARENT.FORM, wx.ID_ANY, pos=position, size=size
@@ -993,17 +998,17 @@ class clsField:
             date_description = description.copy()
             date_description["type"] = "DatePickerCtrl"
             date_description["pos"] = [0, 0]
-            date_description["size"] = [max(120, int(size[0] * 0.6)), size[1]]
+            date_description["size"] = [DATE_PICKER_SIZE[0], size[1]]
             time_description = description.copy()
             time_description["type"] = "TimePickerCtrl"
             time_description["pos"] = [0, 0]
-            time_description["size"] = [max(90, size[0] - date_description["size"][0]), size[1]]
+            time_description["size"] = [TIME_PICKER_SIZE[0], size[1]]
 
             self.datefield = clsField.clsDatePickerCtrl(proxy, date_description)
             self.timefield = clsField.clsTimePickerCtrl(proxy, time_description)
             sizer = wx.BoxSizer(wx.HORIZONTAL)
-            sizer.Add(self.datefield, 3, wx.EXPAND)
-            sizer.Add(self.timefield, 2, wx.EXPAND | wx.LEFT, 2)
+            sizer.Add(self.datefield, 0, wx.EXPAND)
+            sizer.Add(self.timefield, 0, wx.EXPAND | wx.LEFT, DATETIME_GAP)
             self.SetSizer(sizer)
             self.SetMinSize(sizer.GetMinSize())
 
@@ -1059,6 +1064,8 @@ class clsField:
             super().init_field(parent, controldescription)
             controldescription = self.CONTROLDESCRIPTION.copy()
             initial_value = controldescription.pop("dt", None)
+            requested_size = list(controldescription.get("size", DATE_PICKER_SIZE))
+            controldescription["size"] = [DATE_PICKER_SIZE[0], requested_size[1]]
 
             # datepicker preprocess
             try:
@@ -1118,6 +1125,8 @@ class clsField:
             super().init_field(parent, controldescription)
             controldescription = self.CONTROLDESCRIPTION.copy()
             initial_value = controldescription.pop("dt", None)
+            requested_size = list(controldescription.get("size", TIME_PICKER_SIZE))
+            controldescription["size"] = [TIME_PICKER_SIZE[0], requested_size[1]]
 
             # timepicker preprocess
 
