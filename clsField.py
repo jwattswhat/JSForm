@@ -843,11 +843,14 @@ class clsField:
 
             self.columnnames = []
             for i in range(len(self.CONTROLDESCRIPTION["column"])):
-                width = JSForm.FONT.chtopt(
-                    self.CONTROLDESCRIPTION["column"][i]["widthch"]
+                column = self.CONTROLDESCRIPTION["column"][i]
+                width = (
+                    JSForm.FONT.chtopt(column["widthch"])
+                    if "widthch" in column
+                    else int(column.get("width", 100))
                 )
                 self.AppendTextColumn(
-                    label=self.CONTROLDESCRIPTION["column"][i]["label"],
+                    label=column["label"],
                     width=width,
                 )
                 self.columnnames.append(self.CONTROLDESCRIPTION["column"][i]["name"])

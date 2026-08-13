@@ -288,6 +288,11 @@ class TestControlCatalog(unittest.TestCase):
             text = json.dumps(schema)
             self.assertIn('"singleselect"', text)
 
+    def test_data_grid_accepts_legacy_pixel_and_character_column_widths(self):
+        source = (ROOT / "clsField.py").read_text(encoding="utf-8-sig")
+        self.assertIn('if "widthch" in column', source)
+        self.assertIn('column.get("width", 100)', source)
+
     def test_both_schemas_allow_nonempty_tooltips(self):
         for schema_path in (
             ROOT / "schema" / "unified_schema.json",
