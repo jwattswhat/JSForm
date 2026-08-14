@@ -68,6 +68,19 @@ def checked_value(value):
     return value is True or value == 1
 
 
+def checklist_state(value, configured_choices=()):
+    """Merge configured checklist items with a record's saved checked state."""
+    state = {str(choice): False for choice in configured_choices}
+    if value in (None, ""):
+        return state
+    saved = value if isinstance(value, dict) else json.loads(value)
+    if not isinstance(saved, dict):
+        raise ValueError("Checklist data must be a JSON object.")
+    for label, checked in saved.items():
+        state[str(label)] = checked_value(checked)
+    return state
+
+
 def value_sequence(value):
     if value is None:
         return []

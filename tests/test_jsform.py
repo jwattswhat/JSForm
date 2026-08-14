@@ -232,7 +232,7 @@ class TestControlValues(unittest.TestCase):
             normalized_json("not JSON")
 
     def test_boolean_and_scalar_list_normalization(self):
-        from control_values import checked_value, value_sequence
+        from control_values import checked_value, checklist_state, value_sequence
 
         for value in (True, 1, "1", "true", "YES", "on"):
             self.assertTrue(checked_value(value))
@@ -244,6 +244,14 @@ class TestControlValues(unittest.TestCase):
         self.assertEqual(value_sequence("[Sunday]"), ["Sunday"])
         self.assertEqual(value_sequence("1;3"), ["1", "3"])
         self.assertEqual(value_sequence('["A", "B"]'), ["A", "B"])
+        self.assertEqual(
+            checklist_state(None, ["Bulletin", "Hymns"]),
+            {"Bulletin": False, "Hymns": False},
+        )
+        self.assertEqual(
+            checklist_state('{"Bulletin":"True","One-time task":true}', ["Bulletin", "Hymns"]),
+            {"Bulletin": True, "Hymns": False, "One-time task": True},
+        )
 
     def test_date_time_inputs_accept_native_database_values(self):
         import datetime

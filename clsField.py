@@ -24,6 +24,7 @@ import wx.adv
 import wx.dataview
 import wx.html
 from JSForm.control_values import (
+    checklist_state,
     checked_value,
     datetime_value,
     multiline_text,
@@ -804,9 +805,9 @@ class clsField:
                 **getcontrolparameters(self.CONTROLDESCRIPTION),
             )
 
-            choices = self.choices.load_choices(controldescription)
-            if choices:
-                self.InsertItems(choices, 0)
+            self._configured_choices = tuple(self.choices.load_choices(controldescription) or ())
+            if self._configured_choices:
+                self.InsertItems(self._configured_choices, 0)
 
             self.SetNormalColor()
 
@@ -814,24 +815,15 @@ class clsField:
 
         def SetValue(self, value):
             self.Clear()
-            checklist = {}
-            if value not in (None, ""):
-                checklist = value if isinstance(value, dict) else json.loads(value)
-                try:
-                    self.InsertItems(list(checklist.keys()), 0)
-                except:
-                    checklist = {}
-
-            for check in checklist:
-                if checklist[check] is True or str(checklist[check]).lower() == "true":
-                    self.Check(self.FindString(check), True)
-                else:
-                    self.Check(self.FindString(check), False)
+            checklist = checklist_state(value, self._configured_choices)
+            if checklist:
+                self.InsertItems(list(checklist), 0)
+            for label, checked in checklist.items():
+                self.Check(self.FindString(label), checked)
 
         def GetValue(self):
             checklist = super().GetStrings()
             checked = super().GetCheckedStrings()
-            selected = super().GetSelections()
             di = {}
             for c in checklist:
                 if c in checked:
