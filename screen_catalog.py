@@ -6,12 +6,20 @@ import re
 import wx
 
 from JSForm.screen_definition import (
-    ScreenDefinitionLoader, save_screen_definition, screen_definitions_equal,
+    ScreenDefinitionLoader, save_screen_definition,
 )
 from JSForm.list_behavior import ListCtrlBehavior
+from JSForm.catalog_paths import CatalogDirectories
 
 
 SCREEN_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_]{1,63}$")
+
+
+def normalized_screen_name(name):
+    name = str(name or "").strip()
+    if name and not name.casefold().startswith("frm"):
+        name = "frm" + name[0].upper() + name[1:]
+    return name
 
 
 def display_screen_title(form_name, title):
@@ -26,6 +34,7 @@ class ScreenCatalogModel:
         self.user_directory = Path(user_directory)
         self.starters = Path(starters)
         self.loader = loader or ScreenDefinitionLoader()
+        self.directories = CatalogDirectories(self.user_directory, self.starters)
 
     def entries(self):
         self.user_directory.mkdir(parents=True, exist_ok=True)
@@ -37,17 +46,14 @@ class ScreenCatalogModel:
             starter = self.starters / filename
             selected = custom if custom.is_file() else starter
             try:
+                selected = self.directories.approved(selected)
                 definition = self.loader.load(selected)
             except Exception:
                 continue
-            customized = custom.is_file() and not starter.is_file()
-            if custom.is_file() and starter.is_file():
-                try:
-                    customized = not screen_definitions_equal(
-                        definition, self.loader.load(starter), ignore_theme=True,
-                    )
-                except Exception:
-                    customized = True
+            # A user file is itself a saved customization, even before its
+            # contents diverge from the starter. This makes Open Customizer
+            # visible and reversible immediately.
+            customized = custom.is_file()
             result.append({
                 "name": definition.form_name,
                 "title": display_screen_title(
@@ -63,13 +69,14 @@ class ScreenCatalogModel:
         return result
 
     def create_from(self, source, name, title):
-        name = name.strip()
+        name = normalized_screen_name(name)
         title = title.strip()
         if not SCREEN_NAME.fullmatch(name):
             raise ValueError("Screen name must start with a letter and use only letters, numbers, or underscores.")
         if not title:
             raise ValueError("Enter a screen title.")
-        target = self.user_directory / "{}.json".format(name)
+        source = self.directories.approved(source)
+        target = self.directories.user_target("{}.json".format(name))
         if target.exists() or (self.starters / target.name).exists():
             raise ValueError("A screen named {} already exists.".format(name))
         source_definition = self.loader.load(source)
@@ -82,7 +89,9 @@ class ScreenCatalogModel:
         return target
 
     def delete_customization(self, name):
-        path = self.user_directory / "{}.json".format(name)
+        path = self.directories.user_file(
+            self.user_directory / "{}.json".format(name)
+        )
         if not path.is_file():
             raise ValueError("This screen has no user customization to remove.")
         path.unlink()
@@ -97,7 +106,7 @@ class ScreenCatalogDialog(wx.Dialog):
         self.model = model
         self.open_handler = open_handler
         root = wx.BoxSizer(wx.VERTICAL)
-        heading = wx.StaticText(self, label="ChurchManager Screen Layouts")
+        heading = wx.StaticText(self, label="Screen Layouts")
         heading_font = heading.GetFont(); heading_font.SetPointSize(12); heading_font.SetWeight(wx.FONTWEIGHT_BOLD); heading.SetFont(heading_font)
         root.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP, 12)
         legend = wx.StaticText(self, label="Blue items have a saved customization. Starter screens remain available for recovery.")
@@ -170,9 +179,27 @@ class ScreenCatalogDialog(wx.Dialog):
             if title_dialog.ShowModal() != wx.ID_OK: return
             title = title_dialog.GetValue()
         finally: title_dialog.Destroy()
-        try: self.model.create_from(entry["path"], name, title)
-        except ValueError as error: wx.MessageBox(str(error), "Cannot create screen", wx.OK | wx.ICON_ERROR, self); return
-        self.refresh(name.strip())
+        try:
+            created = self.model.create_from(entry["path"], name, title)
+            if not created.is_file():
+                raise RuntimeError("The new screen file was not created.")
+            self.model.loader.load(created)
+        except Exception as error:
+            wx.MessageBox(str(error), "Cannot create screen", wx.OK | wx.ICON_ERROR, self)
+            return
+        new_name = created.stem
+        self.refresh(new_name)
+        created_entry = next(
+            (item for item in self.entries if item["name"].casefold() == new_name.casefold()),
+            None,
+        )
+        if created_entry is None:
+            wx.MessageBox(
+                "The screen was saved, but the catalog could not reload it.",
+                "New screen", wx.OK | wx.ICON_WARNING, self,
+            )
+            return
+        self.open_handler(created_entry)
 
     def on_restore(self, event):
         entry = self.selected()

@@ -3,11 +3,13 @@
 from copy import deepcopy
 from pathlib import Path
 import re
+import shutil
 
 import wx
 
 from JSForm.report_definition import ReportDefinitionLoader, save_report_definition
 from JSForm.list_behavior import ListCtrlBehavior
+from JSForm.catalog_paths import CatalogDirectories
 
 
 REPORT_CODE = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]{1,63}$")
@@ -18,18 +20,25 @@ class ReportCatalogModel:
         self.user_directory = Path(user_directory)
         self.starters = Path(starters)
         self.loader = loader or ReportDefinitionLoader()
+        self.directories = CatalogDirectories(self.user_directory, self.starters)
 
     def entries(self):
         self.user_directory.mkdir(parents=True, exist_ok=True)
         result = []
-        for path in sorted(self.user_directory.glob("*.json")):
+        names = {path.name for path in self.starters.glob("*.json")}
+        names.update(path.name for path in self.user_directory.glob("*.json"))
+        for filename in sorted(names, key=str.casefold):
+            custom = self.user_directory / filename
+            starter = self.starters / filename
+            path = custom if custom.is_file() else starter
             try:
+                path = self.directories.approved(path)
                 definition = self.loader.load(path)
             except Exception:
                 continue
-            starter = self.starters / path.name
-            customized = not starter.is_file()
-            if starter.is_file():
+            marker = custom.with_suffix(custom.suffix + ".custom")
+            customized = custom.is_file() and (marker.is_file() or not starter.is_file())
+            if custom.is_file() and starter.is_file() and not customized:
                 try:
                     customized = definition.to_dict() != self.loader.load(starter).to_dict()
                 except Exception:
@@ -37,9 +46,18 @@ class ReportCatalogModel:
             result.append({
                 "code": definition.report_id, "title": definition.title,
                 "path": path, "has_starter": starter.is_file(),
-                "customized": customized,
+                "customized": customized, "has_custom_file": custom.is_file(),
             })
         return result
+
+    def open_customization(self, entry):
+        source = self.directories.approved(entry["path"])
+        target = self.directories.user_target(source.name)
+        if not target.is_file():
+            shutil.copyfile(source, target)
+        self.loader.load(target)
+        target.with_suffix(target.suffix + ".custom").write_text("", encoding="utf-8")
+        return target
 
     def create_from(self, source, code, title):
         code = code.strip()
@@ -48,7 +66,8 @@ class ReportCatalogModel:
             raise ValueError("Report code must start with a letter and use only letters, numbers, dots, dashes, or underscores.")
         if not title:
             raise ValueError("Enter a report title.")
-        target = self.user_directory / f"{code}.json"
+        source = self.directories.approved(source)
+        target = self.directories.user_target(f"{code}.json")
         if target.exists():
             raise ValueError(f"A report named {code} already exists.")
         definition = self.loader.load(source)
@@ -62,27 +81,22 @@ class ReportCatalogModel:
         return target
 
     def delete(self, path):
-        path = Path(path)
-        if path.parent.resolve() != self.user_directory.resolve():
-            raise ValueError("Only user report definitions can be deleted.")
+        path = self.directories.user_file(path)
         path.unlink()
         backup = path.with_suffix(path.suffix + ".bak")
         if backup.exists():
             backup.unlink()
+        marker = path.with_suffix(path.suffix + ".custom")
+        if marker.exists():
+            marker.unlink()
 
     def delete_customization(self, entry):
-        path = Path(entry["path"])
-        if path.parent.resolve() != self.user_directory.resolve():
-            raise ValueError("Only user report definitions can be deleted.")
+        path = self.directories.user_file(entry["path"])
         starter = self.starters / path.name
         if starter.is_file():
             if not entry.get("customized"):
                 raise ValueError("This report is already using its starter definition.")
-            definition = self.loader.load(starter)
-            save_report_definition(definition, path)
-            backup = path.with_suffix(path.suffix + ".bak")
-            if backup.exists():
-                backup.unlink()
+            self.delete(path)
             return "starter"
         self.delete(path)
         return "deleted"
@@ -157,7 +171,13 @@ class ReportCatalogDialog(wx.Dialog):
     def on_open(self, event):
         entry = self.selected()
         if entry:
-            self.open_handler(entry["path"])
+            try:
+                path = self.model.open_customization(entry)
+            except Exception as error:
+                wx.MessageBox(str(error), "Cannot customize report", wx.OK | wx.ICON_ERROR, self)
+                return
+            self.refresh()
+            self.open_handler(path)
 
     def on_new(self, event):
         entry = self.selected()

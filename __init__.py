@@ -48,6 +48,7 @@ from JSForm.screen_designer import (
     open_screen_designer, open_screen_preview,
 )
 from JSForm.screen_catalog import ScreenCatalogModel, open_screen_catalog
+from JSForm.catalog_paths import CatalogDirectories, CatalogPathError
 from JSForm.security import (
     AllowAllAuthorizationPolicy, AuthorizationDenied, DenyAllAuthorizationPolicy,
     FormSecurity,

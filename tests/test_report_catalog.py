@@ -32,6 +32,28 @@ class TestReportCatalog(unittest.TestCase):
             model.delete(custom)
             self.assertEqual([item["code"] for item in model.entries()], ["CMMD01"])
 
+    def test_opening_starter_creates_and_marks_customization(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            users, starters = root / "users", root / "starters"
+            users.mkdir(); starters.mkdir()
+            definition = ReportDefinitionLoader().from_dict(valid_definition())
+            starter = starters / "CMMD01.json"
+            save_report_definition(definition, starter)
+            model = ReportCatalogModel(users, starters)
+            entry = model.entries()[0]
+            self.assertFalse(entry["customized"])
+            opened = model.open_customization(entry)
+            self.assertEqual(opened, (users / "CMMD01.json").resolve())
+            self.assertTrue(opened.is_file())
+            self.assertTrue(opened.with_suffix(".json.custom").is_file())
+            customized = model.entries()[0]
+            self.assertTrue(customized["customized"])
+            self.assertEqual(model.delete_customization(customized), "starter")
+            restored = model.entries()[0]
+            self.assertFalse(restored["customized"])
+            self.assertEqual(restored["path"], starter.resolve())
+
     def test_changed_working_copy_is_marked_customized(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

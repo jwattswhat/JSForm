@@ -166,7 +166,7 @@ is never silently converted to `NULL`.
 - Supply standard Save, Cancel, Close, and validation behavior.
 - Track parent and child windows so closing a parent safely closes its children.
 
-### 12. Starter and customization catalogs
+### 12. Starter and customization catalogs — implemented
 
 - Distinguish protected starters from user customizations.
 - Display customized entries consistently, including the established blue
