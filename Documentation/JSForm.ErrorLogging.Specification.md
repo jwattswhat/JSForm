@@ -1,8 +1,13 @@
 # JSForm centralized error logging and support package specification
 
-Status: Proposed for approval  
-Date: August 14, 2026  
-Framework owner: JSForm  
+Status: Approved
+
+Date: August 14, 2026
+
+Approved by: Rev. Jonathan C. Watt
+
+Framework owner: JSForm
+
 Application integration owner: Each JSForm application
 
 ## 1. Purpose
@@ -455,4 +460,3 @@ The feature is complete when:
 6. Add JSForm automated tests.
 7. Integrate with ChurchManager in a separate ChurchManager change.
 8. Perform deliberate failure tests and user acceptance.
-
