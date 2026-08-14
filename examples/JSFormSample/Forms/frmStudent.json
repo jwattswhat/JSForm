@@ -11,7 +11,7 @@
       "lblEmergencyPhone":{"name":"lblEmergencyPhone","type":"StaticText","label":"Emergency phone:","posch":[2,14]},
       "EmergencyPhone":{"name":"EmergencyPhone","type":"TextCtrl","format":"phone","maxlength":50,"posch":[16,14],"sizech":[18,2]},
       "lblRouteStopID":{"name":"lblRouteStopID","type":"StaticText","label":"Assigned stop:","posch":[2,18]},
-      "RouteStopID":{"name":"RouteStopID","type":"ComboBox","allowblank":true,"blanklabel":"No stop assigned","lookupchoices":{"name":"sb_route_stop","fields":["ID","StopName","StopTime"],"orderby":"StopName,StopTime"},"posch":[16,18],"sizech":[32,2]},
+      "RouteStopID":{"name":"RouteStopID","type":"ComboBox","lookupchoices":{"name":"sb_route_stop","fields":["ID","StopName","StopTime"],"orderby":"StopName,StopTime","allowblank":true,"blanklabel":"No stop assigned"},"posch":[16,18],"sizech":[32,2]},
       "Active":{"name":"Active","type":"CheckBox","label":"Active","posch":[16,22]},
       "lblNote":{"name":"lblNote","type":"StaticText","label":"Note:","posch":[2,26]},
       "Note":{"name":"Note","type":"MultiLine","posch":[16,26],"sizech":[32,5]}

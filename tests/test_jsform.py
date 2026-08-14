@@ -120,6 +120,43 @@ class TestChoiceRefresh(unittest.TestCase):
         finally:
             JSForm.clsSQL = original_sql
 
+    def test_lookup_works_without_optional_choices_table(self):
+        import JSForm
+        from clsChoice import clsChoice
+
+        class MissingTableError(Exception):
+            errno = 1146
+
+        class Cursor:
+            def execute(self, sql, _values=()):
+                if "tblChoices" in sql:
+                    raise MissingTableError()
+            def fetchall(self): return [(7, "Pine Valley Elementary")]
+            def close(self): pass
+
+        class Connection:
+            def cursor(self): return Cursor()
+
+        original_sql = JSForm.clsSQL
+        JSForm.clsSQL = lambda *_args: type("SQL", (), {"select": lambda self: "SELECT"})()
+        try:
+            choices = clsChoice(
+                Connection(),
+                {
+                    "name": "SchoolID",
+                    "lookupchoices": {
+                        "name": "sb_school", "fields": ["ID", "Name"],
+                    },
+                },
+            )
+            self.assertEqual(
+                choices.load_choices(choices.controldescription),
+                ["Pine Valley Elementary"],
+            )
+            self.assertEqual(choices.getchoiceid("Pine Valley Elementary"), 7)
+        finally:
+            JSForm.clsSQL = original_sql
+
 
 class TestControlValues(unittest.TestCase):
     def test_multiline_preserves_strings_and_joins_sequences(self):

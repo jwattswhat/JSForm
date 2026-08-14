@@ -117,7 +117,16 @@ class clsChoice:
         """
         cursor = self.dbconnection.cursor()
         marker = "%s" if cursor.__class__.__module__.startswith("mysql.connector") else "?"
-        cursor.execute("SELECT Choices FROM tblChoices WHERE Field={}".format(marker), (self.fieldname,))
+        try:
+            cursor.execute("SELECT Choices FROM tblChoices WHERE Field={}".format(marker), (self.fieldname,))
+        except Exception as error:
+            # tblChoices is an optional application-level convenience table.
+            # Standalone JSForm applications may rely entirely on literal or
+            # lookup-backed choices and should not be required to create it.
+            if getattr(error, "errno", None) == 1146:
+                cursor.close()
+                return None
+            raise
         row = cursor.fetchone()
         cursor.close()
         return None if row is None else parse_choice_values(row[0])
