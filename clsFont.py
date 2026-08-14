@@ -44,9 +44,19 @@ class clsFont:
                 case "Face":
                     self.fontdict.update({"faceName": f[1]})
                 case "Underline":
-                    self.fontdict.update({"underlined": int(f[1] == 1)})
+                    self.fontdict.update({"underlined": str(f[1]).strip().casefold() in {"1", "true", "yes"}})
 
-        self._currentfont = wx.Font(**self.fontdict)
+        # wxPython's Font overloads do not consistently accept the historic
+        # faceName/underlined keyword spellings.  Positional construction is
+        # supported across the wxPython versions used by JSForm applications.
+        self._currentfont = wx.Font(
+            self.fontdict.get("pointSize", 10),
+            self.fontdict.get("family", wx.FONTFAMILY_DEFAULT),
+            self.fontdict.get("style", wx.FONTSTYLE_NORMAL),
+            self.fontdict.get("weight", wx.FONTWEIGHT_NORMAL),
+            self.fontdict.get("underlined", False),
+            self.fontdict.get("faceName", ""),
+        )
         return self._currentfont
 
     def chtopt(self, ch):

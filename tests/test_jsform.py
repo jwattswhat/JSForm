@@ -176,6 +176,21 @@ class TestControlValues(unittest.TestCase):
         self.assertEqual(phone_display("+44 20 7946 0958"), "+44 20 7946 0958")
         self.assertEqual(phone_storage("+44 20 7946 0958"), "+44 20 7946 0958")
 
+    def test_configured_font_uses_portable_positional_constructor(self):
+        from unittest.mock import patch
+        from clsFont import clsFont
+
+        configured = type("Config", (), {"get_Config_Family": lambda _self, _name: (
+            ("PointSize", "10"), ("Family", "70"), ("Style", "90"),
+            ("Weight", "90"), ("Face", "Segoe UI"), ("Underline", "1"),
+        )})()
+        with patch("clsFont.JSForm.CONFIG", configured), patch("clsFont.wx.Font") as font:
+            instance = object.__new__(clsFont)
+            instance.fontdict = {}
+            instance._currentfont = None
+            instance.Get_Config_Font()
+        font.assert_called_once_with(10, 70, 90, 90, True, "Segoe UI")
+
     def test_numeric_types_preserve_null_and_return_python_numbers(self):
         from control_values import number_value
 
