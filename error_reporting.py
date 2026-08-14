@@ -34,6 +34,7 @@ class ErrorReportingConfig:
     jsform_version: str | None = None
     max_bytes: int = 2 * 1024 * 1024
     retained_files: int = 5
+    retention_days: int = 30
     context_keys: frozenset[str] = field(default_factory=lambda: frozenset(DEFAULT_CONTEXT_KEYS))
     safe_context_provider: Callable[[], Mapping[str, Any]] | None = None
     redactors: tuple[Callable[[str], str], ...] = ()
@@ -110,11 +111,24 @@ class ErrorReporter:
                 source.replace(self.log_path.with_suffix(f".jsonl.{number + 1}"))
         self.log_path.replace(self.log_path.with_suffix(".jsonl.1"))
 
+    def cleanup_expired_logs(self, now: datetime | None = None) -> None:
+        cutoff = (now or datetime.now(timezone.utc)).timestamp() - (self.config.retention_days * 86400)
+        try:
+            for path in self.log_directory.glob("errors.jsonl.*"):
+                try:
+                    if path.is_file() and path.stat().st_mtime < cutoff:
+                        path.unlink()
+                except OSError:
+                    continue
+        except OSError:
+            return
+
     def _write(self, record: Mapping[str, Any]) -> None:
         line = json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n"
         try:
             with self._lock:
                 self.log_directory.mkdir(parents=True, exist_ok=True)
+                self.cleanup_expired_logs()
                 self._rotate()
                 with self.log_path.open("a", encoding="utf-8", newline="") as stream:
                     stream.write(line)
@@ -139,6 +153,15 @@ class ErrorReporter:
             return display_id
         finally:
             self._reporting.active = False
+
+    def system_info(self) -> dict[str, Any]:
+        return {
+            "application_name": self.config.application_name,
+            "application_version": self.config.application_version,
+            "jsform_version": self.config.jsform_version,
+            "python_version": platform.python_version(),
+            "platform": f"{platform.system()} {platform.release()} {platform.machine()}",
+        }
 
 
 _REPORTER: ErrorReporter | None = None
@@ -201,3 +224,10 @@ def restore_error_hooks() -> None:
     if _ORIGINAL_THREAD_HOOK is not None:
         threading.excepthook = _ORIGINAL_THREAD_HOOK
         _ORIGINAL_THREAD_HOOK = None
+
+
+def create_support_package(destination, safe_diagnostics=None):
+    if _REPORTER is None:
+        raise RuntimeError("Error reporting is not configured.")
+    from JSForm.support_package import create_support_package as build_package
+    return build_package(_REPORTER, destination, safe_diagnostics=safe_diagnostics)

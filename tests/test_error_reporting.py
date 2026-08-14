@@ -6,6 +6,8 @@ import json
 import sys
 import tempfile
 import unittest
+import zipfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 from JSForm.error_redaction import REDACTED, redact_text, safe_context
@@ -13,6 +15,7 @@ from JSForm.error_reporting import (
     ErrorReporter, ErrorReportingConfig, configure_error_reporting,
     install_error_hooks, report_exception, restore_error_hooks,
 )
+from JSForm.support_package import create_support_package
 
 
 class ErrorRedactionTests(unittest.TestCase):
@@ -118,6 +121,59 @@ class ErrorReporterTests(unittest.TestCase):
             self.assertNotEqual(report_exception(RuntimeError("caught")), "ERR-NOT-CONFIGURED")
         restore_error_hooks()
         self.assertIs(sys.excepthook, original)
+
+    def test_expired_rotated_logs_are_removed(self):
+        with tempfile.TemporaryDirectory() as folder:
+            reporter = ErrorReporter(ErrorReportingConfig(
+                application_name="TestApplication",
+                log_directory=Path(folder),
+                retention_days=30,
+            ))
+            reporter.log_directory.mkdir(exist_ok=True)
+            expired = reporter.log_path.with_suffix(".jsonl.1")
+            expired.write_text("old", encoding="utf-8")
+            old = datetime(2020, 1, 1, tzinfo=timezone.utc).timestamp()
+            import os
+            os.utime(expired, (old, old))
+            reporter.cleanup_expired_logs(datetime(2026, 8, 14, tzinfo=timezone.utc))
+            self.assertFalse(expired.exists())
+
+    def test_support_package_is_verified_and_contains_only_approved_files(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            reporter = ErrorReporter(ErrorReportingConfig(
+                application_name="TestApplication",
+                application_version="1.2.3",
+                log_directory=root / "logs",
+            ))
+            reporter.report(RuntimeError("fictional"))
+            destination = root / "support.zip"
+            result = create_support_package(
+                reporter, destination,
+                safe_diagnostics={"database_scope": "test"},
+            )
+            self.assertEqual(result, destination)
+            with zipfile.ZipFile(destination) as archive:
+                names = set(archive.namelist())
+                self.assertEqual(names, {
+                    "application-diagnostics.json", "logs/errors.jsonl",
+                    "manifest.json", "system-info.json",
+                })
+                manifest = json.loads(archive.read("manifest.json"))
+                self.assertEqual(len(manifest["files"]), 3)
+                self.assertIsNone(archive.testzip())
+
+    def test_support_package_does_not_overwrite_existing_destination(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            reporter = ErrorReporter(ErrorReportingConfig(
+                application_name="TestApplication", log_directory=root / "logs",
+            ))
+            destination = root / "support.zip"
+            destination.write_bytes(b"keep")
+            with self.assertRaises(FileExistsError):
+                create_support_package(reporter, destination)
+            self.assertEqual(destination.read_bytes(), b"keep")
 
 
 if __name__ == "__main__":

@@ -56,10 +56,11 @@ from JSForm.layout_engine import (
     frame_position, grouped_controls, layout_spacing, supports_responsive_layout,
 )
 from JSForm.error_reporting import (
-    ErrorReporter, ErrorReportingConfig, configure_error_reporting,
+    ErrorReporter, ErrorReportingConfig, configure_error_reporting, create_support_package,
     current_error_reporter, install_error_hooks, report_exception,
     restore_error_hooks,
 )
+from JSForm.error_dialog import show_error_dialog, show_error_dialog_threadsafe
 
 from JSForm.fnUtil import convertNavButtons, charactertopoint, date_to_datetime, next_weekday, sql_table_exists, check_internetconnection
 from JSForm.fnReport import RunReport, prepare_lime_report_template
