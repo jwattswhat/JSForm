@@ -1,0 +1,15 @@
+{
+  "frmBusFORM": {
+    "FORM":{"name":"frmBus","type":"Panel","title":"Buses","posch":[-1,-1],"sizech":[46,28],"stylelist":["CAPTION"],"table":{"name":"sb_bus","fields":["*"],"orderby":"BusNumber"}},
+    "CONTROLS":{
+      "lblBusNumber":{"name":"lblBusNumber","type":"StaticText","label":"Bus number:","posch":[2,2]},
+      "BusNumber":{"name":"BusNumber","type":"TextCtrl","required":true,"maxlength":20,"posch":[15,2],"sizech":[14,2]},
+      "lblCapacity":{"name":"lblCapacity","type":"StaticText","label":"Capacity:","posch":[2,6]},
+      "Capacity":{"name":"Capacity","type":"TextNumber","required":true,"posch":[15,6],"sizech":[10,2]},
+      "Accessible":{"name":"Accessible","type":"CheckBox","label":"Wheelchair accessible","posch":[15,10]},
+      "Active":{"name":"Active","type":"CheckBox","label":"Active","posch":[15,14]},
+      "lblNote":{"name":"lblNote","type":"StaticText","label":"Note:","posch":[2,18]},
+      "Note":{"name":"Note","type":"MultiLine","posch":[15,18],"sizech":[25,5]}
+    }
+  }
+}

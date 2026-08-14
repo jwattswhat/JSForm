@@ -1,0 +1,20 @@
+{
+  "frmDriverFORM": {
+    "FORM":{"name":"frmDriver","type":"Panel","title":"Drivers","posch":[-1,-1],"sizech":[55,35],"stylelist":["CAPTION"],"table":{"name":"sb_driver","fields":["*"],"orderby":"LastName,FirstName"}},
+    "CONTROLS":{
+      "lblFirstName":{"name":"lblFirstName","type":"StaticText","label":"First name:","posch":[2,2]},
+      "FirstName":{"name":"FirstName","type":"TextCtrl","required":true,"maxlength":60,"posch":[14,2],"sizech":[22,2]},
+      "lblLastName":{"name":"lblLastName","type":"StaticText","label":"Last name:","posch":[2,6]},
+      "LastName":{"name":"LastName","type":"TextCtrl","required":true,"maxlength":60,"posch":[14,6],"sizech":[22,2]},
+      "lblPhone":{"name":"lblPhone","type":"StaticText","label":"Phone:","posch":[2,10]},
+      "Phone":{"name":"Phone","type":"TextCtrl","format":"phone","maxlength":50,"posch":[14,10],"sizech":[18,2]},
+      "lblEmail":{"name":"lblEmail","type":"StaticText","label":"Email:","posch":[2,14]},
+      "Email":{"name":"Email","type":"TextCtrl","maxlength":254,"posch":[14,14],"sizech":[30,2]},
+      "lblHireDate":{"name":"lblHireDate","type":"StaticText","label":"Hire date:","posch":[2,18]},
+      "HireDate":{"name":"HireDate","type":"DatePickerCtrl","stylelist":["ALLOWNONE"],"posch":[14,18],"sizech":[14,2]},
+      "Active":{"name":"Active","type":"CheckBox","label":"Active","posch":[32,18]},
+      "lblNote":{"name":"lblNote","type":"StaticText","label":"Note:","posch":[2,22]},
+      "Note":{"name":"Note","type":"MultiLine","posch":[14,22],"sizech":[30,7]}
+    }
+  }
+}

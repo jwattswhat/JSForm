@@ -1,0 +1,23 @@
+{
+  "frmRouteFORM": {
+    "FORM":{"name":"frmRoute","type":"Panel","title":"Routes","posch":[-1,-1],"sizech":[58,38],"stylelist":["CAPTION"],"table":{"name":"sb_route","fields":["*"],"orderby":"Name,TripType"},"linkedform":{"frmRouteStop":{"name":"frmRouteStop","type":"Panel","controls":["Navigation","New","Update","Delete","Close"],"table":{"name":"sb_route_stop","fields":["*"],"condition":"RouteID = {ID}","orderby":"SequenceNumber"},"readonlyfields":["RouteID"],"fillonblank":["RouteID","ID"],"bindbtn":"btnStops"}}},
+    "CONTROLS":{
+      "lblSchoolID":{"name":"lblSchoolID","type":"StaticText","label":"School:","posch":[2,2]},
+      "SchoolID":{"name":"SchoolID","type":"ComboBox","required":true,"lookupchoices":{"name":"sb_school","fields":["ID","Name"],"orderby":"Name"},"posch":[14,2],"sizech":[28,2]},
+      "lblName":{"name":"lblName","type":"StaticText","label":"Route name:","posch":[2,6]},
+      "Name":{"name":"Name","type":"TextCtrl","required":true,"maxlength":100,"posch":[14,6],"sizech":[28,2]},
+      "lblTripType":{"name":"lblTripType","type":"StaticText","label":"Trip:","posch":[2,10]},
+      "TripType":{"name":"TripType","type":"ComboBox","required":true,"choices":["Morning","Afternoon"],"posch":[14,10],"sizech":[16,2]},
+      "lblBusID":{"name":"lblBusID","type":"StaticText","label":"Bus:","posch":[2,14]},
+      "BusID":{"name":"BusID","type":"ComboBox","allowblank":true,"blanklabel":"No bus assigned","lookupchoices":{"name":"sb_bus","fields":["ID","BusNumber"],"orderby":"BusNumber"},"posch":[14,14],"sizech":[20,2]},
+      "lblDriverID":{"name":"lblDriverID","type":"StaticText","label":"Driver:","posch":[2,18]},
+      "DriverID":{"name":"DriverID","type":"ComboBox","allowblank":true,"blanklabel":"No driver assigned","lookupchoices":{"name":"sb_driver","fields":["ID","FirstName","LastName"],"orderby":"LastName,FirstName"},"posch":[14,18],"sizech":[28,2]},
+      "lblStartTime":{"name":"lblStartTime","type":"StaticText","label":"Start time:","posch":[2,22]},
+      "StartTime":{"name":"StartTime","type":"TimePickerCtrl","posch":[14,22],"sizech":[14,2]},
+      "Active":{"name":"Active","type":"CheckBox","label":"Active","posch":[32,22]},
+      "lblNote":{"name":"lblNote","type":"StaticText","label":"Note:","posch":[2,26]},
+      "Note":{"name":"Note","type":"MultiLine","posch":[14,26],"sizech":[28,5]},
+      "btnStops":{"name":"btnStops","type":"Button","label":"Route Stops","action":["openlinkedform","frmRouteStop"],"posch":[44,6],"sizech":[11,3]}
+    }
+  }
+}

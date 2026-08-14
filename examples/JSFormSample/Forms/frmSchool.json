@@ -1,0 +1,14 @@
+{
+  "frmSchoolFORM": {
+    "FORM":{"name":"frmSchool","type":"Panel","title":"Schools","posch":[-1,-1],"sizech":[48,25],"stylelist":["CAPTION"],"table":{"name":"sb_school","fields":["*"],"orderby":"Name"}},
+    "CONTROLS":{
+      "lblName":{"name":"lblName","type":"StaticText","label":"School name:","posch":[2,2]},
+      "Name":{"name":"Name","type":"TextCtrl","required":true,"maxlength":120,"posch":[14,2],"sizech":[28,2]},
+      "lblPhone":{"name":"lblPhone","type":"StaticText","label":"Phone:","posch":[2,6]},
+      "Phone":{"name":"Phone","type":"TextCtrl","format":"phone","maxlength":50,"posch":[14,6],"sizech":[18,2]},
+      "lblAddress":{"name":"lblAddress","type":"StaticText","label":"Address:","posch":[2,10]},
+      "Address":{"name":"Address","type":"TextCtrl","maxlength":180,"posch":[14,10],"sizech":[28,2]},
+      "Active":{"name":"Active","type":"CheckBox","label":"Active","posch":[14,14]}
+    }
+  }
+}

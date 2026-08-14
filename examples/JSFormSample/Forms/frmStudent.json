@@ -1,0 +1,20 @@
+{
+  "frmStudentFORM": {
+    "FORM":{"name":"frmStudent","type":"Panel","title":"Students","posch":[-1,-1],"sizech":[58,35],"stylelist":["CAPTION"],"table":{"name":"sb_student","fields":["*"],"orderby":"LastName,FirstName"}},
+    "CONTROLS":{
+      "lblFirstName":{"name":"lblFirstName","type":"StaticText","label":"First name:","posch":[2,2]},
+      "FirstName":{"name":"FirstName","type":"TextCtrl","required":true,"maxlength":60,"posch":[16,2],"sizech":[22,2]},
+      "lblLastName":{"name":"lblLastName","type":"StaticText","label":"Last name:","posch":[2,6]},
+      "LastName":{"name":"LastName","type":"TextCtrl","required":true,"maxlength":60,"posch":[16,6],"sizech":[22,2]},
+      "lblGrade":{"name":"lblGrade","type":"StaticText","label":"Grade:","posch":[2,10]},
+      "Grade":{"name":"Grade","type":"ComboBox","choices":["K","1","2","3","4","5","6","7","8"],"posch":[16,10],"sizech":[10,2]},
+      "lblEmergencyPhone":{"name":"lblEmergencyPhone","type":"StaticText","label":"Emergency phone:","posch":[2,14]},
+      "EmergencyPhone":{"name":"EmergencyPhone","type":"TextCtrl","format":"phone","maxlength":50,"posch":[16,14],"sizech":[18,2]},
+      "lblRouteStopID":{"name":"lblRouteStopID","type":"StaticText","label":"Assigned stop:","posch":[2,18]},
+      "RouteStopID":{"name":"RouteStopID","type":"ComboBox","allowblank":true,"blanklabel":"No stop assigned","lookupchoices":{"name":"sb_route_stop","fields":["ID","StopName","StopTime"],"orderby":"StopName,StopTime"},"posch":[16,18],"sizech":[32,2]},
+      "Active":{"name":"Active","type":"CheckBox","label":"Active","posch":[16,22]},
+      "lblNote":{"name":"lblNote","type":"StaticText","label":"Note:","posch":[2,26]},
+      "Note":{"name":"Note","type":"MultiLine","posch":[16,26],"sizech":[32,5]}
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "frmSampleMainFORM": {
+    "FORM": {"name":"frmSampleMain","type":"Panel","title":"JSForm Sample - Pine Valley Bus Routes","posch":[-1,-1],"sizech":[48,25],"stylelist":["CAPTION","CLOSEBOX"]},
+    "CONTROLS": {
+      "Heading":{"name":"Heading","type":"StaticText","label":"Pine Valley School Bus Routes","posch":[2,2]},
+      "Introduction":{"name":"Introduction","type":"StaticText","label":"A small fictional application built only with JSForm.","posch":[2,4]},
+      "btnSchools":{"name":"btnSchools","type":"Button","label":"Schools","posch":[3,8],"sizech":[16,3]},
+      "btnDrivers":{"name":"btnDrivers","type":"Button","label":"Drivers","posch":[23,8],"sizech":[16,3]},
+      "btnBuses":{"name":"btnBuses","type":"Button","label":"Buses","posch":[3,13],"sizech":[16,3]},
+      "btnRoutes":{"name":"btnRoutes","type":"Button","label":"Routes and Stops","posch":[23,13],"sizech":[16,3]},
+      "btnStudents":{"name":"btnStudents","type":"Button","label":"Students","posch":[3,18],"sizech":[16,3]}
+    }
+  }
+}
