@@ -26,8 +26,14 @@ class SampleApplicationTests(unittest.TestCase):
             self.assertNotIn(forbidden, source)
 
     def test_launcher_and_setup_compile(self):
-        for name in ("app.py", "setup_sample.py", "route_manifest.py"):
+        for name in ("app.py", "setup_sample.py", "route_manifest.py", "sample_tools.py"):
             ast.parse((SAMPLE / name).read_text(encoding="utf-8"), filename=name)
+
+    def test_mail_sample_is_preview_only(self):
+        source = (SAMPLE / "sample_tools.py").read_text(encoding="utf-8")
+        self.assertIn("Fake Mail Preview", source)
+        self.assertNotIn("SMTPTransport", source)
+        self.assertNotIn(".send(", source)
 
     def test_route_manifest_is_a_valid_native_report(self):
         definition = ReportDefinitionLoader().load(SAMPLE / "Reports" / "SBRT01.json")
