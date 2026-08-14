@@ -4,9 +4,16 @@ from __future__ import annotations
 
 import argparse
 import getpass
+import sys
 from pathlib import Path
 
+import mariadb
 import mysql.connector
+
+PACKAGE_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PACKAGE_ROOT.parent))
+
+from JSForm.windows_credentials import read_credential
 
 
 def statements(text):
@@ -20,19 +27,28 @@ def main():
     parser.add_argument("--database", default="JSFormSample")
     parser.add_argument("--sample-user", default="jsform_sample")
     parser.add_argument(
+        "--admin-credential-target",
+        help="read the MariaDB administrator login from a named Windows credential",
+    )
+    parser.add_argument(
         "--password-only", action="store_true",
         help="reset only the sample database login password; preserve all data",
     )
     args = parser.parse_args()
     if args.database != "JSFormSample" or args.sample_user != "jsform_sample":
         raise SystemExit("The sample installer uses the fixed isolated database and account names.")
-    admin_password = getpass.getpass("MariaDB administrative password for {}: ".format(args.admin_user))
+    if args.admin_credential_target:
+        stored_user, admin_password = read_credential(args.admin_credential_target)
+        if stored_user != args.admin_user:
+            raise SystemExit("The stored administrative username does not match --admin-user.")
+    else:
+        admin_password = getpass.getpass("MariaDB administrative password for {}: ".format(args.admin_user))
     try:
-        admin = mysql.connector.connect(
+        admin = mariadb.connect(
             host=args.server, user=args.admin_user, password=admin_password,
         )
-    except mysql.connector.Error as error:
-        if error.errno == 1045:
+    except mariadb.Error as error:
+        if getattr(error, "errno", None) == 1045:
             raise SystemExit(
                 "The MariaDB administrative password was not accepted. "
                 "No sample password or data was changed."
@@ -49,11 +65,11 @@ def main():
             cursor.execute("CREATE DATABASE IF NOT EXISTS JSFormSample CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
             for host in ("localhost", "127.0.0.1"):
                 cursor.execute(
-                    "CREATE USER IF NOT EXISTS 'jsform_sample'@'{}' IDENTIFIED BY %s".format(host),
+                    "CREATE USER IF NOT EXISTS 'jsform_sample'@'{}' IDENTIFIED BY ?".format(host),
                     (sample_password,),
                 )
                 cursor.execute(
-                    "ALTER USER 'jsform_sample'@'{}' IDENTIFIED BY %s".format(host),
+                    "ALTER USER 'jsform_sample'@'{}' IDENTIFIED BY ?".format(host),
                     (sample_password,),
                 )
                 cursor.execute("GRANT ALL PRIVILEGES ON JSFormSample.* TO 'jsform_sample'@'{}'".format(host))

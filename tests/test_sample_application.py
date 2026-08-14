@@ -69,6 +69,7 @@ class SampleApplicationTests(unittest.TestCase):
         self.assertIn("GRANT ALL PRIVILEGES ON JSFormSample.*", installer)
         self.assertIn('default="localhost"', installer)
         self.assertNotIn('default="church"', launcher)
+        self.assertIn("admin = mariadb.connect", installer)
 
     def test_sample_retries_a_mistyped_database_password(self):
         launcher = (SAMPLE / "app.py").read_text(encoding="utf-8")
@@ -85,10 +86,12 @@ class SampleApplicationTests(unittest.TestCase):
             installer.index("schema.sql"),
         )
         self.assertLess(
-            installer.index("admin = mysql.connector.connect"),
+            installer.index("admin = mariadb.connect"),
             installer.index('Choose a password for jsform_sample'),
         )
         self.assertIn("No sample password or data was changed", installer)
+        self.assertIn('"--admin-credential-target"', installer)
+        self.assertIn("read_credential(args.admin_credential_target)", installer)
 
     def test_every_sample_form_loads_and_root_name_matches_filename(self):
         loader = FormDefinitionLoader(FORMS, FORMS)
