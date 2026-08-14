@@ -1,5 +1,8 @@
 # JSForm School Bus Sample
 
+Current sample version: `0.1.0-dev` (maintained independently from the JSForm
+framework version).
+
 A deliberately small demonstration application for JSForm. It uses fictional
 Pine Valley School District data in its own local `JSFormSample` database.
 

@@ -16,6 +16,7 @@ import wx
 import JSForm
 from route_manifest import show_route_manifest
 from sample_tools import show_diagnostics, show_mail_preview
+from version import __version__ as SAMPLE_VERSION
 
 
 FORMS = Path(__file__).with_name("Forms")
@@ -31,7 +32,9 @@ ROUTES = {
 
 def arguments(argv=None):
     parser = argparse.ArgumentParser(
-        description="JSForm {} School Bus Sample".format(JSForm.__version__)
+        description="JSForm School Bus Sample {} using JSForm {}".format(
+            SAMPLE_VERSION, JSForm.__version__,
+        )
     )
     parser.add_argument("--server", default="127.0.0.1")
     parser.add_argument("--database", default="JSFormSample")
@@ -57,7 +60,7 @@ def main(argv=None):
     )
     JSForm.configure_error_reporting(
         application_name="JSFormSample",
-        application_version="0.1.0-dev",
+        application_version=SAMPLE_VERSION,
         error_id_prefix="JSS",
         safe_context_provider=lambda: {
             "application_mode": "sample", "database_scope": "isolated_sample",
@@ -93,7 +96,9 @@ def main(argv=None):
         lambda _event: show_mail_preview(main_form.FRAME, database.DBConnection),
     )
     main_form.FRAME.SetTitle(
-        "JSForm Sample 0.1.0-dev - School Bus Routes - {}".format(settings.database)
+        "JSForm Sample {} - School Bus Routes - {}".format(
+            SAMPLE_VERSION, settings.database,
+        )
     )
     main_form.show()
     wx_app.MainLoop()

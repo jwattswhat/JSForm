@@ -26,8 +26,14 @@ class SampleApplicationTests(unittest.TestCase):
             self.assertNotIn(forbidden, source)
 
     def test_launcher_and_setup_compile(self):
-        for name in ("app.py", "setup_sample.py", "route_manifest.py", "sample_tools.py"):
+        for name in ("app.py", "setup_sample.py", "route_manifest.py", "sample_tools.py", "version.py"):
             ast.parse((SAMPLE / name).read_text(encoding="utf-8"), filename=name)
+
+    def test_sample_has_an_independent_semantic_version(self):
+        source = (SAMPLE / "version.py").read_text(encoding="utf-8")
+        self.assertIn('__version__ = "0.1.0-dev"', source)
+        launcher = (SAMPLE / "app.py").read_text(encoding="utf-8")
+        self.assertIn("SAMPLE_VERSION", launcher)
 
     def test_mail_sample_is_preview_only(self):
         source = (SAMPLE / "sample_tools.py").read_text(encoding="utf-8")
