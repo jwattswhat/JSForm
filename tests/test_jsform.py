@@ -422,11 +422,17 @@ class TestControlCatalog(unittest.TestCase):
         self.assertIn("return bytes(value)", source)
         self.assertIn("path.read_bytes()", source)
         self.assertNotIn("path.read_text()", source)
+        self.assertIn('self._show_placeholder("Image unavailable")', source)
+        self.assertNotIn("self._value = None\n                self._show_placeholder()", source)
+        self.assertIn('get("allowupscale", False)', source)
+        self.assertIn('get("maxpixels", 20_000_000)', source)
         for path in (ROOT / "schema" / "unified_schema.json", ROOT / "jsformschema.json"):
             schema = json.loads(path.read_text(encoding="utf-8-sig"))
             text = json.dumps(schema)
             self.assertIn('"ImagePickerCtrl"', text)
             self.assertIn('"maxbytes"', text)
+            self.assertIn('"maxpixels"', text)
+            self.assertIn('"allowupscale"', text)
 
     def test_id_list_catalog_support_is_kept_in_code_and_both_schemas(self):
         source = (ROOT / "clsField.py").read_text(encoding="utf-8-sig")

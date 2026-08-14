@@ -131,6 +131,12 @@ Applications remain responsible for supplying status fields and summary values.
 
 ### 8. Image and database-blob control
 
+Implemented. `ImagePickerCtrl` preserves database bytes, supports choose,
+preview, replace, remove, and read-only display, retains aspect ratio, responds
+to resizing, avoids enlargement unless requested, and enforces configurable
+byte and pixel limits. Unsupported stored data displays a safe placeholder and
+is never silently converted to `NULL`.
+
 - Display an image stored as database bytes.
 - Choose, preview, replace, and remove an image safely.
 - Preserve aspect ratio and provide predictable scaling and size limits.

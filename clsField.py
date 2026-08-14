@@ -1327,6 +1327,7 @@ class clsField:
             self.remove_button = wx.Button(self, wx.ID_ANY, label="Remove")
             self.choose_button.Bind(wx.EVT_BUTTON, self._choose_image)
             self.remove_button.Bind(wx.EVT_BUTTON, self._remove_image)
+            self.Bind(wx.EVT_SIZE, self._on_size)
 
             buttons = wx.BoxSizer(wx.HORIZONTAL)
             buttons.Add(self.choose_button, 0, wx.RIGHT, 6)
@@ -1364,14 +1365,13 @@ class clsField:
         def GetValue(self):
             return self._value
 
-        def _show_placeholder(self):
+        def _show_placeholder(self, text="No image selected"):
             width, height = self._preview_size()
             bitmap = wx.Bitmap(max(width, 1), max(height, 1))
             dc = wx.MemoryDC(bitmap)
             dc.SetBackground(wx.Brush(wx.Colour(245, 245, 245)))
             dc.Clear()
             dc.SetTextForeground(wx.Colour(100, 100, 100))
-            text = "No image selected"
             text_width, text_height = dc.GetTextExtent(text)
             dc.DrawText(text, max((width - text_width) // 2, 0), max((height - text_height) // 2, 0))
             dc.SelectObject(wx.NullBitmap)
@@ -1393,14 +1393,32 @@ class clsField:
                     raise ValueError("The stored data is not a supported image.")
                 width, height = self._preview_size()
                 scale = min(width / image.GetWidth(), height / image.GetHeight())
+                if not self.CONTROLDESCRIPTION.get("allowupscale", False):
+                    scale = min(scale, 1.0)
                 scaled_width = max(1, int(image.GetWidth() * scale))
                 scaled_height = max(1, int(image.GetHeight() * scale))
                 image.Rescale(scaled_width, scaled_height, wx.IMAGE_QUALITY_HIGH)
                 self.preview.SetBitmap(wx.Bitmap(image))
                 self.remove_button.Enable(self.IsEnabled())
             except (TypeError, ValueError, RuntimeError):
-                self._value = None
-                self._show_placeholder()
+                # Preserve the original database bytes. A damaged or unsupported
+                # image must not silently become NULL when another field is saved.
+                self._show_placeholder("Image unavailable")
+
+        def _validate_dimensions(self, image):
+            maximum_pixels = int(
+                self.CONTROLDESCRIPTION.get("maxpixels", 20_000_000)
+            )
+            pixels = int(image.GetWidth()) * int(image.GetHeight())
+            if pixels > maximum_pixels:
+                raise ValueError(
+                    "The image dimensions are too large. The maximum is "
+                    "{:,} pixels.".format(maximum_pixels)
+                )
+
+        def _on_size(self, event):
+            event.Skip()
+            wx.CallAfter(self._refresh_preview)
 
         def _choose_image(self, event):
             wildcard = self.CONTROLDESCRIPTION.get("wildcard", self.DEFAULT_WILDCARD)
@@ -1428,6 +1446,7 @@ class clsField:
                 image = wx.Image(io.BytesIO(value))
                 if not image.IsOk():
                     raise ValueError("Unsupported or damaged image file")
+                self._validate_dimensions(image)
                 self._value = value
                 self._refresh_preview()
             except (OSError, ValueError) as error:
