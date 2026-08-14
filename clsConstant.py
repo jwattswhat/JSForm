@@ -1,3 +1,5 @@
+"""Define JSForm constants, standard control names, and allowed parameters."""
+
 import wx
 from JSForm.version import __version__
 '''

@@ -1,3 +1,5 @@
+"""Read and write application options exposed through the JSForm runtime."""
+
 import mysql
 import mysql.connector
 

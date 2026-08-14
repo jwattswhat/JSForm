@@ -1,3 +1,5 @@
+"""Provide compatibility scheduling helpers for older JSForm applications."""
+
 import mysql
 import datetime
 

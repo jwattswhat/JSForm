@@ -5,11 +5,15 @@ from types import MappingProxyType
 
 
 class ReportDatasetError(ValueError):
+    """Raised when report data or bindings violate their declared contract."""
+
     pass
 
 
 @dataclass(frozen=True)
 class ReportField:
+    """Declare one approved report field and its sensitivity classification."""
+
     name: str
     label: str
     data_type: str = "text"
@@ -18,6 +22,8 @@ class ReportField:
 
 @dataclass(frozen=True)
 class ReportCollection:
+    """Declare a named group of report rows and its optional parent relation."""
+
     name: str
     label: str
     fields: tuple[ReportField, ...]
@@ -30,6 +36,8 @@ class ReportCollection:
 
 @dataclass(frozen=True)
 class ReportDatasetContract:
+    """Versioned allow-list against which a report definition is validated."""
+
     name: str
     version: int
     required_permission: str
@@ -99,6 +107,8 @@ class ReportDatasetContract:
 
 @dataclass(frozen=True)
 class ReportDataset:
+    """Immutable report data that has passed a dataset contract."""
+
     contract: ReportDatasetContract
     collections: MappingProxyType
 

@@ -1,3 +1,5 @@
+"""Preserve the historical SMTP facade; new applications use mail_service."""
+
 import yagmail
 
 import JSForm

@@ -1,3 +1,5 @@
+"""Read and write framework configuration values stored by an application."""
+
 import mysql
 import mysql.connector
 from JSForm import clsDB

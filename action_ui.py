@@ -10,6 +10,8 @@ import wx
 
 @dataclass(frozen=True)
 class Action:
+    """Describe one command shared by an action bar and optional menu."""
+
     name: str
     label: str
     handler: object
@@ -65,6 +67,7 @@ def install_action_menu(frame, title, actions, menu_bar=None):
 
 
 def destructive_confirmation_message(subject, *, consequence="", dependent_count=0, dependent_label="dependent record"):
+    """Build a consistent warning that identifies deletion consequences."""
     message = "Delete {}?".format(subject)
     if dependent_count:
         label = dependent_label if dependent_count == 1 else dependent_label + "s"
@@ -78,6 +81,7 @@ def confirm_destructive_action(
     parent, subject, *, title="Confirm deletion", consequence="",
     dependent_count=0, dependent_label="dependent record",
 ):
+    """Ask for explicit confirmation and return whether deletion was approved."""
     return wx.MessageBox(
         destructive_confirmation_message(
             subject, consequence=consequence, dependent_count=dependent_count,

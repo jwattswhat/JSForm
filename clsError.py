@@ -1,3 +1,5 @@
+"""Provide the historical JSForm error namespace and wxPython error handler."""
+
 import wx
 import JSForm
 class clsErrorNameSpace:

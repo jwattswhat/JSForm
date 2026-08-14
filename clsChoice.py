@@ -1,3 +1,5 @@
+"""Load literal, shared, and database-backed choices for JSForm controls."""
+
 import json
 
 import mysql

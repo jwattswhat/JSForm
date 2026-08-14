@@ -1,0 +1,80 @@
+# JSForm
+
+JSForm is a Python and wxPython framework for building MariaDB/MySQL desktop
+applications from JSON screen definitions. It supplies database-backed fields,
+record navigation, validation, responsive layouts, visual screen and report
+designers, PDF reporting, background operations, and support diagnostics.
+
+The repository includes the deliberately small **School Bus Routes** sample in
+[`examples/JSFormSample`](examples/JSFormSample/README.md). It is the preferred
+place to learn or verify framework behavior without ChurchManager data or
+security.
+
+## Project status
+
+The current development version is defined in [`version.py`](version.py).
+JSForm is under active pre-release development and its public APIs may still
+change. New applications should use the documented APIs and JSON schema rather
+than depending on implementation details.
+
+## Requirements
+
+- Python 3.10 or a compatible newer Python 3 release
+- wxPython
+- MariaDB or MySQL
+- The packages in [`requirements.txt`](requirements.txt)
+
+Create a fresh virtual environment rather than copying one from another
+computer. From the repository's parent directory, applications can import the
+framework with `import JSForm`.
+
+## Quick start
+
+The sample application has isolated setup and run instructions:
+
+```powershell
+python examples\JSFormSample\setup_sample.py
+python examples\JSFormSample\app.py
+```
+
+For a full framework introduction, database contract, JSON properties, control
+reference, reports, public API, and application checklist, read
+[`Documentation/JSForm_Framework.md`](Documentation/JSForm_Framework.md).
+
+## Tests
+
+Run the safe framework suite from this directory:
+
+```powershell
+python run_jsform_tests.py
+```
+
+The default suite does not open the GUI, send mail, or modify a database.
+Optional database checks are explained in [`tests/README.md`](tests/README.md).
+
+## Documentation map
+
+- [Framework reference](Documentation/JSForm_Framework.md)
+- [Architecture](Documentation/ARCHITECTURE.md)
+- [Development guide](Documentation/DEVELOPMENT.md)
+- [Versioning](Documentation/VERSIONING.md)
+- [Enhancement backlog](JSFORM_ENHANCEMENTS.md)
+- [Error-reporting specification](Documentation/JSForm.ErrorLogging.Specification.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security](SECURITY.md)
+- [Support](SUPPORT.md)
+
+## Applications built with JSForm
+
+JSForm contains reusable framework behavior. Application-specific workflows,
+authorization policies, database migrations, and domain rules belong in the
+application repository. ChurchManager is a separate application built on
+JSForm; neither project depends on or modifies the frozen ChurchManager-Legacy
+program.
+
+## License
+
+Copyright (C) 2026 Rev. Jonathan C. Watt.
+
+JSForm is licensed under the GNU Lesser General Public License v3.0 or later
+(`LGPL-3.0-or-later`). See [`LICENSE`](LICENSE).

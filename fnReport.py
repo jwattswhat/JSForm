@@ -1,3 +1,5 @@
+"""Run report definitions and open their generated output files."""
+
 import wx
 import mysql
 import datetime

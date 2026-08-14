@@ -1,3 +1,5 @@
+"""Normalize monitor size and DPI information used by responsive layouts."""
+
 from screeninfo import get_monitors
 
 

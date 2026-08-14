@@ -1,3 +1,5 @@
+"""Public package exports for the JSForm desktop application framework."""
+
 from JSForm.version import __version__
 from JSForm.clsConstant import CONST
 from JSForm.clsConfig import CONFIG

@@ -1,3 +1,5 @@
+"""Provide the legacy-compatible JSForm diagnostic logger."""
+
 import sys
 import pprint
 import datetime

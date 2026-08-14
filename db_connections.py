@@ -5,6 +5,8 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class DatabaseSettings:
+    """Connection values that can be translated for a DB-API connector."""
+
     host: str
     database: str
     username: str
@@ -42,4 +44,3 @@ class DatabaseConnections:
                 connection.close()
             except (AttributeError, RuntimeError):
                 continue
-
