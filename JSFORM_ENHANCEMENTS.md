@@ -103,6 +103,11 @@ save callback.
 
 ### 6. Search-and-select dialog
 
+Implemented at the framework level. Applications supply approved in-memory
+rows, stable keys, displayed/searchable fields, and optional exact-value
+filters. The reusable dialog provides incremental text search, sortable
+columns, single or multiple selection, and returns stable record identifiers.
+
 - Provide reusable text search, filters, sortable results, and selection.
 - Support single and multiple selection.
 - Allow an application to restrict the approved data source and displayed

@@ -26,7 +26,7 @@ class SampleApplicationTests(unittest.TestCase):
             self.assertNotIn(forbidden, source)
 
     def test_launcher_and_setup_compile(self):
-        for name in ("app.py", "setup_sample.py", "route_manifest.py", "route_stop_editor.py", "sample_tools.py", "version.py"):
+        for name in ("app.py", "setup_sample.py", "route_manifest.py", "route_stop_editor.py", "student_finder.py", "sample_tools.py", "version.py"):
             ast.parse((SAMPLE / name).read_text(encoding="utf-8"), filename=name)
 
     def test_route_screen_proves_ordered_child_editor(self):
@@ -36,6 +36,12 @@ class SampleApplicationTests(unittest.TestCase):
         self.assertIn("OrderedChildEditorDialog", editor)
         self.assertIn("connection.commit()", editor)
         self.assertIn("connection.rollback()", editor)
+
+    def test_student_finder_proves_search_select_dialog(self):
+        finder = (SAMPLE / "student_finder.py").read_text(encoding="utf-8")
+        self.assertIn("SearchSelectDialog", finder)
+        self.assertIn("SearchSelectFilter", finder)
+        self.assertIn("dialog.selected_id()", finder)
 
     def test_sample_has_an_independent_semantic_version(self):
         source = (SAMPLE / "version.py").read_text(encoding="utf-8")

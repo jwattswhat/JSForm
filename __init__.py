@@ -62,6 +62,9 @@ from JSForm.grid_behavior import GridBehavior, grid_checked
 from JSForm.ordered_children import (
     OrderedChildColumn, OrderedChildEditorDialog, OrderedChildModel,
 )
+from JSForm.search_select import (
+    SearchSelectColumn, SearchSelectDialog, SearchSelectFilter, SearchSelectModel,
+)
 from JSForm.error_reporting import (
     ErrorReporter, ErrorReportingConfig, configure_error_reporting, create_support_package,
     current_error_reporter, install_error_hooks, report_exception,
