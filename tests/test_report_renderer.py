@@ -15,6 +15,24 @@ from test_report_definition import valid_definition
 
 
 class TestPDFReportRenderer(unittest.TestCase):
+    def test_table_row_can_bind_its_text_color(self):
+        class RecordingPDF:
+            def __init__(self): self.fills = []
+            def setStrokeColorRGB(self, *_args): pass
+            def setLineWidth(self, *_args): pass
+            def line(self, *_args): pass
+            def setFont(self, *_args): pass
+            def setFillColorRGB(self, *value): self.fills.append(value)
+            def drawString(self, *_args): pass
+
+        renderer = PDFReportRenderer()
+        pdf = RecordingPDF()
+        renderer._draw_table_row(pdf, {
+            "position": [0, 0], "colorfield": "FlagColor",
+            "columns": [{"field": "Name", "width": 100}],
+        }, {"Name": "Flagged member", "FlagColor": "#C00000"}, 40, 0, 20)
+        self.assertIn((192 / 255, 0, 0), pdf.fills)
+
     def test_data_bound_rectangle_uses_value_and_omits_blank_value(self):
         class RecordingPDF:
             def __init__(self):

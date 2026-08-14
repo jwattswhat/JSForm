@@ -621,10 +621,12 @@ class PDFReportRenderer:
         pdf.setStrokeColorRGB(0.82, 0.82, 0.82)
         pdf.setLineWidth(0.4)
         pdf.line(x, top - height, x + total_width, top - height)
+        row_color = row.get(table.get("colorfield", ""), "#000000")
         for column in table["columns"]:
             value = self._format_value(row.get(column["field"], ""), column.get("format", "text"))
             self._draw_text(pdf, value, x + 4, top - height, column["width"] - 8, height,
-                            {"font": "Helvetica", "fontsize": 9, "align": column.get("align", "left")})
+                            {"font": "Helvetica", "fontsize": 9,
+                             "align": column.get("align", "left"), "color": row_color})
             x += column["width"]
         return top - height
 

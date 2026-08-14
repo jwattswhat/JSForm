@@ -57,6 +57,11 @@ class ReportDatasetContract:
                     )
                 for column in control["columns"]:
                     self._validate_binding(column)
+                if control.get("colorfield"):
+                    self._validate_binding({
+                        "collection": control["repeatcollection"],
+                        "field": control["colorfield"],
+                    })
             if control["type"] == "repeater":
                 collection = self.collection(control["repeatcollection"])
                 if collection is None:

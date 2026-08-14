@@ -104,6 +104,7 @@
         "visiblewhen": {"$ref": "#/$defs/condition"},
         "affectautofit": {"type": "boolean"},
         "repeatcollection": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"},
+        "colorfield": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"},
         "columns": {"type": "array", "maxItems": 30, "items": {"$ref": "#/$defs/column"}},
         "itemheight": {"type": "number", "exclusiveMinimum": 0, "maximum": 1000},
         "items": {"type": "array", "minItems": 1, "maxItems": 50, "items": {"$ref": "#/$defs/repeaterItem"}}
