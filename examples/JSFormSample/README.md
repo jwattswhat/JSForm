@@ -32,7 +32,9 @@ To reset only the sample account password without changing any sample data:
 ..\ChurchManager\.runtime-venv\Scripts\python.exe examples\JSFormSample\app.py
 ```
 
-No credentials are stored by the sample application.
+By default, the application prompts for its database password. The password-only
+recovery command may explicitly store the restricted sample login in Windows
+Credential Manager so a desktop shortcut can start without a console password.
 
 The **Routes** screen demonstrates JSForm's responsive master-detail layout:
 ordered stops appear at left and route details at right. Resize the window

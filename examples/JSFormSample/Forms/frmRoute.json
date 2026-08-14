@@ -19,7 +19,8 @@
       "Active":{"name":"Active","type":"CheckBox","label":"Active","posch":[32,22]},
       "lblNote":{"name":"lblNote","type":"StaticText","label":"Note:","posch":[2,26]},
       "Note":{"name":"Note","type":"MultiLine","posch":[14,26],"sizech":[28,5]},
-      "btnStops":{"name":"btnStops","type":"Button","label":"Route Stops","action":["openlinkedform","frmRouteStop"],"posch":[44,6],"sizech":[11,3]}
+      "btnStops":{"name":"btnStops","type":"Button","label":"Route Stops","action":["openlinkedform","frmRouteStop"],"posch":[44,6],"sizech":[11,3]},
+      "btnOrderedStops":{"name":"btnOrderedStops","type":"Button","label":"Arrange Stops...","posch":[44,10],"sizech":[13,3]}
     }
   }
 }

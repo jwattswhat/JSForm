@@ -5,6 +5,7 @@ from ctypes import wintypes
 
 
 CRED_TYPE_GENERIC = 1
+CRED_PERSIST_LOCAL_MACHINE = 2
 
 
 class CREDENTIAL(ctypes.Structure):
@@ -26,6 +27,24 @@ _cred_read.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.
 _cred_read.restype = wintypes.BOOL
 _cred_free = _advapi32.CredFree
 _cred_free.argtypes = [ctypes.c_void_p]
+_cred_write = _advapi32.CredWriteW
+_cred_write.argtypes = [PCREDENTIAL, wintypes.DWORD]
+_cred_write.restype = wintypes.BOOL
+
+
+def write_credential(target, username, password):
+    """Store a generic credential in the current user's Windows vault."""
+    encoded = password.encode("utf-16-le")
+    blob = (ctypes.c_ubyte * len(encoded)).from_buffer_copy(encoded)
+    credential = CREDENTIAL()
+    credential.Type = CRED_TYPE_GENERIC
+    credential.TargetName = target
+    credential.UserName = username
+    credential.CredentialBlobSize = len(encoded)
+    credential.CredentialBlob = ctypes.cast(blob, ctypes.POINTER(ctypes.c_ubyte))
+    credential.Persist = CRED_PERSIST_LOCAL_MACHINE
+    if not _cred_write(ctypes.byref(credential), 0):
+        raise ctypes.WinError(ctypes.get_last_error())
 
 
 def read_credential(target):

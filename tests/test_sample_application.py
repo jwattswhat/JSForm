@@ -26,8 +26,16 @@ class SampleApplicationTests(unittest.TestCase):
             self.assertNotIn(forbidden, source)
 
     def test_launcher_and_setup_compile(self):
-        for name in ("app.py", "setup_sample.py", "route_manifest.py", "sample_tools.py", "version.py"):
+        for name in ("app.py", "setup_sample.py", "route_manifest.py", "route_stop_editor.py", "sample_tools.py", "version.py"):
             ast.parse((SAMPLE / name).read_text(encoding="utf-8"), filename=name)
+
+    def test_route_screen_proves_ordered_child_editor(self):
+        launcher = (SAMPLE / "app.py").read_text(encoding="utf-8")
+        editor = (SAMPLE / "route_stop_editor.py").read_text(encoding="utf-8")
+        self.assertIn("btnOrderedStops", launcher)
+        self.assertIn("OrderedChildEditorDialog", editor)
+        self.assertIn("connection.commit()", editor)
+        self.assertIn("connection.rollback()", editor)
 
     def test_sample_has_an_independent_semantic_version(self):
         source = (SAMPLE / "version.py").read_text(encoding="utf-8")
@@ -92,6 +100,13 @@ class SampleApplicationTests(unittest.TestCase):
         self.assertIn("No sample password or data was changed", installer)
         self.assertIn('"--admin-credential-target"', installer)
         self.assertIn("read_credential(args.admin_credential_target)", installer)
+        self.assertIn('"--store-sample-credential"', installer)
+        self.assertIn("write_credential(SAMPLE_CREDENTIAL_TARGET", installer)
+
+    def test_sample_can_use_securely_stored_restricted_login(self):
+        launcher = (SAMPLE / "app.py").read_text(encoding="utf-8")
+        self.assertIn('SAMPLE_CREDENTIAL_TARGET = "JSFormSample/Database"', launcher)
+        self.assertIn("read_credential(SAMPLE_CREDENTIAL_TARGET)", launcher)
 
     def test_every_sample_form_loads_and_root_name_matches_filename(self):
         loader = FormDefinitionLoader(FORMS, FORMS)

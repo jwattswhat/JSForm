@@ -16,8 +16,10 @@ import wx
 import JSForm
 import mysql.connector
 from route_manifest import show_route_manifest
+from route_stop_editor import show_ordered_route_stops
 from sample_tools import show_diagnostics, show_mail_preview
 from version import __version__ as SAMPLE_VERSION
+from JSForm.windows_credentials import read_credential
 
 
 FORMS = Path(__file__).with_name("Forms")
@@ -29,6 +31,7 @@ ROUTES = {
     "btnRoutes": "frmRoute",
     "btnStudents": "frmStudent",
 }
+SAMPLE_CREDENTIAL_TARGET = "JSFormSample/Database"
 
 
 def arguments(argv=None):
@@ -45,6 +48,15 @@ def arguments(argv=None):
 
 def connect_database(settings, attempts=3):
     """Prompt for the isolated sample password, allowing simple typing errors."""
+    try:
+        stored_user, stored_password = read_credential(SAMPLE_CREDENTIAL_TARGET)
+        if stored_user == settings.user:
+            return JSForm.clsDB(
+                settings.server, settings.database, settings.user, stored_password,
+                jsform_database=settings.database,
+            )
+    except (KeyError, OSError, mysql.connector.Error):
+        pass
     for attempt in range(1, attempts + 1):
         password = getpass.getpass("MariaDB password for {}: ".format(settings.user))
         try:
@@ -97,6 +109,12 @@ def main(argv=None):
             main_form, database.DBConnection, form_name, EDIT_CONTROLS,
             authorization_policy=JSForm.AllowAllAuthorizationPolicy(),
         )
+        if form_name == "frmRoute":
+            def open_ordered_stops(_event):
+                record = form.RECORDS.current() or {}
+                show_ordered_route_stops(form.FRAME, database.DBConnection, record.get("ID"))
+                form.CONTROLID["StopList"].SetValueTable(form.RECORDS.current())
+            form.CONTROLID["btnOrderedStops"].Bind(wx.EVT_BUTTON, open_ordered_stops)
         form.show()
 
     for control_name in ROUTES:

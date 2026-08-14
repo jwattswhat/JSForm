@@ -89,6 +89,12 @@ school-bus Route screen is the framework proof.
 
 ### 5. Ordered child-record editor
 
+Implemented at the framework level. `OrderedChildModel` owns in-memory ordering,
+simple resequencing, protected-row deletion checks, and dirty state. The standard
+editor supplies Add, Edit, Delete, Move Up, Move Down, Save, Cancel, double-click,
+and Delete-key behavior. Applications supply the row editor and transactional
+save callback.
+
 - Add, edit, delete, move up, and move down child rows.
 - Resequence rows automatically when saved.
 - Support protected rows and application-supplied deletion checks.

@@ -13,7 +13,10 @@ import mysql.connector
 PACKAGE_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PACKAGE_ROOT.parent))
 
-from JSForm.windows_credentials import read_credential
+from JSForm.windows_credentials import read_credential, write_credential
+
+
+SAMPLE_CREDENTIAL_TARGET = "JSFormSample/Database"
 
 
 def statements(text):
@@ -33,6 +36,10 @@ def main():
     parser.add_argument(
         "--password-only", action="store_true",
         help="reset only the sample database login password; preserve all data",
+    )
+    parser.add_argument(
+        "--store-sample-credential", action="store_true",
+        help="securely store the applied sample login in Windows Credential Manager",
     )
     args = parser.parse_args()
     if args.database != "JSFormSample" or args.sample_user != "jsform_sample":
@@ -78,8 +85,12 @@ def main():
             cursor.close()
     finally:
         admin.close()
+    if args.store_sample_credential:
+        write_credential(SAMPLE_CREDENTIAL_TARGET, args.sample_user, sample_password)
     if args.password_only:
         print("JSFormSample password reset complete. Sample data was not changed.")
+        if args.store_sample_credential:
+            print("The sample login was stored securely in Windows Credential Manager.")
         return
     connection = mysql.connector.connect(
         host=args.server, database=args.database, user=args.sample_user, password=sample_password,
