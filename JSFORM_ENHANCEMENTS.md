@@ -159,7 +159,7 @@ is never silently converted to `NULL`.
 - Provide an optional All selection for filters without storing it as a record
   value.
 
-### 11. Reusable linked-record and compact editor dialogs
+### 11. Reusable linked-record and compact editor dialogs — implemented
 
 - Provide read-only linked-record viewers.
 - Provide compact add/edit dialogs with correct parent and sizer ownership.

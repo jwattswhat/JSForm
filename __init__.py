@@ -74,6 +74,10 @@ from JSForm.background_operation import (
     BackgroundOperationController, BackgroundOperationDialog, OperationResult,
     run_background_operation,
 )
+from JSForm.compact_dialogs import (
+    CompactEditorDialog, CompactEditorModel, EditorField, LinkedRecordField,
+    LinkedRecordViewerDialog, edit_compact_record, view_linked_record,
+)
 from JSForm.error_reporting import (
     ErrorReporter, ErrorReportingConfig, configure_error_reporting, create_support_package,
     current_error_reporter, install_error_hooks, report_exception,

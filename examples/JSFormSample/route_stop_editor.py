@@ -68,43 +68,29 @@ def display_time(value):
 
 def edit_stop(parent, row=None):
     row = dict(row or {})
-    dialog = wx.Dialog(parent, title="Edit Route Stop" if row else "Add Route Stop")
-    panel = wx.Panel(dialog)
-    outer = wx.BoxSizer(wx.VERTICAL)
-    fields = wx.FlexGridSizer(cols=2, vgap=8, hgap=8)
-    fields.AddGrowableCol(1, 1)
-    name = wx.TextCtrl(panel, value=str(row.get("name", "")))
-    address = wx.TextCtrl(panel, value=str(row.get("address", "")))
-    stop_time = wx.TextCtrl(panel, value=display_time(row.get("time")))
-    for label, control in (("Stop name:", name), ("Address:", address), ("Time (HH:MM):", stop_time)):
-        fields.Add(wx.StaticText(panel, label=label), 0, wx.ALIGN_CENTER_VERTICAL)
-        fields.Add(control, 1, wx.EXPAND)
-    outer.Add(fields, 1, wx.EXPAND | wx.ALL, 12)
-    buttons = wx.StdDialogButtonSizer()
-    ok = wx.Button(panel, wx.ID_OK)
-    cancel = wx.Button(panel, wx.ID_CANCEL)
-    buttons.AddButton(ok)
-    buttons.AddButton(cancel)
-    buttons.Realize()
-    outer.Add(buttons, 0, wx.EXPAND | wx.ALL, 12)
-    panel.SetSizer(outer)
-    dialog_sizer = wx.BoxSizer(wx.VERTICAL)
-    dialog_sizer.Add(panel, 1, wx.EXPAND)
-    dialog.SetSizer(dialog_sizer)
-    dialog.SetMinSize((440, 230))
-    dialog.Fit()
-    try:
-        if dialog.ShowModal() != wx.ID_OK:
-            return None
-        if not name.GetValue().strip():
-            raise ValueError("Enter a stop name.")
-        entered_time = stop_time.GetValue().strip()
+    row["time"] = display_time(row.get("time"))
+
+    def validate(values):
+        entered_time = values.get("time", "")
         if entered_time:
             time.fromisoformat(entered_time)
-        row.update(name=name.GetValue().strip(), address=address.GetValue().strip(), time=entered_time)
-        return row
-    finally:
-        dialog.Destroy()
+        return values
+
+    result = JSForm.edit_compact_record(
+        parent,
+        title="Edit Route Stop" if row.get("id") else "Add Route Stop",
+        fields=(
+            JSForm.EditorField("Stop name:", "name", required=True),
+            JSForm.EditorField("Address:", "address"),
+            JSForm.EditorField("Time (HH:MM):", "time"),
+        ),
+        values=row,
+        validator=validate,
+    )
+    if result is None:
+        return None
+    row.update(result)
+    return row
 
 
 def show_ordered_route_stops(parent, connection, route_id):

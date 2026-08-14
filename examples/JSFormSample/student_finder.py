@@ -40,11 +40,15 @@ def show_student_finder(parent, connection):
         if dialog.ShowModal() == wx.ID_OK:
             selected = next((row for row in rows if row["id"] == dialog.selected_id()), None)
             if selected:
-                wx.MessageBox(
-                    "{} {}\nGrade {}\n{}".format(
-                        selected["first"], selected["last"], selected["grade"], selected["stop"],
+                JSForm.view_linked_record(
+                    parent, title="Student Route Assignment", record=selected,
+                    fields=(
+                        JSForm.LinkedRecordField("First name:", "first"),
+                        JSForm.LinkedRecordField("Last name:", "last"),
+                        JSForm.LinkedRecordField("Grade:", "grade"),
+                        JSForm.LinkedRecordField("Assigned stop:", "stop"),
                     ),
-                    "Selected Student", parent=parent,
+                    instructions="This linked information is read-only.",
                 )
     finally:
         dialog.Destroy()
