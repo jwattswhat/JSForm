@@ -945,6 +945,32 @@ class TestJSFormPython(unittest.TestCase):
         recordset.setfieldvalue("Time", datetime.time(9, 31))
         self.assertEqual(recordset.recordisdirty(), ["Time"])
 
+    def test_dirty_tracking_normalizes_supported_scalar_and_collection_values(self):
+        import datetime
+        from decimal import Decimal
+        from record_state import RecordState
+
+        recordset = RecordState()
+        recordset.add({
+            "Blank": None,
+            "Amount": Decimal("25.00"),
+            "Checked": 1,
+            "Choices": ["A", "B"],
+            "Settings": {"enabled": True, "count": 2},
+            "Time": datetime.timedelta(hours=10),
+        })
+        recordset.first()
+        recordset.setfieldvalue("Blank", "")
+        recordset.setfieldvalue("Amount", 25)
+        recordset.setfieldvalue("Checked", True)
+        recordset.setfieldvalue("Choices", ("A", "B"))
+        recordset.setfieldvalue("Settings", {"count": Decimal("2.0"), "enabled": 1})
+        recordset.setfieldvalue("Time", datetime.time(10, 0))
+        self.assertEqual(recordset.recordisdirty(), [])
+
+        recordset.setfieldvalue("Amount", Decimal("25.01"))
+        self.assertEqual(recordset.recordisdirty(), ["Amount"])
+
     def test_form_baseline_uses_loaded_control_values_not_raw_database_values(self):
         import types
         from record_state import RecordState

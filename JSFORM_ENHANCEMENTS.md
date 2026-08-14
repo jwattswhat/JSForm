@@ -58,6 +58,10 @@ need to adopt the same contract.
 
 ### 3. Reliable dirty-record detection
 
+Implemented. JSForm saves the normalized value shown by each loaded control as
+its baseline and compares null/blank, numeric, Boolean, temporal, sequence,
+mapping, choice, JSON, phone, and formatted control values semantically.
+
 - Compare normalized database values rather than formatted screen text.
 - Treat null, blank, date, time, datetime, numeric, Boolean, and choice values
   consistently.

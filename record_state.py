@@ -8,6 +8,9 @@ def comparable_value(value):
     """Normalize equivalent database/control values without display formatting."""
     if value == "":
         return None
+    if isinstance(value, (bool, int, float, Decimal)):
+        numeric = Decimal(int(value)) if isinstance(value, bool) else Decimal(str(value))
+        return ("number", numeric.normalize())
     if isinstance(value, datetime.datetime):
         return ("datetime", value.replace(tzinfo=None))
     if isinstance(value, datetime.date):
@@ -24,8 +27,15 @@ def comparable_value(value):
         )
     if isinstance(value, datetime.timedelta):
         return ("time", value)
-    if isinstance(value, Decimal):
-        return ("number", value.normalize())
+    if isinstance(value, (list, tuple)):
+        return ("sequence", tuple(comparable_value(item) for item in value))
+    if isinstance(value, set):
+        return ("set", frozenset(comparable_value(item) for item in value))
+    if isinstance(value, dict):
+        return (
+            "mapping",
+            tuple(sorted((str(key), comparable_value(item)) for key, item in value.items())),
+        )
     return value
 
 
