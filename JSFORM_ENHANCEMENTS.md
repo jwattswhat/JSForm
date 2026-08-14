@@ -116,6 +116,11 @@ columns, single or multiple selection, and returns stable record identifiers.
 
 ### 7. Conditional formatting and status summaries
 
+Implemented at the framework level. JSON controls may declare ordered
+`conditionalformat` rules using named semantic styles. Reusable custom dialogs
+may use the same formatter, direct style helper, or compact `StatusSummaryCtrl`.
+Applications remain responsible for supplying status fields and summary values.
+
 - Support declarative row and control colors based on values or validation
   state.
 - Cover common states such as incomplete, customized, omitted, inactive, and

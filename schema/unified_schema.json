@@ -155,6 +155,26 @@
                 "italic": { "type": "boolean" },
                 "foreground": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
                 "background": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+                "conditionalformat": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "field": { "type": "string", "minLength": 1 },
+                      "operator": {
+                        "type": "string",
+                        "enum": ["equals", "not_equals", "empty", "not_empty", "truthy", "falsy", "contains", "greater_than", "less_than"]
+                      },
+                      "value": {},
+                      "style": {
+                        "type": "string",
+                        "enum": ["normal", "complete", "incomplete", "customized", "omitted", "inactive", "warning"]
+                      }
+                    },
+                    "required": ["field", "style"],
+                    "additionalProperties": false
+                  }
+                },
                 "required": { "type": "boolean" },
                 "maxlength": { "type": "integer", "minimum": 1 },
                 "maxlengthmessage": { "type": "string", "minLength": 1 },

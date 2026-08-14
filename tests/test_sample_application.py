@@ -43,6 +43,14 @@ class SampleApplicationTests(unittest.TestCase):
         self.assertIn("SearchSelectFilter", finder)
         self.assertIn("dialog.selected_id()", finder)
 
+    def test_sample_proves_declarative_conditional_formatting(self):
+        bus = json.loads((FORMS / "frmBus.json").read_text(encoding="utf-8"))
+        control = bus["frmBusFORM"]["CONTROLS"]["Active"]
+        self.assertEqual(
+            [rule["style"] for rule in control["conditionalformat"]],
+            ["inactive", "complete"],
+        )
+
     def test_sample_has_an_independent_semantic_version(self):
         source = (SAMPLE / "version.py").read_text(encoding="utf-8")
         self.assertIn('__version__ = "0.1.0-dev"', source)

@@ -428,6 +428,10 @@ class clsForm:
                     case _:
                         self.CONTROLID[key].SetValue(value)
 
+        JSForm.apply_conditional_controls(
+            self.CONTROLID, self.CONTROLDESCRIPTION, record,
+        )
+
         for linkedfrm in self.LINKEDFORM:
             try:
                 self.LINKEDFORM[linkedfrm].fill_form(

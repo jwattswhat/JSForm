@@ -65,6 +65,11 @@ from JSForm.ordered_children import (
 from JSForm.search_select import (
     SearchSelectColumn, SearchSelectDialog, SearchSelectFilter, SearchSelectModel,
 )
+from JSForm.conditional_formatting import (
+    ConditionalFormatter, STATUS_STYLES, StatusStyle, StatusSummaryCtrl,
+    StatusSummaryItem, apply_conditional_controls, apply_control_style,
+    condition_matches, status_style,
+)
 from JSForm.error_reporting import (
     ErrorReporter, ErrorReportingConfig, configure_error_reporting, create_support_package,
     current_error_reporter, install_error_hooks, report_exception,

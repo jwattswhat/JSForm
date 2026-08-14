@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import wx
 
 from JSForm.list_behavior import ListCtrlBehavior
+from JSForm.conditional_formatting import StatusSummaryCtrl, StatusSummaryItem
 
 
 @dataclass(frozen=True)
@@ -92,6 +93,8 @@ class SearchSelectDialog(wx.Dialog):
             criteria.Add(choice, 0, wx.RIGHT, 12)
             self.filter_controls[definition.field] = (choice, definition)
         outer.Add(criteria, 0, wx.EXPAND | wx.ALL, 10)
+        self.summary = StatusSummaryCtrl(panel)
+        outer.Add(self.summary, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
         style = wx.LC_REPORT
         if not multiple:
             style |= wx.LC_SINGLE_SEL
@@ -141,6 +144,12 @@ class SearchSelectDialog(wx.Dialog):
             item = self.list.InsertItem(row_number, values[0] if values else "")
             for column, value in enumerate(values[1:], 1):
                 self.list.SetItem(item, column, value)
+        self.summary.set_items((
+            StatusSummaryItem(
+                "Results", len(self.visible_rows),
+                "normal" if self.visible_rows else "warning",
+            ),
+        ))
         self.behavior.restore_selection(remembered)
 
     def on_sort(self, _column, _ascending):
