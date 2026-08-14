@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 from JSForm.form_services import FormDefinitionLoader
+from JSForm.report_definition import ReportDefinitionLoader
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,7 +16,9 @@ FORMS = SAMPLE / "Forms"
 
 class SampleApplicationTests(unittest.TestCase):
     def test_sample_is_framework_only_and_has_no_security_ui(self):
-        source = (SAMPLE / "app.py").read_text(encoding="utf-8")
+        source = "\n".join(
+            path.read_text(encoding="utf-8") for path in SAMPLE.glob("*.py")
+        )
         self.assertIn("import JSForm", source)
         self.assertNotIn("ChurchManager", source)
         self.assertIn("AllowAllAuthorizationPolicy", source)
@@ -23,8 +26,14 @@ class SampleApplicationTests(unittest.TestCase):
             self.assertNotIn(forbidden, source)
 
     def test_launcher_and_setup_compile(self):
-        for name in ("app.py", "setup_sample.py"):
+        for name in ("app.py", "setup_sample.py", "route_manifest.py"):
             ast.parse((SAMPLE / name).read_text(encoding="utf-8"), filename=name)
+
+    def test_route_manifest_is_a_valid_native_report(self):
+        definition = ReportDefinitionLoader().load(SAMPLE / "Reports" / "SBRT01.json")
+        self.assertEqual(definition.dataset_name, "sample.routemanifest")
+        self.assertEqual(definition.report_id, "SBRT01")
+        self.assertIn("Stops", definition.controls)
 
     def test_reset_schema_owns_only_prefixed_tables(self):
         schema = (SAMPLE / "schema.sql").read_text(encoding="utf-8")

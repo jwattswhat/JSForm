@@ -14,6 +14,7 @@ sys.path.insert(0, str(PACKAGE_ROOT.parent))
 
 import wx
 import JSForm
+from route_manifest import show_route_manifest
 
 
 FORMS = Path(__file__).with_name("Forms")
@@ -76,6 +77,10 @@ def main(argv=None):
 
     for control_name in ROUTES:
         main_form.CONTROLID[control_name].Bind(wx.EVT_BUTTON, open_form)
+    main_form.CONTROLID["btnManifest"].Bind(
+        wx.EVT_BUTTON,
+        lambda _event: show_route_manifest(main_form.FRAME, database.DBConnection),
+    )
     main_form.FRAME.SetTitle(
         "JSForm Sample 0.1.0-dev - School Bus Routes - {}".format(settings.database)
     )

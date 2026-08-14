@@ -1,0 +1,35 @@
+{
+  "SBRT01REPORT": {
+    "REPORT": {
+      "schema_version": 1,
+      "name": "SBRT01",
+      "title": "Route Manifest",
+      "dataset": "sample.routemanifest",
+      "datasetversion": 1,
+      "pagesize": "letter",
+      "orientation": "portrait",
+      "margins": {"top": 36, "right": 36, "bottom": 36, "left": 36},
+      "bands": {
+        "ReportHeader": {"type": "reportheader", "height": 92},
+        "Detail": {"type": "detail", "height": 40},
+        "PageFooter": {"type": "pagefooter", "height": 24}
+      },
+      "sort": [{"collection": "stops", "field": "Sequence", "direction": "ascending"}],
+      "emptytext": "This route has no stops."
+    },
+    "CONTROLS": {
+      "Title": {"type": "label", "band": "ReportHeader", "position": [0, 0], "size": [540, 24], "label": "Pine Valley School Bus Route Manifest", "fontsize": 16, "bold": true, "align": "center"},
+      "Route": {"type": "text", "band": "ReportHeader", "position": [0, 32], "size": [270, 18], "collection": "route", "field": "Route", "format": "text", "bold": true},
+      "School": {"type": "text", "band": "ReportHeader", "position": [270, 32], "size": [270, 18], "collection": "route", "field": "School", "format": "text", "align": "right"},
+      "Assignment": {"type": "text", "band": "ReportHeader", "position": [0, 56], "size": [540, 18], "collection": "route", "field": "Assignment", "format": "text"},
+      "Stops": {"type": "table", "band": "Detail", "position": [0, 0], "size": [540, 36], "repeatcollection": "stops", "columns": [
+        {"name": "Sequence", "label": "Stop", "collection": "stops", "field": "Sequence", "width": 52, "format": "integer", "align": "right"},
+        {"name": "Time", "label": "Time", "collection": "stops", "field": "Time", "width": 75, "format": "time"},
+        {"name": "StopName", "label": "Location", "collection": "stops", "field": "StopName", "width": 175},
+        {"name": "Address", "label": "Address", "collection": "stops", "field": "Address", "width": 238}
+      ]},
+      "ReportCode": {"type": "systemtext", "band": "PageFooter", "position": [0, 4], "size": [200, 14], "systemvalue": "report_code", "prefix": "JSForm sample report ", "fontsize": 8},
+      "Page": {"type": "systemtext", "band": "PageFooter", "position": [440, 4], "size": [100, 14], "systemvalue": "page_number", "prefix": "Page ", "fontsize": 8, "align": "right"}
+    }
+  }
+}
