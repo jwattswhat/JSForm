@@ -15,7 +15,7 @@ def statements(text):
 
 def main():
     parser = argparse.ArgumentParser(description="Install the isolated JSForm School Bus Sample")
-    parser.add_argument("--server", default="127.0.0.1")
+    parser.add_argument("--server", default="localhost")
     parser.add_argument("--admin-user", default="root")
     parser.add_argument("--database", default="JSFormSample")
     parser.add_argument("--sample-user", default="jsform_sample")

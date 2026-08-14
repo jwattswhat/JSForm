@@ -61,6 +61,7 @@ class SampleApplicationTests(unittest.TestCase):
         self.assertIn('default="JSFormSample"', launcher)
         self.assertIn('default="jsform_sample"', launcher)
         self.assertIn("GRANT ALL PRIVILEGES ON JSFormSample.*", installer)
+        self.assertIn('default="localhost"', installer)
         self.assertNotIn('default="church"', launcher)
 
     def test_every_sample_form_loads_and_root_name_matches_filename(self):
