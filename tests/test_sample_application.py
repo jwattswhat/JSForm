@@ -84,6 +84,11 @@ class SampleApplicationTests(unittest.TestCase):
             installer.index("if args.password_only:"),
             installer.index("schema.sql"),
         )
+        self.assertLess(
+            installer.index("admin = mysql.connector.connect"),
+            installer.index('Choose a password for jsform_sample'),
+        )
+        self.assertIn("No sample password or data was changed", installer)
 
     def test_every_sample_form_loads_and_root_name_matches_filename(self):
         loader = FormDefinitionLoader(FORMS, FORMS)

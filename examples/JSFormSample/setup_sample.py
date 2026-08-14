@@ -27,11 +27,22 @@ def main():
     if args.database != "JSFormSample" or args.sample_user != "jsform_sample":
         raise SystemExit("The sample installer uses the fixed isolated database and account names.")
     admin_password = getpass.getpass("MariaDB administrative password for {}: ".format(args.admin_user))
+    try:
+        admin = mysql.connector.connect(
+            host=args.server, user=args.admin_user, password=admin_password,
+        )
+    except mysql.connector.Error as error:
+        if error.errno == 1045:
+            raise SystemExit(
+                "The MariaDB administrative password was not accepted. "
+                "No sample password or data was changed."
+            ) from None
+        raise
     sample_password = getpass.getpass("Choose a password for jsform_sample: ")
     confirmation = getpass.getpass("Confirm the jsform_sample password: ")
     if not sample_password or sample_password != confirmation:
+        admin.close()
         raise SystemExit("The sample passwords did not match.")
-    admin = mysql.connector.connect(host=args.server, user=args.admin_user, password=admin_password)
     try:
         cursor = admin.cursor()
         try:
