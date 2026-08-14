@@ -27,3 +27,7 @@ sample's `sb_` domain tables.
 ```
 
 No credentials are stored by the sample application.
+
+The **Routes** screen demonstrates JSForm's responsive master-detail layout:
+ordered stops appear at left and route details at right. Resize the window
+narrower than the configured breakpoint to see the panes stack automatically.

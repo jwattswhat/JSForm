@@ -46,6 +46,7 @@ EXPECTED_PUBLIC_NAMES = {
     "grouped_controls",
     "layout_spacing",
     "frame_position",
+    "master_detail_orientation", "master_detail_panes",
 }
 
 
@@ -476,6 +477,32 @@ class TestControlCatalog(unittest.TestCase):
 
 
 class TestResponsiveLayout(unittest.TestCase):
+    def test_master_detail_reflows_at_configured_breakpoint(self):
+        from layout_engine import master_detail_orientation
+
+        settings = {"breakpoint": 800}
+        self.assertEqual(master_detail_orientation(1200, settings), "horizontal")
+        self.assertEqual(master_detail_orientation(799, settings), "vertical")
+
+    def test_master_detail_partitions_controls_and_inherits_group_pane(self):
+        from layout_engine import master_detail_panes
+
+        descriptions = {
+            "masterBox": {
+                "type": "StaticBox", "posch": [1, 1], "sizech": [20, 10],
+                "layout": {"pane": "master"},
+            },
+            "memberList": {"type": "ListCtrlID", "posch": [2, 2]},
+            "Name": {
+                "type": "TextCtrl", "posch": [30, 2],
+                "layout": {"pane": "detail"},
+            },
+            "btnClose": {"type": "Button", "posch": [1, 20]},
+        }
+        panes = master_detail_panes(descriptions)
+        self.assertEqual(set(panes["master"]), {"masterBox", "memberList"})
+        self.assertEqual(set(panes["detail"]), {"Name"})
+
     def test_frame_position_accounts_for_header_and_usable_screen_bounds(self):
         from layout_engine import frame_position
 

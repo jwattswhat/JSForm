@@ -15,9 +15,15 @@
             "layout": {
               "type": "object",
               "properties": {
-                "type": { "type": "string", "enum": ["responsive", "legacy"] },
+                "type": { "type": "string", "enum": ["responsive", "master_detail", "legacy"] },
                 "border": { "type": "integer", "minimum": 0 },
-                "gap": { "type": "integer", "minimum": 0 }
+                "gap": { "type": "integer", "minimum": 0 },
+                "breakpoint": { "type": "integer", "minimum": 320 },
+                "scrollbar_allowance": { "type": "integer", "minimum": 0 },
+                "master_min_width": { "type": "integer", "minimum": 100 },
+                "detail_min_width": { "type": "integer", "minimum": 100 },
+                "master_proportion": { "type": "integer", "minimum": 1 },
+                "detail_proportion": { "type": "integer", "minimum": 1 }
               },
               "required": ["type"]
             },
@@ -165,6 +171,7 @@
                     "expand": { "type": "boolean" },
                     "proportion": { "type": "integer", "minimum": 0 },
                     "hidden": { "type": "boolean" }
+                    ,"pane": { "type": "string", "enum": ["master", "detail"] }
                   }
                 },
                 "posch": {

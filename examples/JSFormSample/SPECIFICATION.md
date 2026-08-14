@@ -32,7 +32,7 @@ framework without importing or depending on ChurchManager.
 
 ## Demonstrated JSForm behavior
 
-- JSON-defined screens and responsive layout;
+- JSON-defined screens, responsive layout, and a reflowing master-detail route screen;
 - navigation, create, update, and delete;
 - required and optional fields;
 - text, number, checkbox, date, time, phone, email, and multiline controls;

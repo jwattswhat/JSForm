@@ -23,7 +23,7 @@ def supports_responsive_layout(form_description, control_descriptions):
     mode = layout.get("type", "auto") if isinstance(layout, dict) else layout
     if mode == "legacy":
         return False
-    if mode == "responsive":
+    if mode in {"responsive", "master_detail"}:
         return True
     if form_description.get("type") == "StaticBox":
         return False
@@ -159,6 +159,31 @@ def layout_spacing(settings=None):
     return gap, border, item_padding
 
 
+def master_detail_orientation(width, settings=None):
+    """Choose side-by-side or stacked panes from the available client width."""
+    settings = settings or {}
+    return "vertical" if int(width) < int(settings.get("breakpoint", 850)) else "horizontal"
+
+
+def master_detail_panes(descriptions):
+    """Partition controls into master and detail panes, inheriting group roles."""
+    groups = grouped_controls(descriptions)
+    inherited = {
+        child: descriptions[group].get("layout", {}).get("pane", "detail")
+        for group, children in groups.items()
+        for child in children
+    }
+    panes = {"master": {}, "detail": {}}
+    for name, description in descriptions.items():
+        if name in NAVIGATION_NAMES:
+            continue
+        pane = inherited.get(name, description.get("layout", {}).get("pane", "detail"))
+        if pane not in panes:
+            raise ValueError("Unknown master-detail pane: {}".format(pane))
+        panes[pane][name] = description
+    return panes
+
+
 def frame_position(area, size, requested=None, margin=8):
     """Center or clamp a frame inside the usable display, including its header."""
     left, top, available_width, available_height = area
@@ -181,66 +206,94 @@ def apply_responsive_layout(form, frame, controls, descriptions, settings=None):
 
     settings = settings or {}
     gap, border, item_padding = layout_spacing(settings)
-    groups = grouped_controls(descriptions)
-    assigned = {name for members in groups.values() for name in members}
-    top_descriptions = {
-        name: description for name, description in descriptions.items()
-        if name not in assigned
-    }
-    content_sizer = wx.GridBagSizer(gap, gap)
-    plan = build_layout_plan(top_descriptions, include_navigation=False)
-    expanding_rows = set()
-    expanding_columns = set()
-    for item in plan:
-        flags = wx.ALL | wx.ALIGN_CENTER_VERTICAL
-        window_or_sizer = controls[item.name]
-        is_group = item.name in groups
-        if is_group:
-            inner = wx.GridBagSizer(gap, gap)
-            inner_plan = build_layout_plan({
-                name: descriptions[name] for name in groups[item.name]
-            })
-            inner_rows = set()
-            inner_columns = set()
-            for child in inner_plan:
-                child_flags = wx.ALL | wx.ALIGN_CENTER_VERTICAL
-                if child.expand:
-                    child_flags |= wx.EXPAND
-                    inner_columns.add(child.column)
-                    if descriptions[child.name].get("type") in VERTICALLY_EXPANDING_TYPES:
-                        inner_rows.add(child.row)
-                inner.Add(
-                    controls[child.name], pos=(child.row, child.column),
-                    span=(child.row_span, child.column_span), flag=child_flags,
-                    border=item_padding,
-                )
-            for row in inner_rows:
-                inner.AddGrowableRow(row, 1)
-            for column in inner_columns:
-                inner.AddGrowableCol(column, 1)
-            group_sizer = wx.StaticBoxSizer(controls[item.name], wx.VERTICAL)
-            group_sizer.Add(inner, 1, wx.EXPAND | wx.ALL, item_padding)
-            window_or_sizer = group_sizer
-            flags |= wx.EXPAND
-            expanding_columns.add(item.column)
-            if any(
-                descriptions[name].get("type") in VERTICALLY_EXPANDING_TYPES
-                for name in groups[item.name]
-            ):
-                expanding_rows.add(item.row)
-        if item.expand:
-            flags |= wx.EXPAND
-            expanding_columns.add(item.column)
-            if descriptions[item.name].get("type") in VERTICALLY_EXPANDING_TYPES:
-                expanding_rows.add(item.row)
-        content_sizer.Add(
-            window_or_sizer, pos=(item.row, item.column),
-            span=(item.row_span, item.column_span), flag=flags, border=item_padding,
-        )
-    for row in expanding_rows:
-        content_sizer.AddGrowableRow(row, 1)
-    for column in expanding_columns:
-        content_sizer.AddGrowableCol(column, 1)
+    def build_content_grid(pane_descriptions):
+        groups = grouped_controls(pane_descriptions)
+        assigned = {name for members in groups.values() for name in members}
+        top_descriptions = {
+            name: description for name, description in pane_descriptions.items()
+            if name not in assigned
+        }
+        content = wx.GridBagSizer(gap, gap)
+        plan = build_layout_plan(top_descriptions, include_navigation=False)
+        expanding_rows = set()
+        expanding_columns = set()
+        for item in plan:
+            flags = wx.ALL | wx.ALIGN_CENTER_VERTICAL
+            window_or_sizer = controls[item.name]
+            if item.name in groups:
+                inner = wx.GridBagSizer(gap, gap)
+                inner_plan = build_layout_plan({
+                    name: pane_descriptions[name] for name in groups[item.name]
+                })
+                inner_rows = set()
+                inner_columns = set()
+                for child in inner_plan:
+                    child_flags = wx.ALL | wx.ALIGN_CENTER_VERTICAL
+                    if child.expand:
+                        child_flags |= wx.EXPAND
+                        inner_columns.add(child.column)
+                        if pane_descriptions[child.name].get("type") in VERTICALLY_EXPANDING_TYPES:
+                            inner_rows.add(child.row)
+                    inner.Add(
+                        controls[child.name], pos=(child.row, child.column),
+                        span=(child.row_span, child.column_span), flag=child_flags,
+                        border=item_padding,
+                    )
+                for row in inner_rows:
+                    inner.AddGrowableRow(row, 1)
+                for column in inner_columns:
+                    inner.AddGrowableCol(column, 1)
+                group_sizer = wx.StaticBoxSizer(controls[item.name], wx.VERTICAL)
+                group_sizer.Add(inner, 1, wx.EXPAND | wx.ALL, item_padding)
+                window_or_sizer = group_sizer
+                flags |= wx.EXPAND
+                expanding_columns.add(item.column)
+                if any(
+                    pane_descriptions[name].get("type") in VERTICALLY_EXPANDING_TYPES
+                    for name in groups[item.name]
+                ):
+                    expanding_rows.add(item.row)
+            if item.expand:
+                flags |= wx.EXPAND
+                expanding_columns.add(item.column)
+                if pane_descriptions[item.name].get("type") in VERTICALLY_EXPANDING_TYPES:
+                    expanding_rows.add(item.row)
+            content.Add(
+                window_or_sizer, pos=(item.row, item.column),
+                span=(item.row_span, item.column_span), flag=flags, border=item_padding,
+            )
+        for row in expanding_rows:
+            content.AddGrowableRow(row, 1)
+        for column in expanding_columns:
+            content.AddGrowableCol(column, 1)
+        return content
+
+    layout_type = settings.get("type", "responsive")
+    if layout_type == "master_detail":
+        panes = master_detail_panes(descriptions)
+        master = build_content_grid(panes["master"])
+        detail = build_content_grid(panes["detail"])
+        allowance = max(0, int(settings.get("scrollbar_allowance", 20)))
+        master.SetMinSize((max(180, int(settings.get("master_min_width", 260))) + allowance, -1))
+        detail.SetMinSize((max(260, int(settings.get("detail_min_width", 440))) + allowance, -1))
+        content_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        content_sizer.Add(master, max(1, int(settings.get("master_proportion", 1))), wx.EXPAND | wx.ALL, item_padding)
+        content_sizer.Add(detail, max(1, int(settings.get("detail_proportion", 2))), wx.EXPAND | wx.ALL, item_padding)
+
+        def reflow(event):
+            orientation = master_detail_orientation(form.GetClientSize().width, settings)
+            desired_orientation = wx.VERTICAL if orientation == "vertical" else wx.HORIZONTAL
+            if content_sizer.GetOrientation() != desired_orientation:
+                content_sizer.SetOrientation(desired_orientation)
+                form.Layout()
+                if hasattr(form, "FitInside"):
+                    form.FitInside()
+            event.Skip()
+
+        form.Bind(wx.EVT_SIZE, reflow)
+        form._jsform_master_detail_reflow = reflow
+    else:
+        content_sizer = build_content_grid(descriptions)
 
     root_sizer = wx.BoxSizer(wx.VERTICAL)
     root_sizer.Add(content_sizer, 1, wx.EXPAND | wx.ALL, border)

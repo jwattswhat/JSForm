@@ -71,6 +71,12 @@ mapping, choice, JSON, phone, and formatted control values semantically.
 
 ### 4. Responsive master-detail layouts
 
+Implemented. Forms can declare a `master_detail` layout and assign controls or
+whole StaticBox groups to the master or detail pane. JSForm accounts for pane
+minimums and scrollbar width, displays the panes side by side when space is
+available, and stacks them below the configured breakpoint. The standalone
+school-bus Route screen is the framework proof.
+
 - Provide a reusable split or master-detail screen layout.
 - Allow a scrollable list or grid beside an editing or detail panel.
 - Account for scrollbars when calculating usable width.

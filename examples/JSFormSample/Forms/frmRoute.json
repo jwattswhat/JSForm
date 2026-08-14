@@ -1,7 +1,9 @@
 {
   "frmRouteFORM": {
-    "FORM":{"name":"frmRoute","type":"Panel","title":"Routes","posch":[-1,-1],"sizech":[58,38],"stylelist":["CAPTION"],"table":{"name":"sb_route","fields":["*"],"orderby":"Name,TripType"},"linkedform":{"frmRouteStop":{"name":"frmRouteStop","type":"Panel","controls":["Navigation","New","Update","Delete","Close"],"table":{"name":"sb_route_stop","fields":["*"],"condition":"RouteID = {ID}","orderby":"SequenceNumber"},"readonlyfields":["RouteID"],"fillonblank":["RouteID","ID"],"bindbtn":"btnStops"}}},
+    "FORM":{"name":"frmRoute","type":"Panel","title":"Routes","posch":[-1,-1],"sizech":[82,38],"stylelist":["CAPTION"],"layout":{"type":"master_detail","breakpoint":850,"master_min_width":280,"detail_min_width":500,"scrollbar_allowance":20},"table":{"name":"sb_route","fields":["*"],"orderby":"Name,TripType"},"linkedform":{"frmRouteStop":{"name":"frmRouteStop","type":"Panel","controls":["Navigation","New","Update","Delete","Close"],"table":{"name":"sb_route_stop","fields":["*"],"condition":"RouteID = {ID}","orderby":"SequenceNumber"},"readonlyfields":["RouteID"],"fillonblank":["RouteID","ID"],"bindbtn":"btnStops"}}},
     "CONTROLS":{
+      "boxStopList":{"name":"boxStopList","type":"StaticBox","label":"Ordered Stops","posch":[60,1],"sizech":[21,30],"layout":{"pane":"master"}},
+      "StopList":{"name":"StopList","type":"DataViewListCtrl","posch":[61,2],"sizech":[19,27],"table":{"name":"sb_route_stop","fields":["ID","SequenceNumber","StopName","StopTime"],"condition":"RouteID = {ID}","orderby":"SequenceNumber"},"column":[{"name":"SequenceNumber","label":"Stop","widthch":5},{"name":"StopName","label":"Location","widthch":16},{"name":"StopTime","label":"Time","widthch":9}]},
       "lblSchoolID":{"name":"lblSchoolID","type":"StaticText","label":"School:","posch":[2,2]},
       "SchoolID":{"name":"SchoolID","type":"ComboBox","required":true,"lookupchoices":{"name":"sb_school","fields":["ID","Name"],"orderby":"Name"},"posch":[14,2],"sizech":[28,2]},
       "lblName":{"name":"lblName","type":"StaticText","label":"Route name:","posch":[2,6]},
