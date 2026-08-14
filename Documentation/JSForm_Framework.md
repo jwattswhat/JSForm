@@ -623,6 +623,20 @@ A label or clickable text element. It is not written to the database.
 
 A normal single-line text field. Use `required`, `readonly`, `defaultvalue`, and text styles as needed.
 
+Set `"format": "phone"` for a phone field. Ten-digit North American values are
+displayed as `(999) 999-9999` and returned to the record as ten digits. Values
+that do not contain exactly ten digits, including international numbers and
+numbers with extensions, are preserved as entered.
+
+```json
+"Phone": {
+  "name": "Phone",
+  "type": "TextCtrl",
+  "format": "phone",
+  "maxlength": 50
+}
+```
+
 ### `MultiLine`
 
 A multi-line text field. The implemented type name uses a capital `L`: `MultiLine`.

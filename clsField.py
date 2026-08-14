@@ -29,6 +29,8 @@ from JSForm.control_values import (
     multiline_text,
     normalized_json,
     number_value,
+    phone_display,
+    phone_storage,
     value_sequence,
 )
 
@@ -340,18 +342,26 @@ class clsField:
             if value == None:
                 super().SetValue("")
             else:
-                super().SetValue(str(self.choices.getchoicedisplay(value)))
+                value = self.choices.getchoicedisplay(value)
+                if self.CONTROLDESCRIPTION.get("format") == "phone":
+                    value = phone_display(value)
+                super().SetValue(str(value))
 
         def ChangeValue(self, value):
             if value == None:
                 super().ChangeValue("")
             else:
-                super().ChangeValue(str(self.choices.getchoicedisplay(value)))
+                value = self.choices.getchoicedisplay(value)
+                if self.CONTROLDESCRIPTION.get("format") == "phone":
+                    value = phone_display(value)
+                super().ChangeValue(str(value))
 
         def GetValue(self):
             value = self.choices.getchoiceid(super().GetValue())
             if value == "":
                 value = None
+            elif self.CONTROLDESCRIPTION.get("format") == "phone":
+                value = phone_storage(value)
             return value
 
     class clsMultiLine(wx.TextCtrl, clsFieldExtra):

@@ -14,6 +14,30 @@ def multiline_text(value):
     return "\r\n".join(str(item) for item in value)
 
 
+def phone_display(value):
+    """Format a ten-digit North American phone number for screen display."""
+    if value in (None, ""):
+        return ""
+    text = str(value).strip()
+    digits = "".join(character for character in text if character.isdigit())
+    if len(digits) == 10:
+        return "({}) {}-{}".format(digits[:3], digits[3:6], digits[6:])
+    return text
+
+
+def phone_storage(value):
+    """Return a stable database value without damaging non-US phone formats."""
+    if value in (None, ""):
+        return None
+    text = " ".join(str(value).split())
+    if not text:
+        return None
+    digits = "".join(character for character in text if character.isdigit())
+    if len(digits) == 10:
+        return digits
+    return text
+
+
 def number_value(value, kind="number"):
     if value is None:
         return None

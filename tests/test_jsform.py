@@ -129,6 +129,16 @@ class TestControlValues(unittest.TestCase):
         self.assertEqual(multiline_text(["one", 2]), "one\r\n2")
         self.assertEqual(multiline_text(None), "")
 
+    def test_phone_values_have_separate_display_and_storage_forms(self):
+        from control_values import phone_display, phone_storage
+
+        self.assertEqual(phone_display("9999999999"), "(999) 999-9999")
+        self.assertEqual(phone_display("(999) 999-9999"), "(999) 999-9999")
+        self.assertEqual(phone_storage("(999) 999-9999"), "9999999999")
+        self.assertIsNone(phone_storage(""))
+        self.assertEqual(phone_display("+44 20 7946 0958"), "+44 20 7946 0958")
+        self.assertEqual(phone_storage("+44 20 7946 0958"), "+44 20 7946 0958")
+
     def test_numeric_types_preserve_null_and_return_python_numbers(self):
         from control_values import number_value
 

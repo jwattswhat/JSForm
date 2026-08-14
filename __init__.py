@@ -61,6 +61,7 @@ from JSForm.error_reporting import (
     restore_error_hooks,
 )
 from JSForm.error_dialog import show_error_dialog, show_error_dialog_threadsafe
+from JSForm.control_values import phone_display, phone_storage
 
 from JSForm.fnUtil import convertNavButtons, charactertopoint, date_to_datetime, next_weekday, sql_table_exists, check_internetconnection
 from JSForm.fnReport import RunReport, prepare_lime_report_template
