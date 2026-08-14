@@ -63,6 +63,14 @@ class TestChoiceRefresh(unittest.TestCase):
         with self.assertRaises(ValueError):
             normalized_choices(["", "  "])
 
+    def test_typed_value_outside_suggestion_list_is_preserved(self):
+        from clsChoice import clsChoice
+
+        choices = object.__new__(clsChoice)
+        choices.id = []
+        choices.display = ["55604", "55612", "55616"]
+        self.assertEqual(choices.getchoiceid("99999"), "99999")
+
     def test_lookup_refresh_replaces_stale_mappings(self):
         from clsChoice import clsChoice
 
