@@ -20,6 +20,12 @@ restricted `jsform_sample` account. The installer creates the isolated database,
 minimal framework configuration, and fictional data. Later runs reset only the
 sample's `sb_` domain tables.
 
+To reset only the sample account password without changing any sample data:
+
+```powershell
+..\ChurchManager\.runtime-venv\Scripts\python.exe examples\JSFormSample\setup_sample.py --password-only
+```
+
 ## Run
 
 ```powershell

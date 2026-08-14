@@ -19,6 +19,10 @@ def main():
     parser.add_argument("--admin-user", default="root")
     parser.add_argument("--database", default="JSFormSample")
     parser.add_argument("--sample-user", default="jsform_sample")
+    parser.add_argument(
+        "--password-only", action="store_true",
+        help="reset only the sample database login password; preserve all data",
+    )
     args = parser.parse_args()
     if args.database != "JSFormSample" or args.sample_user != "jsform_sample":
         raise SystemExit("The sample installer uses the fixed isolated database and account names.")
@@ -47,6 +51,9 @@ def main():
             cursor.close()
     finally:
         admin.close()
+    if args.password_only:
+        print("JSFormSample password reset complete. Sample data was not changed.")
+        return
     connection = mysql.connector.connect(
         host=args.server, database=args.database, user=args.sample_user, password=sample_password,
     )

@@ -76,6 +76,15 @@ class SampleApplicationTests(unittest.TestCase):
         self.assertIn("error.errno != 1045", launcher)
         self.assertIn("That password was not accepted", launcher)
 
+    def test_sample_password_can_be_reset_without_resetting_data(self):
+        installer = (SAMPLE / "setup_sample.py").read_text(encoding="utf-8")
+        self.assertIn('"--password-only"', installer)
+        self.assertIn("if args.password_only:", installer)
+        self.assertLess(
+            installer.index("if args.password_only:"),
+            installer.index("schema.sql"),
+        )
+
     def test_every_sample_form_loads_and_root_name_matches_filename(self):
         loader = FormDefinitionLoader(FORMS, FORMS)
         for path in FORMS.glob("*.json"):
