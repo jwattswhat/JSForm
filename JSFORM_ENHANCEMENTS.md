@@ -150,7 +150,7 @@ is never silently converted to `NULL`.
 - Allow the application to provide the operation and user-facing result while
   JSForm owns the reusable progress interface.
 
-### 10. Consistent date, time, and choice controls
+### 10. Consistent date, time, and choice controls — implemented
 
 - Use consistent widths for date and time controls.
 - Support separate side-by-side date and time fields.

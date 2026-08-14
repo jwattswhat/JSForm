@@ -181,6 +181,8 @@
                 "maxbytes": { "type": "integer", "minimum": 1 },
                 "maxpixels": { "type": "integer", "minimum": 1 },
                 "allowupscale": { "type": "boolean" },
+                "allowall": { "type": "boolean" },
+                "alllabel": { "type": "string", "minLength": 1 },
                 "message": { "type": "string", "minLength": 1 },
                 "wildcard": { "type": "string", "minLength": 1 },
                 "layout": {
@@ -255,7 +257,9 @@
                     "condition": { "type": "string" },
                     "ID": { "type": "string" },
                     "allowblank": { "type": "boolean" },
-                    "blanklabel": { "type": "string", "minLength": 1 }
+                    "blanklabel": { "type": "string", "minLength": 1 },
+                    "allowall": { "type": "boolean" },
+                    "alllabel": { "type": "string", "minLength": 1 }
                   }
                 }
               },

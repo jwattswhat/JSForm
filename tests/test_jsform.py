@@ -129,6 +129,55 @@ class TestChoiceRefresh(unittest.TestCase):
         finally:
             JSForm.clsSQL = original_sql
 
+    def test_literal_filter_can_offer_all_without_storing_the_label(self):
+        from clsChoice import clsChoice
+
+        choices = clsChoice(
+            None,
+            {
+                "name": "TripType", "choices": ["Morning", "Afternoon"],
+                "allowall": True, "alllabel": "All trips",
+            },
+        )
+        self.assertEqual(
+            choices.load_choices(choices.controldescription),
+            ["All trips", "Morning", "Afternoon"],
+        )
+        self.assertIsNone(choices.getchoiceid("All trips"))
+        self.assertEqual(choices.getchoiceid("Morning"), "Morning")
+
+    def test_lookup_filter_can_offer_all_without_storing_the_label(self):
+        import JSForm
+        from clsChoice import clsChoice
+
+        class Cursor:
+            def execute(self, _sql, _values=()): pass
+            def fetchone(self): return None
+            def fetchall(self): return [(3, "LSB")]
+            def close(self): pass
+
+        class Connection:
+            def cursor(self): return Cursor()
+
+        original_sql = JSForm.clsSQL
+        JSForm.clsSQL = lambda *_args: type("SQL", (), {"select": lambda self: "SELECT"})()
+        try:
+            choices = clsChoice(
+                Connection(),
+                {
+                    "name": "HymnalID",
+                    "lookupchoices": {
+                        "name": "tblHymnal", "fields": ["ID", "Hymnal"],
+                        "allowall": True,
+                    },
+                },
+            )
+            self.assertEqual(choices.load_choices(choices.controldescription), ["All", "LSB"])
+            self.assertIsNone(choices.getchoiceid("All"))
+            self.assertEqual(choices.getchoiceid("LSB"), 3)
+        finally:
+            JSForm.clsSQL = original_sql
+
     def test_lookup_works_without_optional_choices_table(self):
         import JSForm
         from clsChoice import clsChoice

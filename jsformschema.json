@@ -35,6 +35,13 @@
         "blanklabel": {
           "type": "string",
           "minLength": 1
+        },
+        "allowall": {
+          "type": "boolean"
+        },
+        "alllabel": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "required": [
@@ -203,6 +210,13 @@
                 },
                 "allowupscale": {
                   "type": "boolean"
+                },
+                "allowall": {
+                  "type": "boolean"
+                },
+                "alllabel": {
+                  "type": "string",
+                  "minLength": 1
                 },
                 "message": {
                   "type": "string",

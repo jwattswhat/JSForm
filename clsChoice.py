@@ -69,7 +69,15 @@ class clsChoice:
             controldescription = self.controldescription
 
         if "choices" in controldescription:
-            return controldescription["choices"]
+            choices = list(controldescription["choices"])
+            if controldescription.get("allowall"):
+                label = str(controldescription.get("alllabel") or "All")
+                if label not in choices:
+                    choices.insert(0, label)
+                self.id = [None]
+                self.display = [label]
+                self.fielddata = [[]]
+            return choices
 
         # A lookup-backed control may be refreshed after its catalog is edited.
         # Rebuild the mappings instead of appending duplicate/stale entries.
@@ -159,6 +167,10 @@ class clsChoice:
 
         choice = []
         lookup = self.controldescription["lookupchoices"]
+        if lookup.get("allowall"):
+            all_label = str(lookup.get("alllabel") or "All")
+            choice.append(all_label)
+            self._addchoiceanddata(None, all_label, [])
         if lookup.get("allowblank"):
             blank_label = str(lookup.get("blanklabel") or "None")
             choice.append(blank_label)
