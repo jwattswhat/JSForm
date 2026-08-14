@@ -19,6 +19,8 @@ ChurchManager workflow into the framework.
 
 ### 1. Centralized error logging and support package
 
+Design: [JSForm centralized error logging and support package specification](Documentation/JSForm.ErrorLogging.Specification.md)
+
 - Capture unhandled Python exceptions, including full tracebacks.
 - Capture errors raised by wxPython event handlers, worker threads, background
   operations, database calls, report generation, and approved subprocesses.
