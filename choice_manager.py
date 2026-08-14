@@ -87,14 +87,19 @@ class ChoiceCatalogRepository:
 
 
 class ChoiceEditDialog(wx.Dialog):
-    def __init__(self, parent, row=None):
+    def __init__(self, parent, row=None, available_fields=()):
         super().__init__(parent, title="Choice List", size=(570, 560), style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         self.row = row
         panel = wx.Panel(self)
         outer = wx.BoxSizer(wx.VERTICAL)
         form = wx.FlexGridSizer(cols=2, vgap=8, hgap=10)
         form.AddGrowableCol(1, 1)
-        self.field = wx.TextCtrl(panel, value=str(row[1]) if row else "")
+        fields = sorted({str(value).strip() for value in available_fields if str(value).strip()}, key=str.casefold)
+        current = str(row[1]) if row else ""
+        if current and current not in fields:
+            fields.append(current)
+            fields.sort(key=str.casefold)
+        self.field = wx.ComboBox(panel, value=current, choices=fields, style=wx.CB_DROPDOWN)
         self.field.SetEditable(row is None)
         form.Add(wx.StaticText(panel, label="Field:"), 0, wx.ALIGN_CENTER_VERTICAL)
         form.Add(self.field, 1, wx.EXPAND)
@@ -120,16 +125,17 @@ class ChoiceEditDialog(wx.Dialog):
 
 
 class ChoiceManagerDialog(wx.Dialog):
-    def __init__(self, parent, connection, protected_fields=()):
+    def __init__(self, parent, connection, protected_fields=(), available_fields=()):
         super().__init__(parent, title="Choices", size=(820, 590), style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         self.repository = ChoiceCatalogRepository(connection, protected_fields)
+        self.available_fields = tuple(available_fields)
         self.rows_data = []
         panel = wx.Panel(self)
         outer = wx.BoxSizer(wx.VERTICAL)
         message = wx.StaticText(panel, label="Choice lists control dropdowns throughout the program. Double-click a list to edit it.")
         message.SetForegroundColour(wx.Colour(0, 90, 190))
         outer.Add(message, 0, wx.ALL, 10)
-        legend = wx.StaticText(panel, label="Blue rows are custom choice lists that are not currently used by a screen.")
+        legend = wx.StaticText(panel, label="Blue rows are available choice lists that are not currently used by a screen.")
         legend.SetForegroundColour(wx.Colour(0, 102, 204))
         outer.Add(legend, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
         self.grid = wx.ListCtrl(panel, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
@@ -172,7 +178,7 @@ class ChoiceManagerDialog(wx.Dialog):
             item = self.grid.InsertItem(index, str(row[1]))
             self.grid.SetItem(item, 1, ", ".join(values))
             protected = row[1] in self.repository.protected_fields
-            self.grid.SetItem(item, 2, "Used by screens" if protected else "Custom choice list")
+            self.grid.SetItem(item, 2, "Used by screens" if protected else "Available")
             if not protected:
                 self.grid.SetItemTextColour(item, wx.Colour(0, 102, 204))
         self.behavior.restore_selection(remembered)
@@ -182,7 +188,7 @@ class ChoiceManagerDialog(wx.Dialog):
         return self.rows_data[index] if index >= 0 else None
 
     def edit(self, row):
-        dialog = ChoiceEditDialog(self, row)
+        dialog = ChoiceEditDialog(self, row, self.available_fields)
         try:
             if dialog.ShowModal() == wx.ID_OK:
                 field, values, note = dialog.result()
@@ -214,8 +220,8 @@ class ChoiceManagerDialog(wx.Dialog):
             wx.MessageBox(str(error), "Protected Choice List", wx.OK | wx.ICON_INFORMATION, self)
 
 
-def show_choice_manager(parent, connection, protected_fields=()):
-    dialog = ChoiceManagerDialog(parent, connection, protected_fields)
+def show_choice_manager(parent, connection, protected_fields=(), available_fields=()):
+    dialog = ChoiceManagerDialog(parent, connection, protected_fields, available_fields)
     try:
         return dialog.ShowModal()
     finally:

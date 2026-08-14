@@ -73,6 +73,21 @@ class TestScreenDesignerModel(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "developer-controlled"):
             model.set_property("Name", "security", {})
 
+    def test_text_field_can_be_presented_as_choice_without_losing_binding(self):
+        model = self.model()
+        security = dict(model.controls["Name"]["security"])
+        model.change_control_type("Name", "ComboBox")
+        self.assertEqual(model.controls["Name"]["type"], "ComboBox")
+        self.assertEqual(model.controls["Name"]["name"], "Name")
+        self.assertEqual(model.controls["Name"]["security"], security)
+        model.change_control_type("Name", "TextCtrl")
+        self.assertEqual(model.controls["Name"]["type"], "TextCtrl")
+
+    def test_unrelated_control_types_cannot_be_converted(self):
+        model = self.model()
+        with self.assertRaisesRegex(ValueError, "TextCtrl and ComboBox"):
+            model.change_control_type("lblName", "ComboBox")
+
     def test_visual_style_properties_validate_and_round_trip(self):
         model = self.model()
         for key, value in (

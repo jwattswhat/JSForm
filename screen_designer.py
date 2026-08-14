@@ -37,6 +37,7 @@ DEFAULT_SIZES = {
 }
 LABEL_TYPES = {"StaticText", "StaticBox", "CheckBox", "Button"}
 PROTECTED_PROPERTIES = {"lookupchoices", "action", "security", "table"}
+CHOICE_COMPATIBLE_TYPES = {"TextCtrl", "ComboBox"}
 
 
 class ScreenDesignerModel:
@@ -191,6 +192,15 @@ class ScreenDesignerModel:
         self._record_change()
         self.data = validated.to_dict()
         self.dirty = True
+
+    def change_control_type(self, name, control_type):
+        """Change between compatible text-entry presentations without rebinding data."""
+        current = self.controls[name].get("type")
+        if current not in CHOICE_COMPATIBLE_TYPES or control_type not in CHOICE_COMPATIBLE_TYPES:
+            raise ValueError("Only TextCtrl and ComboBox controls can be converted here")
+        if current == control_type:
+            return
+        self.set_property(name, "type", control_type)
 
     def unique_control_name(self, prefix):
         if prefix not in self.controls:
@@ -730,6 +740,13 @@ class ScreenDesignerFrame(wx.Frame):
         property_sizer.Add(properties_heading, 0, wx.ALL, 8)
         grid = wx.FlexGridSizer(0, 2, 6, 6)
         grid.AddGrowableCol(1, 1)
+        self.control_type = wx.Choice(properties, choices=["TextCtrl", "ComboBox"])
+        self.control_type.Bind(wx.EVT_CHOICE, self.on_control_type_change)
+        self.control_type.SetToolTip(
+            "A ComboBox loads tblChoices using this control's field name."
+        )
+        grid.Add(wx.StaticText(properties, label="Control type"), 0, wx.ALIGN_CENTER_VERTICAL)
+        grid.Add(self.control_type, 1, wx.EXPAND)
         for key, label in (("x", "X"), ("y", "Y"), ("width", "Width"), ("height", "Height")):
             control = wx.SpinCtrlDouble(properties, min=0, max=1000, inc=1)
             control.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_geometry_change)
@@ -790,12 +807,18 @@ class ScreenDesignerFrame(wx.Frame):
         self.model.select(name)
         enabled = name is not None
         for control in self.property_controls.values(): control.Enable(enabled)
+        self.control_type.Enable(enabled)
         if not name:
+            self.control_type.SetSelection(wx.NOT_FOUND)
             self.position_text.SetLabel("No control selected")
             return
         position, size = self.model.geometry(name)
         values = {"x": position[0], "y": position[1], "width": size[0], "height": size[1]}
         control = self.model.controls[name]
+        control_type = str(control.get("type", ""))
+        compatible = control_type in CHOICE_COMPATIBLE_TYPES
+        self.control_type.Enable(compatible)
+        self.control_type.SetStringSelection(control_type if compatible else "")
         for key in ("x", "y", "width", "height"): self.property_controls[key].SetValue(values[key])
         self.property_controls["label"].SetValue(str(control.get("label", "")))
         self.property_controls["tooltip"].SetValue(str(control.get("tooltip", "")))
@@ -813,6 +836,25 @@ class ScreenDesignerFrame(wx.Frame):
         self.security_text.SetLabel("Security: {}".format(", ".join("{}={}".format(k, v) for k, v in security.items()) if security else "none (developer controlled)"))
         self.position_text.SetLabel("{}  Position [{:g}, {:g}]  Size [{:g}, {:g}]".format(name, *position, *size))
         if activate: self.property_controls["label"].SetFocus()
+
+    def on_control_type_change(self, event):
+        name = self.model.selected
+        if not name:
+            return
+        control_type = self.control_type.GetStringSelection()
+        try:
+            self.model.change_control_type(name, control_type)
+        except (FormDefinitionError, ValueError) as error:
+            wx.MessageBox(str(error), "Cannot change control type", wx.OK | wx.ICON_ERROR, self)
+            self.on_selection(name)
+            return
+        if control_type == "ComboBox":
+            wx.MessageBox(
+                "This dropdown will load the Choices list whose Field is '{}'. "
+                "Create that list in Choices if it does not already exist.".format(name),
+                "Dropdown Choice List", wx.OK | wx.ICON_INFORMATION, self,
+            )
+        self.canvas.Refresh()
 
     def on_geometry_change(self, event):
         name = self.model.selected
