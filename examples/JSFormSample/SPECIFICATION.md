@@ -1,6 +1,6 @@
 # JSForm School Bus Sample specification
 
-**Status:** Approved by direction of Rev. Jonathan C. Watt
+**Status:** Complete and visually approved
 
 **Date:** August 14, 2026
 
