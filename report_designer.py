@@ -1742,7 +1742,7 @@ class ReportDesignerFrame(wx.Frame):
             supported = (
                 (key == "label" and control["type"] == "label")
                 or (key == "prefix" and control["type"] == "systemtext")
-                or (key in ("collection", "field") and control["type"] in ("text", "image"))
+                or (key in ("collection", "field") and control["type"] in ("text", "image", "rectangle"))
             )
             editor.Enable(required or supported)
         self.property_controls["label"].Enable(control["type"] == "label")

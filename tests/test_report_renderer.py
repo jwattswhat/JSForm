@@ -15,6 +15,48 @@ from test_report_definition import valid_definition
 
 
 class TestPDFReportRenderer(unittest.TestCase):
+    def test_data_bound_rectangle_uses_value_and_omits_blank_value(self):
+        class RecordingPDF:
+            def __init__(self):
+                self.fills = []
+                self.rectangles = []
+
+            def setStrokeColorRGB(self, *_args):
+                pass
+
+            def setLineWidth(self, *_args):
+                pass
+
+            def setFillColorRGB(self, *value):
+                self.fills.append(value)
+
+            def rect(self, *args, **kwargs):
+                self.rectangles.append((args, kwargs))
+
+        contract = ReportDatasetContract(
+            "test.colors", 1, "reports.test",
+            (ReportCollection("service", "Service", (ReportField("ColorHex", "Color"),)),),
+        )
+        renderer = PDFReportRenderer()
+        control = {
+            "type": "rectangle", "position": [0, 0], "size": [12, 12],
+            "collection": "service", "field": "ColorHex",
+        }
+        pdf = RecordingPDF()
+        renderer._draw_control(
+            pdf, control, ReportDataset.create(contract, {"service": [{"ColorHex": "#2E7D32"}]}),
+            0, 20,
+        )
+        self.assertEqual(pdf.fills[-1], (46 / 255, 125 / 255, 50 / 255))
+        self.assertEqual(len(pdf.rectangles), 1)
+
+        blank_pdf = RecordingPDF()
+        renderer._draw_control(
+            blank_pdf, control, ReportDataset.create(contract, {"service": [{"ColorHex": ""}]}),
+            0, 20,
+        )
+        self.assertEqual(blank_pdf.rectangles, [])
+
     def test_native_values_use_consistent_report_formats(self):
         renderer = PDFReportRenderer()
         self.assertEqual(renderer._format_value(Decimal("11700"), "currency"), "$11,700.00")

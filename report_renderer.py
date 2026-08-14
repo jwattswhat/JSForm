@@ -403,10 +403,17 @@ class PDFReportRenderer:
             self._set_stroke(pdf, control)
             pdf.line(x, y + height / 2, x + width, y + height / 2)
         elif kind == "rectangle":
+            background = control.get("background")
+            if control.get("collection") and control.get("field"):
+                background = self._bound_value(
+                    control, dataset, current_row, current_collection
+                )
+                if not str(background or "").strip():
+                    return
             self._set_stroke(pdf, control)
             fill = 0
-            if control.get("background"):
-                pdf.setFillColorRGB(*self._hex_color(control["background"], "#FFFFFF"))
+            if background:
+                pdf.setFillColorRGB(*self._hex_color(str(background), "#FFFFFF"))
                 fill = 1
             pdf.rect(x, y, width, height, stroke=1, fill=fill)
         elif kind == "image":
