@@ -142,7 +142,7 @@ is never silently converted to `NULL`.
 - Preserve aspect ratio and provide predictable scaling and size limits.
 - Support read-only display and application-supplied validation.
 
-### 9. Background-operation dialog
+### 9. Background-operation dialog — implemented
 
 - Run approved long operations without making the application appear frozen.
 - Show Working, completion, failure, and restart-required states.

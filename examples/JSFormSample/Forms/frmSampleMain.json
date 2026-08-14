@@ -1,6 +1,6 @@
 {
   "frmSampleMainFORM": {
-    "FORM": {"name":"frmSampleMain","type":"Panel","title":"JSForm Sample - Pine Valley Bus Routes","posch":[-1,-1],"sizech":[48,30],"stylelist":["CAPTION","CLOSEBOX"],"layout":{"type":"responsive","gap":6,"border":10,"item_padding":3}},
+    "FORM": {"name":"frmSampleMain","type":"Panel","title":"JSForm Sample - Pine Valley Bus Routes","posch":[-1,-1],"sizech":[48,35],"stylelist":["CAPTION","CLOSEBOX"],"layout":{"type":"responsive","gap":6,"border":10,"item_padding":3}},
     "CONTROLS": {
       "Heading":{"name":"Heading","type":"StaticText","label":"Pine Valley School Bus Routes","posch":[2,2],"layout":{"row":0,"column":0,"column_span":2}},
       "Introduction":{"name":"Introduction","type":"StaticText","label":"A small fictional application built only with JSForm.","posch":[2,4],"layout":{"row":1,"column":0,"column_span":2}},
@@ -12,7 +12,8 @@
       "btnManifest":{"name":"btnManifest","type":"Button","label":"Route Manifest","posch":[23,18],"sizech":[16,3],"layout":{"row":4,"column":1,"expand":true}},
       "btnDiagnostics":{"name":"btnDiagnostics","type":"Button","label":"Diagnostics","posch":[3,23],"sizech":[16,3],"layout":{"row":5,"column":0,"expand":true}},
       "btnMailPreview":{"name":"btnMailPreview","type":"Button","label":"Mail Preview","posch":[23,23],"sizech":[16,3],"layout":{"row":5,"column":1,"expand":true}},
-      "btnStudentFinder":{"name":"btnStudentFinder","type":"Button","label":"Find Student...","posch":[3,28],"sizech":[36,3],"layout":{"row":6,"column":0,"column_span":2,"expand":true}}
+      "btnStudentFinder":{"name":"btnStudentFinder","type":"Button","label":"Find Student...","posch":[3,28],"sizech":[36,3],"layout":{"row":6,"column":0,"column_span":2,"expand":true}},
+      "btnBackgroundTask":{"name":"btnBackgroundTask","type":"Button","label":"Background Task Demo...","posch":[3,33],"sizech":[36,3],"layout":{"row":7,"column":0,"column_span":2,"expand":true}}
     }
   }
 }

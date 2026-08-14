@@ -70,6 +70,10 @@ from JSForm.conditional_formatting import (
     StatusSummaryItem, apply_conditional_controls, apply_control_style,
     condition_matches, status_style,
 )
+from JSForm.background_operation import (
+    BackgroundOperationController, BackgroundOperationDialog, OperationResult,
+    run_background_operation,
+)
 from JSForm.error_reporting import (
     ErrorReporter, ErrorReportingConfig, configure_error_reporting, create_support_package,
     current_error_reporter, install_error_hooks, report_exception,

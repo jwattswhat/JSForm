@@ -18,7 +18,7 @@ import mysql.connector
 from route_manifest import show_route_manifest
 from route_stop_editor import show_ordered_route_stops
 from student_finder import show_student_finder
-from sample_tools import show_diagnostics, show_mail_preview
+from sample_tools import show_background_task, show_diagnostics, show_mail_preview
 from version import __version__ as SAMPLE_VERSION
 from JSForm.windows_credentials import read_credential
 
@@ -134,6 +134,9 @@ def main(argv=None):
     main_form.CONTROLID["btnStudentFinder"].Bind(
         wx.EVT_BUTTON,
         lambda _event: show_student_finder(main_form.FRAME, database.DBConnection),
+    )
+    main_form.CONTROLID["btnBackgroundTask"].Bind(
+        wx.EVT_BUTTON, lambda _event: show_background_task(main_form.FRAME)
     )
     main_form.FRAME.SetTitle(
         "JSForm Sample {} - School Bus Routes - {}".format(

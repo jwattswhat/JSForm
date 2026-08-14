@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -128,3 +129,18 @@ def show_mail_preview(parent, connection):
         dialog.ShowModal()
     finally:
         dialog.Destroy()
+
+
+def show_background_task(parent):
+    def sample_operation():
+        time.sleep(2)
+        return JSForm.OperationResult(
+            "The fictional route files were prepared successfully."
+        )
+
+    JSForm.run_background_operation(
+        parent,
+        title="Prepare Route Files",
+        operation=sample_operation,
+        working_message="Preparing fictional route files...",
+    )
