@@ -17,7 +17,27 @@ ChurchManager workflow into the framework.
 
 ## Prioritized enhancements
 
-### 1. Standard data-grid behavior
+### 1. Centralized error logging and support package
+
+- Capture unhandled Python exceptions, including full tracebacks.
+- Capture errors raised by wxPython event handlers, worker threads, background
+  operations, database calls, report generation, and approved subprocesses.
+- Record the timestamp, application and JSForm versions, active screen,
+  operation, database name, operating-system details, and a generated error ID.
+- Never record passwords, connection credentials, message bodies, private
+  record contents, or other unnecessary sensitive data.
+- Show the user a concise message with the error ID and log location while
+  preserving the technical traceback for support.
+- Rotate logs and limit their age and total size.
+- Provide a user-controlled **Create Support Package** action that gathers the
+  relevant logs and safe diagnostic information into one file for support.
+- Allow applications to add safe contextual details and apply additional
+  redaction before anything is written or exported.
+- Keep logging failures from causing a second application failure.
+- Add automated coverage for Python, wxPython, worker-thread, database, and
+  redaction behavior.
+
+### 2. Standard data-grid behavior
 
 - Double-click a row to edit it.
 - Sort by a column header using a consistent gesture.
@@ -27,7 +47,7 @@ ChurchManager workflow into the framework.
 - Provide consistent single-selection, multi-selection, and checkbox behavior.
 - Preserve selection and scroll position after refreshing data.
 
-### 2. Reliable dirty-record detection
+### 3. Reliable dirty-record detection
 
 - Compare normalized database values rather than formatted screen text.
 - Treat null, blank, date, time, datetime, numeric, Boolean, and choice values
@@ -36,7 +56,7 @@ ChurchManager workflow into the framework.
   navigated.
 - Provide automated tests for every supported field type.
 
-### 3. Responsive master-detail layouts
+### 4. Responsive master-detail layouts
 
 - Provide a reusable split or master-detail screen layout.
 - Allow a scrollable list or grid beside an editing or detail panel.
@@ -46,7 +66,7 @@ ChurchManager workflow into the framework.
 - Fit the initial form to ordinary screen sizes without unnecessary scrolling
   or white space.
 
-### 4. Ordered child-record editor
+### 5. Ordered child-record editor
 
 - Add, edit, delete, move up, and move down child rows.
 - Resequence rows automatically when saved.
@@ -54,7 +74,7 @@ ChurchManager workflow into the framework.
 - Allow the application to save the parent and ordered children in one
   transaction.
 
-### 5. Search-and-select dialog
+### 6. Search-and-select dialog
 
 - Provide reusable text search, filters, sortable results, and selection.
 - Support single and multiple selection.
@@ -62,7 +82,7 @@ ChurchManager workflow into the framework.
   fields.
 - Return stable record identifiers while displaying meaningful text.
 
-### 6. Conditional formatting and status summaries
+### 7. Conditional formatting and status summaries
 
 - Support declarative row and control colors based on values or validation
   state.
@@ -72,14 +92,14 @@ ChurchManager workflow into the framework.
   validation results, and fulfillment status.
 - Keep application-specific calculations outside JSForm.
 
-### 7. Image and database-blob control
+### 8. Image and database-blob control
 
 - Display an image stored as database bytes.
 - Choose, preview, replace, and remove an image safely.
 - Preserve aspect ratio and provide predictable scaling and size limits.
 - Support read-only display and application-supplied validation.
 
-### 8. Background-operation dialog
+### 9. Background-operation dialog
 
 - Run approved long operations without making the application appear frozen.
 - Show Working, completion, failure, and restart-required states.
@@ -87,7 +107,7 @@ ChurchManager workflow into the framework.
 - Allow the application to provide the operation and user-facing result while
   JSForm owns the reusable progress interface.
 
-### 9. Consistent date, time, and choice controls
+### 10. Consistent date, time, and choice controls
 
 - Use consistent widths for date and time controls.
 - Support separate side-by-side date and time fields.
@@ -96,14 +116,14 @@ ChurchManager workflow into the framework.
 - Provide an optional All selection for filters without storing it as a record
   value.
 
-### 10. Reusable linked-record and compact editor dialogs
+### 11. Reusable linked-record and compact editor dialogs
 
 - Provide read-only linked-record viewers.
 - Provide compact add/edit dialogs with correct parent and sizer ownership.
 - Supply standard Save, Cancel, Close, and validation behavior.
 - Track parent and child windows so closing a parent safely closes its children.
 
-### 11. Starter and customization catalogs
+### 12. Starter and customization catalogs
 
 - Distinguish protected starters from user customizations.
 - Display customized entries consistently, including the established blue
@@ -112,7 +132,7 @@ ChurchManager workflow into the framework.
   overwriting starters.
 - Constrain catalog access to application-approved directories.
 
-### 12. Standard action bars and file-output behavior
+### 13. Standard action bars and file-output behavior
 
 - Provide compact navigation and action bars that do not consume unnecessary
   rows.
