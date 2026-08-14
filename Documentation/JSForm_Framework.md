@@ -64,7 +64,8 @@ The principal modules are:
 | `clsConstant.py` | Defines framework constants, allowed wxPython parameters, and standard buttons. |
 | `fnReport.py` | Runs LimeReport definitions and opens generated PDF files. |
 | `fnUtil.py` | Provides layout, date, connectivity, and database helper functions. |
-| `clsSMTP.py` | Provides a small email-sending wrapper. |
+| `clsSMTP.py` | Historical compatibility email wrapper. New work uses `mail_service.py`. |
+| `mail_service.py` | Provider-neutral email validation, privacy-safe delivery, attachments, and SMTP transport. |
 | `fnSchedule.py` | Application-specific scheduling and notification functions. It is not required by the core form engine. |
 
 A typical runtime flow is:
