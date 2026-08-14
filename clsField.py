@@ -692,15 +692,36 @@ class clsField:
 
             self.SetNormalColor()
 
+            self._catalog_rows = []
+            self._catalog_behavior = JSForm.ListCtrlBehavior(
+                self,
+                item_provider=lambda: self._catalog_rows,
+                sort=lambda _column, _ascending: self.SetCatalogRows(self._catalog_rows),
+                key=lambda row: row["id"],
+            )
+
             # clsListCtrl postprocess
 
         def SetCatalogRows(self, rows):
             """Populate an ID-backed, optionally colored multi-column catalog."""
+            remembered = self._catalog_behavior.selected_key()
+            column_count = max(1, self.GetColumnCount())
+            self._catalog_rows = self._catalog_behavior.sorted(
+                rows,
+                tuple(
+                    lambda row, index=index: (
+                        row.get("values", [row.get("id")])[index]
+                        if index < len(row.get("values", []))
+                        else ""
+                    )
+                    for index in range(column_count)
+                ),
+            )
             self.DeleteAllItems()
             self.choices.id = []
             self.choices.display = []
             self.choices.fielddata = []
-            for row_number, row in enumerate(rows):
+            for row_number, row in enumerate(self._catalog_rows):
                 row_id = row["id"]
                 values = [str(value) for value in row.get("values", [])]
                 if not values:
@@ -714,8 +735,7 @@ class clsField:
                 self.choices.id.append(row_id)
                 self.choices.display.append(values[0])
                 self.choices.fielddata.append(values)
-            if self.GetItemCount():
-                self.Select(0)
+            self._catalog_behavior.restore_selection(remembered)
 
         def SetValue(self, value):
             #   clear all the selections
@@ -856,6 +876,7 @@ class clsField:
             # postprocess
 
             self.columnnames = []
+            self._sort_state = JSForm.ListSortState()
             for i in range(len(self.CONTROLDESCRIPTION["column"])):
                 column = self.CONTROLDESCRIPTION["column"][i]
                 width = (
@@ -868,14 +889,15 @@ class clsField:
                     width=width,
                 )
                 self.columnnames.append(self.CONTROLDESCRIPTION["column"][i]["name"])
+            self.Bind(wx.dataview.EVT_DATAVIEW_COLUMN_HEADER_CLICK, self._on_column_header)
 
         def GetColumnNames(self):
             return self.columnnames
 
         def SetValueTable(self, parentrecord=None, table=None):
             self.rowID = []
-
-            self.parent.FIELD.DeleteAllItems()
+            remembered = self.GetSelectedRowID()
+            self.DeleteAllItems()
 
             if table == None:
                 table = self.CONTROLDESCRIPTION["table"]
@@ -883,8 +905,38 @@ class clsField:
             self.DLVCrecords.load_records(table=table, parentrecord=parentrecord)
             for rec in self.DLVCrecords._record:
                 self.AppendTableRecord(rec)
-            if self.GetItemCount():
-                self.SelectRow(0)
+            self._restore_selected_id(remembered)
+
+        def _restore_selected_id(self, remembered=None):
+            records = self.DLVCrecords._record or []
+            row = next(
+                (index for index, record in enumerate(records) if record.get("ID") == remembered),
+                0 if records else None,
+            )
+            if row is not None:
+                self.SelectRow(row)
+                self.EnsureVisible(self.RowToItem(row))
+
+        def _on_column_header(self, event):
+            column = event.GetColumn()
+            index = column.GetModelColumn() if column else wx.NOT_FOUND
+            descriptions = self.CONTROLDESCRIPTION["column"]
+            if index == wx.NOT_FOUND or index >= len(descriptions) or not descriptions[index].get("sortable", False):
+                event.Skip()
+                return
+            remembered = self.GetSelectedRowID()
+            _column, ascending = self._sort_state.select(index)
+            field = self.columnnames[index]
+            records = list(self.DLVCrecords._record or [])
+            records.sort(
+                key=lambda record: str(record.get(field, "")).casefold(),
+                reverse=not ascending,
+            )
+            self.DLVCrecords._record = records
+            self.DeleteAllItems()
+            for record in records:
+                self.AppendTableRecord(record)
+            self._restore_selected_id(remembered)
 
         def AppendTableRecord(self, record):
             columnsforcontrol = []
