@@ -129,6 +129,9 @@ class ChoiceManagerDialog(wx.Dialog):
         message = wx.StaticText(panel, label="Choice lists control dropdowns throughout the program. Double-click a list to edit it.")
         message.SetForegroundColour(wx.Colour(0, 90, 190))
         outer.Add(message, 0, wx.ALL, 10)
+        legend = wx.StaticText(panel, label="Blue rows are custom choice lists that are not currently used by a screen.")
+        legend.SetForegroundColour(wx.Colour(0, 102, 204))
+        outer.Add(legend, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
         self.grid = wx.ListCtrl(panel, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
         self.grid.AppendColumn("Field", width=210)
         self.grid.AppendColumn("Choices", width=390)
@@ -168,7 +171,10 @@ class ChoiceManagerDialog(wx.Dialog):
             values = parse_choice_values(row[2])
             item = self.grid.InsertItem(index, str(row[1]))
             self.grid.SetItem(item, 1, ", ".join(values))
-            self.grid.SetItem(item, 2, "In use" if row[1] in self.repository.protected_fields else "Custom")
+            protected = row[1] in self.repository.protected_fields
+            self.grid.SetItem(item, 2, "Used by screens" if protected else "Custom choice list")
+            if not protected:
+                self.grid.SetItemTextColour(item, wx.Colour(0, 102, 204))
         self.behavior.restore_selection(remembered)
 
     def selected(self):

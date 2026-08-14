@@ -134,8 +134,8 @@ class ScreenCatalogDialog(wx.Dialog):
         )
         self.refresh()
 
-    def refresh(self):
-        remembered = self.behavior.selected_key()
+    def refresh(self, preferred_name=None):
+        remembered = preferred_name or self.behavior.selected_key()
         self.entries = self.behavior.sorted(
             self.model.entries(),
             (lambda entry: entry["name"], lambda entry: entry["title"], lambda entry: "Customized" if entry["customized"] else "Starter"),
@@ -172,7 +172,7 @@ class ScreenCatalogDialog(wx.Dialog):
         finally: title_dialog.Destroy()
         try: self.model.create_from(entry["path"], name, title)
         except ValueError as error: wx.MessageBox(str(error), "Cannot create screen", wx.OK | wx.ICON_ERROR, self); return
-        self.refresh()
+        self.refresh(name.strip())
 
     def on_restore(self, event):
         entry = self.selected()

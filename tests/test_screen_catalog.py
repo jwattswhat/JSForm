@@ -48,5 +48,19 @@ class TestScreenCatalog(unittest.TestCase):
             save_screen_definition(ScreenDefinitionLoader().from_dict(themed), starters / "frmTest.json")
             self.assertFalse(ScreenCatalogModel(users, starters).entries()[0]["customized"])
 
+    def test_new_screen_from_starter_is_custom_and_has_no_starter_dependency(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            users, starters = root / "users", root / "starters"
+            users.mkdir(); starters.mkdir()
+            source = starters / "frmTest.json"
+            save_screen_definition(definition(), source)
+            model = ScreenCatalogModel(users, starters)
+            created = model.create_from(source, "frmRoute", "Route Editor")
+            entry = next(item for item in model.entries() if item["name"] == "frmRoute")
+            self.assertEqual(entry["path"], created)
+            self.assertIsNone(entry["starter"])
+            self.assertTrue(entry["customized"])
+
 
 if __name__ == "__main__": unittest.main()
