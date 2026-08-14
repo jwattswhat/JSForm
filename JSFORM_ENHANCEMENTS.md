@@ -41,12 +41,14 @@ Design: [JSForm centralized error logging and support package specification](Doc
 
 ### 2. Standard data-grid behavior
 
-Catalog-style `wx.ListCtrl` screens now share double-click activation,
+Implemented. Catalog-style `wx.ListCtrl` screens now share double-click activation,
 Delete-key permission checks, sortable columns, selection-aware actions, and
 selection restoration. ID-backed application catalogs also use this sorting
 and selection contract. Database-backed DataView grids preserve selection on
-refresh and support explicitly enabled sortable columns. Checkbox grids still
-need to adopt the same contract.
+refresh and support explicitly enabled sortable columns. `wx.Grid` tables now
+have a reusable behavior for one-click Boolean cells, row activation, sorting,
+Delete-key permission checks, selection-aware actions, and selection/scroll
+restoration.
 
 - Double-click a row to edit it.
 - Sort by a column header using a consistent gesture.

@@ -58,6 +58,7 @@ from JSForm.layout_engine import (
     master_detail_panes, supports_responsive_layout,
 )
 from JSForm.list_behavior import ListCtrlBehavior, ListSortState
+from JSForm.grid_behavior import GridBehavior, grid_checked
 from JSForm.error_reporting import (
     ErrorReporter, ErrorReportingConfig, configure_error_reporting, create_support_package,
     current_error_reporter, install_error_hooks, report_exception,
