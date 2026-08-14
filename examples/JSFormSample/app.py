@@ -14,6 +14,7 @@ sys.path.insert(0, str(PACKAGE_ROOT.parent))
 
 import wx
 import JSForm
+import mysql.connector
 from route_manifest import show_route_manifest
 from sample_tools import show_diagnostics, show_mail_preview
 from version import __version__ as SAMPLE_VERSION
@@ -42,15 +43,31 @@ def arguments(argv=None):
     return parser.parse_args(argv)
 
 
+def connect_database(settings, attempts=3):
+    """Prompt for the isolated sample password, allowing simple typing errors."""
+    for attempt in range(1, attempts + 1):
+        password = getpass.getpass("MariaDB password for {}: ".format(settings.user))
+        try:
+            return JSForm.clsDB(
+                settings.server, settings.database, settings.user, password,
+                jsform_database=settings.database,
+            )
+        except mysql.connector.Error as error:
+            if error.errno != 1045 or attempt == attempts:
+                raise
+            print(
+                "That password was not accepted. Please try again "
+                "({} attempt(s) remaining).".format(attempts - attempt),
+                file=sys.stderr,
+            )
+    raise RuntimeError("Unable to connect to the sample database.")
+
+
 def main(argv=None):
     settings = arguments(argv)
-    password = getpass.getpass("MariaDB password for {}: ".format(settings.user))
     os.environ["JSFORM_SCREEN_OVERLAY"] = str(FORMS)
     wx_app = wx.App(0)
-    database = JSForm.clsDB(
-        settings.server, settings.database, settings.user, password,
-        jsform_database=settings.database,
-    )
+    database = connect_database(settings)
     JSForm.CONFIG.set_Config_DBConnection(database)
     JSForm.OPTION.set_Option_DBConnection(database)
     JSForm.FONT.set_Font_DBConnection(database)

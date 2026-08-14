@@ -70,6 +70,12 @@ class SampleApplicationTests(unittest.TestCase):
         self.assertIn('default="localhost"', installer)
         self.assertNotIn('default="church"', launcher)
 
+    def test_sample_retries_a_mistyped_database_password(self):
+        launcher = (SAMPLE / "app.py").read_text(encoding="utf-8")
+        self.assertIn("def connect_database(settings, attempts=3):", launcher)
+        self.assertIn("error.errno != 1045", launcher)
+        self.assertIn("That password was not accepted", launcher)
+
     def test_every_sample_form_loads_and_root_name_matches_filename(self):
         loader = FormDefinitionLoader(FORMS, FORMS)
         for path in FORMS.glob("*.json"):
