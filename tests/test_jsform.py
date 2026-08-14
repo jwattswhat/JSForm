@@ -523,6 +523,25 @@ class TestResponsiveLayout(unittest.TestCase):
         })[0]
         self.assertEqual((item.row, item.column, item.column_span), (0, 0, 2))
 
+    def test_partial_explicit_layout_does_not_mix_positioning_systems(self):
+        from layout_engine import build_layout_plan
+
+        plan = build_layout_plan({
+            "first": {
+                "type": "StaticBox", "posch": [1, 10],
+                "layout": {"row": 0, "column": 0},
+            },
+            "second": {"type": "StaticBox", "posch": [20, 1]},
+        }, include_navigation=False)
+        items = {item.name: item for item in plan}
+        self.assertEqual((items["first"].row, items["first"].column), (1, 0))
+        self.assertEqual((items["second"].row, items["second"].column), (0, 1))
+
+    def test_forms_reset_initial_scroll_after_show(self):
+        source = (ROOT / "clsForm.py").read_text(encoding="utf-8")
+        self.assertIn("wx.CallAfter(self._reset_initial_scroll)", source)
+        self.assertIn("self.FORM.Scroll(0, 0)", source)
+
 
 class TestMonitorMetrics(unittest.TestCase):
     def test_missing_physical_size_uses_standard_dpi(self):

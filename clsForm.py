@@ -732,10 +732,17 @@ class clsForm:
     def show(self):
         JSForm.LG.log()
         if "modal" in self.FORMDESCRIPTON:
+            wx.CallAfter(self._reset_initial_scroll)
             return self.FRAME.ShowModal()
         self.FRAME.Show()
         if self.FORM is not self.FRAME:
             self.FORM.Show()
+        wx.CallAfter(self._reset_initial_scroll)
+
+    def _reset_initial_scroll(self):
+        """Open scrolled forms at their upper-left content."""
+        if hasattr(self.FORM, "Scroll"):
+            self.FORM.Scroll(0, 0)
 
     def showmodal(self):
         JSForm.LG.log()

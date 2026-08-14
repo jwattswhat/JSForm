@@ -99,13 +99,36 @@ def _logical_position(description):
     return tuple(description.get("posch", (0, 0))[::-1])
 
 
+def _collection_positions(descriptions):
+    """Use grid coordinates only when the whole layout level defines them."""
+    visible = {
+        name: description for name, description in descriptions.items()
+        if name not in NAVIGATION_NAMES
+        and not description.get("layout", {}).get("hidden")
+    }
+    use_grid = bool(visible) and all(
+        "row" in description.get("layout", {})
+        and "column" in description.get("layout", {})
+        for description in visible.values()
+    )
+    if use_grid:
+        return {
+            name: (description["layout"]["row"], description["layout"]["column"])
+            for name, description in visible.items()
+        }
+    return {
+        name: tuple(description.get("posch", (0, 0))[::-1])
+        for name, description in visible.items()
+    }
+
+
 def build_layout_plan(descriptions, include_navigation=True):
     """Convert logical positions into dense sizer rows and columns."""
     content = {
         name: description for name, description in descriptions.items()
         if name not in NAVIGATION_NAMES and not description.get("layout", {}).get("hidden")
     }
-    positions = {name: _logical_position(description) for name, description in content.items()}
+    positions = _collection_positions(content)
     rows = {value: index for index, value in enumerate(sorted({pos[0] for pos in positions.values()}))}
     columns = {value: index for index, value in enumerate(sorted({pos[1] for pos in positions.values()}))}
     result = []
