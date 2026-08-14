@@ -10,6 +10,7 @@ from JSForm.screen_definition import (
 )
 from JSForm.list_behavior import ListCtrlBehavior
 from JSForm.catalog_paths import CatalogDirectories
+from JSForm.action_ui import confirm_destructive_action
 
 
 SCREEN_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_]{1,63}$")
@@ -204,7 +205,10 @@ class ScreenCatalogDialog(wx.Dialog):
     def on_restore(self, event):
         entry = self.selected()
         if not entry or not entry["customized"]: return
-        if wx.MessageBox("Delete this customization and return to the shipped starter?", "Delete Customization", wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION, self) != wx.YES: return
+        if not confirm_destructive_action(
+            self, entry["title"], title="Delete customization",
+            consequence="The protected starter will become active again.",
+        ): return
         self.model.delete_customization(entry["name"])
         self.refresh()
 

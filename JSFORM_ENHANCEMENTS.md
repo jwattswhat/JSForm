@@ -175,7 +175,7 @@ is never silently converted to `NULL`.
   overwriting starters.
 - Constrain catalog access to application-approved directories.
 
-### 13. Standard action bars and file-output behavior
+### 13. Standard action bars and file-output behavior — implemented
 
 - Provide compact navigation and action bars that do not consume unnecessary
   rows.

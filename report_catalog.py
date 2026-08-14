@@ -10,6 +10,7 @@ import wx
 from JSForm.report_definition import ReportDefinitionLoader, save_report_definition
 from JSForm.list_behavior import ListCtrlBehavior
 from JSForm.catalog_paths import CatalogDirectories
+from JSForm.action_ui import confirm_destructive_action
 
 
 REPORT_CODE = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]{1,63}$")
@@ -212,13 +213,13 @@ class ReportCatalogDialog(wx.Dialog):
             wx.MessageBox("This report is already using its starter definition.", "No customization", wx.OK | wx.ICON_INFORMATION, self)
             return
         message = (
-            f"Delete the customization for {entry['title']} and return to its starter?"
-            if entry["has_starter"] else f"Permanently delete {entry['title']}?"
+            "The protected starter will become active again."
+            if entry["has_starter"] else "This custom report will be permanently removed."
         )
-        if wx.MessageBox(
-            message, "Delete customization",
-            wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION, self,
-        ) != wx.YES:
+        if not confirm_destructive_action(
+            self, entry["title"], title="Delete customization",
+            consequence=message,
+        ):
             return
         self.model.delete_customization(entry)
         self.refresh()

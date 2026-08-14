@@ -6,6 +6,8 @@ from dataclasses import dataclass
 
 import wx
 
+from JSForm.action_ui import Action, StandardActionBar
+
 
 @dataclass(frozen=True)
 class EditorField:
@@ -91,15 +93,11 @@ class CompactEditorDialog(wx.Dialog):
             grid.Add(control, 1, wx.EXPAND)
             self.controls[definition.field] = control
         outer.Add(grid, 1, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 12)
-        buttons = wx.StdDialogButtonSizer()
-        save = wx.Button(panel, wx.ID_SAVE, "Save")
-        cancel = wx.Button(panel, wx.ID_CANCEL, "Cancel")
-        buttons.AddButton(save)
-        buttons.AddButton(cancel)
-        buttons.Realize()
-        save.Bind(wx.EVT_BUTTON, self.on_save)
-        cancel.Bind(wx.EVT_BUTTON, lambda _event: self.EndModal(wx.ID_CANCEL))
-        outer.Add(buttons, 0, wx.EXPAND | wx.ALL, 12)
+        actions = StandardActionBar(panel, (
+            Action("save", "Save", self.on_save, wx.ID_SAVE, trailing=True),
+            Action("cancel", "Cancel", lambda _event: self.EndModal(wx.ID_CANCEL), wx.ID_CANCEL),
+        ))
+        outer.Add(actions, 0, wx.EXPAND | wx.ALL, 12)
         panel.SetSizer(outer)
         dialog_sizer = wx.BoxSizer(wx.VERTICAL)
         dialog_sizer.Add(panel, 1, wx.EXPAND)

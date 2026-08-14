@@ -79,6 +79,10 @@ from JSForm.compact_dialogs import (
     CompactEditorDialog, CompactEditorModel, EditorField, LinkedRecordField,
     LinkedRecordViewerDialog, edit_compact_record, view_linked_record,
 )
+from JSForm.action_ui import (
+    Action, OutputLocation, StandardActionBar, confirm_destructive_action,
+    destructive_confirmation_message, install_action_menu,
+)
 from JSForm.error_reporting import (
     ErrorReporter, ErrorReportingConfig, configure_error_reporting, create_support_package,
     current_error_reporter, install_error_hooks, report_exception,
