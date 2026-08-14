@@ -7,6 +7,7 @@ import re
 import wx
 
 from JSForm.report_definition import ReportDefinitionLoader, save_report_definition
+from JSForm.list_behavior import ListCtrlBehavior
 
 
 REPORT_CODE = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]{1,63}$")
@@ -103,9 +104,9 @@ class ReportCatalogDialog(wx.Dialog):
         self.list.InsertColumn(0, "Report", width=130)
         self.list.InsertColumn(1, "Title", width=430)
         self.list.InsertColumn(2, "Status", width=120)
-        self.list.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_open)
         layout.Add(self.list, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
         buttons = wx.BoxSizer(wx.HORIZONTAL)
+        action_buttons = {}
         for label, handler in (
             ("Open Designer", self.on_open), ("New from Selected", self.on_new),
             ("Delete Customization", self.on_delete),
@@ -113,16 +114,33 @@ class ReportCatalogDialog(wx.Dialog):
             button = wx.Button(self, label=label)
             button.Bind(wx.EVT_BUTTON, handler)
             buttons.Add(button, 0, wx.RIGHT, 8)
+            action_buttons[label] = button
         buttons.AddStretchSpacer()
         close = wx.Button(self, wx.ID_CLOSE, "Close")
         close.Bind(wx.EVT_BUTTON, lambda event: self.EndModal(wx.ID_CLOSE))
         buttons.Add(close, 0)
         layout.Add(buttons, 0, wx.EXPAND | wx.ALL, 10)
         self.SetSizer(layout)
+        self.entries = []
+        self.behavior = ListCtrlBehavior(
+            self.list, item_provider=lambda: self.entries,
+            activate=self.on_open, delete=self.on_delete,
+            delete_allowed=lambda entry: entry["customized"] or not entry["has_starter"],
+            sort=lambda _column, _ascending: self.refresh(), key=lambda entry: entry["code"],
+            action_rules=(
+                (action_buttons["Open Designer"], lambda _entry: True),
+                (action_buttons["New from Selected"], lambda _entry: True),
+                (action_buttons["Delete Customization"], lambda entry: entry["customized"] or not entry["has_starter"]),
+            ),
+        )
         self.refresh()
 
     def refresh(self):
-        self.entries = self.model.entries()
+        remembered = self.behavior.selected_key()
+        self.entries = self.behavior.sorted(
+            self.model.entries(),
+            (lambda entry: entry["code"], lambda entry: entry["title"], lambda entry: "Customized" if entry["customized"] else "Starter"),
+        )
         self.list.DeleteAllItems()
         for entry in self.entries:
             row = self.list.InsertItem(self.list.GetItemCount(), entry["code"])
@@ -130,8 +148,7 @@ class ReportCatalogDialog(wx.Dialog):
             self.list.SetItem(row, 2, "Customized" if entry["customized"] else "Starter")
             if entry["customized"]:
                 self.list.SetItemTextColour(row, wx.Colour(0, 102, 204))
-        if self.entries:
-            self.list.Select(0)
+        self.behavior.restore_selection(remembered)
 
     def selected(self):
         index = self.list.GetFirstSelected()

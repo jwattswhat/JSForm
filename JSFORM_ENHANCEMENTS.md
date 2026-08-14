@@ -41,6 +41,11 @@ Design: [JSForm centralized error logging and support package specification](Doc
 
 ### 2. Standard data-grid behavior
 
+Catalog-style `wx.ListCtrl` screens now share double-click activation,
+Delete-key permission checks, sortable columns, selection-aware actions, and
+selection restoration. Editable and checkbox grids still need to adopt the
+same contract.
+
 - Double-click a row to edit it.
 - Sort by a column header using a consistent gesture.
 - Support Delete-key deletion when deletion is permitted.

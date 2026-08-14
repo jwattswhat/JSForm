@@ -8,6 +8,7 @@ import re
 import wx
 
 from JSForm.clsChoice import parse_choice_values
+from JSForm.list_behavior import ListCtrlBehavior
 
 
 FIELD_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -132,27 +133,43 @@ class ChoiceManagerDialog(wx.Dialog):
         self.grid.AppendColumn("Field", width=210)
         self.grid.AppendColumn("Choices", width=390)
         self.grid.AppendColumn("Status", width=130)
-        self.grid.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_edit)
         outer.Add(self.grid, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
         actions = wx.BoxSizer(wx.HORIZONTAL)
+        action_buttons = {}
         for label, handler in (("Add...", self.on_add), ("Edit...", self.on_edit), ("Delete", self.on_delete)):
             button = wx.Button(panel, label=label)
             button.Bind(wx.EVT_BUTTON, handler)
             actions.Add(button, 0, wx.RIGHT, 8)
+            action_buttons[label] = button
         actions.AddStretchSpacer()
         actions.Add(wx.Button(panel, wx.ID_CANCEL, "Close"))
         outer.Add(actions, 0, wx.EXPAND | wx.ALL, 10)
         panel.SetSizer(outer)
+        self.behavior = ListCtrlBehavior(
+            self.grid, item_provider=lambda: self.rows_data,
+            activate=self.on_edit, delete=self.on_delete,
+            delete_allowed=lambda row: row[1] not in self.repository.protected_fields,
+            sort=lambda _column, _ascending: self.refresh(), key=lambda row: row[0],
+            action_rules=(
+                (action_buttons["Edit..."], lambda _row: True),
+                (action_buttons["Delete"], lambda row: row[1] not in self.repository.protected_fields),
+            ),
+        )
         self.refresh()
 
     def refresh(self):
-        self.rows_data = self.repository.rows()
+        remembered = self.behavior.selected_key()
+        self.rows_data = self.behavior.sorted(
+            self.repository.rows(),
+            (lambda row: row[1], lambda row: ", ".join(parse_choice_values(row[2])), lambda row: row[1] in self.repository.protected_fields),
+        )
         self.grid.DeleteAllItems()
         for index, row in enumerate(self.rows_data):
             values = parse_choice_values(row[2])
             item = self.grid.InsertItem(index, str(row[1]))
             self.grid.SetItem(item, 1, ", ".join(values))
             self.grid.SetItem(item, 2, "In use" if row[1] in self.repository.protected_fields else "Custom")
+        self.behavior.restore_selection(remembered)
 
     def selected(self):
         index = self.grid.GetFirstSelected()

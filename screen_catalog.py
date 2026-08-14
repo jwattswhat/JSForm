@@ -8,6 +8,7 @@ import wx
 from JSForm.screen_definition import (
     ScreenDefinitionLoader, save_screen_definition, screen_definitions_equal,
 )
+from JSForm.list_behavior import ListCtrlBehavior
 
 
 SCREEN_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_]{1,63}$")
@@ -105,23 +106,40 @@ class ScreenCatalogDialog(wx.Dialog):
         self.list = wx.ListCtrl(self, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
         for index, (label, width) in enumerate((("Screen", 160), ("Title", 440), ("Status", 130))):
             self.list.InsertColumn(index, label, width=width)
-        self.list.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_open)
         root.Add(self.list, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
         buttons = wx.BoxSizer(wx.HORIZONTAL)
+        action_buttons = {}
         for label, handler in (("Open Designer", self.on_open), ("New from Selected", self.on_new), ("Delete Custom", self.on_restore)):
             button = wx.Button(self, label=label)
             button.Bind(wx.EVT_BUTTON, handler)
             buttons.Add(button, 0, wx.RIGHT, 8)
+            action_buttons[label] = button
         buttons.AddStretchSpacer()
         close = wx.Button(self, wx.ID_CLOSE, "Close")
         close.Bind(wx.EVT_BUTTON, lambda event: self.EndModal(wx.ID_CLOSE))
         buttons.Add(close)
         root.Add(buttons, 0, wx.EXPAND | wx.ALL, 10)
         self.SetSizer(root)
+        self.entries = []
+        self.behavior = ListCtrlBehavior(
+            self.list, item_provider=lambda: self.entries,
+            activate=self.on_open, delete=self.on_restore,
+            delete_allowed=lambda entry: entry["customized"],
+            sort=lambda _column, _ascending: self.refresh(), key=lambda entry: entry["name"],
+            action_rules=(
+                (action_buttons["Open Designer"], lambda _entry: True),
+                (action_buttons["New from Selected"], lambda _entry: True),
+                (action_buttons["Delete Custom"], lambda entry: entry["customized"]),
+            ),
+        )
         self.refresh()
 
     def refresh(self):
-        self.entries = self.model.entries()
+        remembered = self.behavior.selected_key()
+        self.entries = self.behavior.sorted(
+            self.model.entries(),
+            (lambda entry: entry["name"], lambda entry: entry["title"], lambda entry: "Customized" if entry["customized"] else "Starter"),
+        )
         self.list.DeleteAllItems()
         for entry in self.entries:
             row = self.list.InsertItem(self.list.GetItemCount(), entry["name"])
@@ -129,7 +147,7 @@ class ScreenCatalogDialog(wx.Dialog):
             self.list.SetItem(row, 2, "Customized" if entry["customized"] else "Starter")
             if entry["customized"]:
                 self.list.SetItemTextColour(row, wx.Colour(0, 102, 204))
-        if self.entries: self.list.Select(0)
+        self.behavior.restore_selection(remembered)
 
     def selected(self):
         index = self.list.GetFirstSelected()

@@ -56,6 +56,7 @@ from JSForm.layout_engine import (
     LayoutItem, apply_responsive_layout, build_layout_plan,
     frame_position, grouped_controls, layout_spacing, supports_responsive_layout,
 )
+from JSForm.list_behavior import ListCtrlBehavior, ListSortState
 from JSForm.error_reporting import (
     ErrorReporter, ErrorReportingConfig, configure_error_reporting, create_support_package,
     current_error_reporter, install_error_hooks, report_exception,
