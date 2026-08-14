@@ -65,7 +65,7 @@ class DiagnosticsDialog(wx.Dialog):
             try:
                 target = JSForm.create_support_package(
                     chooser.GetPath(),
-                    safe_diagnostics={"sample_database": "JSFormTest", "real_mail_enabled": False},
+                    safe_diagnostics={"sample_database": "JSFormSample", "real_mail_enabled": False},
                 )
             except Exception as error:
                 wx.MessageBox(str(error), "Support Package Failed", wx.OK | wx.ICON_ERROR, self)

@@ -47,9 +47,21 @@ class SampleApplicationTests(unittest.TestCase):
         self.assertNotIn("tblUser", schema)
         for table in ("school", "driver", "bus", "route", "route_stop", "student"):
             self.assertIn("sb_{}".format(table), schema)
+        allowed_framework_tables = {"jsConfig", "jsOptions"}
         for line in schema.splitlines():
             if line.strip().upper().startswith(("DROP TABLE", "CREATE TABLE")):
-                self.assertIn("sb_", line)
+                self.assertTrue(
+                    "sb_" in line or any(name in line for name in allowed_framework_tables),
+                    line,
+                )
+
+    def test_sample_uses_an_isolated_database_account(self):
+        launcher = (SAMPLE / "app.py").read_text(encoding="utf-8")
+        installer = (SAMPLE / "setup_sample.py").read_text(encoding="utf-8")
+        self.assertIn('default="JSFormSample"', launcher)
+        self.assertIn('default="jsform_sample"', launcher)
+        self.assertIn("GRANT ALL PRIVILEGES ON JSFormSample.*", installer)
+        self.assertNotIn('default="church"', launcher)
 
     def test_every_sample_form_loads_and_root_name_matches_filename(self):
         loader = FormDefinitionLoader(FORMS, FORMS)

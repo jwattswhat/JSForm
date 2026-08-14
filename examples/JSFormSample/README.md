@@ -1,8 +1,7 @@
 # JSForm School Bus Sample
 
 A deliberately small demonstration application for JSForm. It uses fictional
-Pine Valley School District data and sample tables prefixed `sb_` in the local
-`JSFormTest` database.
+Pine Valley School District data in its own local `JSFormSample` database.
 
 ## Setup
 
@@ -13,8 +12,10 @@ needed:
 ..\ChurchManager\.runtime-venv\Scripts\python.exe examples\JSFormSample\setup_sample.py
 ```
 
-Enter the local MariaDB username and password when prompted. The reset deletes
-and recreates only the sample's `sb_` tables.
+Enter an administrative MariaDB password, then choose a password for the new
+restricted `jsform_sample` account. The installer creates the isolated database,
+minimal framework configuration, and fictional data. Later runs reset only the
+sample's `sb_` domain tables.
 
 ## Run
 

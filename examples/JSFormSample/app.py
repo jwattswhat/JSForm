@@ -34,8 +34,8 @@ def arguments(argv=None):
         description="JSForm {} School Bus Sample".format(JSForm.__version__)
     )
     parser.add_argument("--server", default="127.0.0.1")
-    parser.add_argument("--database", default="JSFormTest")
-    parser.add_argument("--user", default="church")
+    parser.add_argument("--database", default="JSFormSample")
+    parser.add_argument("--user", default="jsform_sample")
     return parser.parse_args(argv)
 
 
@@ -59,7 +59,10 @@ def main(argv=None):
         application_name="JSFormSample",
         application_version="0.1.0-dev",
         error_id_prefix="JSS",
-        safe_context_provider=lambda: {"application_mode": "sample", "database_scope": "test"},
+        safe_context_provider=lambda: {
+            "application_mode": "sample", "database_scope": "isolated_sample",
+            "database_name": settings.database,
+        },
     )
     JSForm.install_error_hooks()
 

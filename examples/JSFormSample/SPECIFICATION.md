@@ -11,8 +11,10 @@ framework without importing or depending on ChurchManager.
 
 ## Boundaries
 
-- The sample uses the existing local `JSFormTest` MariaDB database.
-- Every sample-owned table begins with `sb_`.
+- The sample uses its own local `JSFormSample` MariaDB database and restricted
+  `jsform_sample` account.
+- Every domain table begins with `sb_`; the database also contains the minimal
+  JSForm-owned `jsConfig` and `jsOptions` framework tables.
 - Reset operations may drop and recreate only `sb_` tables.
 - The sample has no login, users, roles, or visible security administration.
 - Runtime authorization uses JSForm's allow-all policy.
