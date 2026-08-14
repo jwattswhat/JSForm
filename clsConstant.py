@@ -1,8 +1,8 @@
 import wx
+from JSForm.version import __version__
 '''
     Name Space Class for JSForm
 '''
-__version__ = "0.1"
 __author__ = "Rev. Jonathan C. Watt"
 
 

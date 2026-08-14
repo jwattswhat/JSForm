@@ -1,3 +1,4 @@
+from JSForm.version import __version__
 from JSForm.clsConstant import CONST
 from JSForm.clsConfig import CONFIG
 from JSForm.clsOption import OPTION

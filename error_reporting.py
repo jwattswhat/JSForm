@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Callable, Mapping
 
 from JSForm.error_redaction import redact_text, safe_context
+from JSForm.version import __version__ as JSFORM_VERSION
 
 
 DEFAULT_CONTEXT_KEYS = {
@@ -172,6 +173,7 @@ _ORIGINAL_THREAD_HOOK = None
 def configure_error_reporting(**kwargs) -> ErrorReporter:
     global _REPORTER
     normalized = dict(kwargs)
+    normalized.setdefault("jsform_version", JSFORM_VERSION)
     if normalized.get("log_directory") is not None:
         normalized["log_directory"] = Path(normalized["log_directory"])
     if normalized.get("context_keys") is not None:
