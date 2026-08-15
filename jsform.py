@@ -17,8 +17,6 @@ def _buttonclick(event):
     select = event.GetEventObject().GetName()
     formname = None 
     match select:
-        case "lblEnhancements":
-            formname = "frmEnhancement"
         case "lblOptions":
             formname = "frmOptions"
         case "lblConfig":
@@ -77,7 +75,6 @@ JSForm.CONST.btnNavigationCONTROLS = JSForm.convertNavButtons(
 cmfrm = JSForm.clsForm(None, JSFormDB.DBConnection, "frmJSForm", ["Close"])
 
 
-cmfrm.CONTROLID["lblEnhancements"].Bind(wx.EVT_LEFT_DOWN, _buttonclick)
 cmfrm.CONTROLID["lblOptions"].Bind(wx.EVT_LEFT_DOWN, _buttonclick)
 cmfrm.CONTROLID["lblConfig"].Bind(wx.EVT_LEFT_DOWN, _buttonclick)
 cmfrm.CONTROLID["lblReports"].Bind(wx.EVT_LEFT_DOWN, _buttonclick)

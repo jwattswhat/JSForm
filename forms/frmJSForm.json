@@ -9,30 +9,24 @@
             "stylelist":["CAPTION"]
         },
         "CONTROLS":{
-            "lblEnhancements":{
-                "name":"lblEnhancements",
-                "type":"StaticText",
-                "label": "Enhancements",
-                "posch":[1,1]
-            },
             "lblOptions":{
                 "name":"lblOptions",
                 "type":"StaticText",
                 "label":"Options",
-                "posch":[1,3]
+                "posch":[1,1]
             },
             "lblConfig":{
                 "name":"lblConfig",
                 "type":"StaticText",
                 "label":"Config",
-                "posch":[1,5]
+                "posch":[1,3]
             },
             "lblReports": {
                 "name": "lblReports",
                 "type": "StaticText",
                 "posch": [
                     1,
-                    7
+                    5
                 ],
                 "label": "Reports"
             }

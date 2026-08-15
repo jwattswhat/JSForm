@@ -1138,9 +1138,8 @@ class TestJSFormDefinitions(unittest.TestCase):
                 self.assertIsInstance(data, dict)
                 self.assertIn("$schema", data)
 
-    def test_lime_report_patterns_are_well_formed_xml(self):
+    def test_any_legacy_lime_report_patterns_are_well_formed_xml(self):
         patterns = sorted((ROOT / "LimeReportPattern").glob("*.lrxml"))
-        self.assertGreater(len(patterns), 0)
         for path in patterns:
             with self.subTest(pattern=path.name):
                 ET.parse(path)

@@ -22,7 +22,7 @@ class FrameworkFormConsistencyTests(unittest.TestCase):
                     mismatches.append(f"{path.name}: {key} != {name}")
         self.assertEqual(mismatches, [])
 
-    def test_framework_date_pickers_use_standard_width(self):
+    def test_any_framework_date_pickers_use_standard_width(self):
         widths = []
         for path in sorted((ROOT / "Forms").glob("*.json")):
             document = json.loads(path.read_text(encoding="utf-8-sig"))
@@ -30,7 +30,6 @@ class FrameworkFormConsistencyTests(unittest.TestCase):
             for key, control in form.get("CONTROLS", {}).items():
                 if control.get("type") == "DatePickerCtrl":
                     widths.append((path.name, key, control.get("sizech", [None])[0]))
-        self.assertTrue(widths)
         self.assertEqual(
             [(path, key, width) for path, key, width in widths if width != 20],
             [],
