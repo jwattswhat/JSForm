@@ -8,6 +8,7 @@ from JSForm.mail_service import (
     MailConfigurationError, MailMessage, MailService, MailSettings,
     SMTPTransport, unique_recipients, valid_email,
 )
+from JSForm.credential_store import WindowsCredentialStore
 
 
 class FakeTransport:
@@ -70,6 +71,11 @@ class MailServiceTests(unittest.TestCase):
         self.assertIsNone(first["References"])
         self.assertEqual(first["To"], "person@example.org")
         self.assertTrue(first.is_multipart())
+
+    def test_credential_target_rejects_blank_names(self):
+        store = WindowsCredentialStore()
+        with self.assertRaises(ValueError):
+            store.read("  ")
 
 
 if __name__ == "__main__":

@@ -97,6 +97,7 @@ from JSForm.mail_service import (
     MailService, MailSettings, SMTPTransport, normalized_email,
     unique_recipients, valid_email,
 )
+from JSForm.credential_store import WindowsCredentialStore
 
 from JSForm.fnUtil import convertNavButtons, charactertopoint, date_to_datetime, next_weekday, sql_table_exists, check_internetconnection
 from JSForm.fnReport import RunReport, prepare_lime_report_template
