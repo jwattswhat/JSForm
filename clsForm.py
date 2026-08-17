@@ -787,7 +787,9 @@ class clsForm:
             required = self._check_required_fields()
             if required:
                 for fld in required:
-                    self.CONTROLID[fld].SetWarningColor()
+                    control = self.CONTROLID.get(fld)
+                    if control is not None:
+                        control.SetWarningColor()
                 dlg = wx.MessageDialog(
                     self.FORM,
                     "Fields: " + ",".join(required),
@@ -802,7 +804,11 @@ class clsForm:
             dirtyfields = self.RECORDS.recordisdirty()
             if dirtyfields:
                 for field in dirtyfields:
-                    self.CONTROLID[field].SetWarningColor()
+                    # Records may contain application-assigned primary keys or
+                    # other system fields that are intentionally not displayed.
+                    control = self.CONTROLID.get(field)
+                    if control is not None:
+                        control.SetWarningColor()
                 dlg = self._dirtydialog(self.FORM, title="Form Modified(dirty)")
                 result = dlg.ShowModal()
                 dlg.Destroy()

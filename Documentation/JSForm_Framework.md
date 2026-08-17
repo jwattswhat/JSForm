@@ -1294,3 +1294,7 @@ record before its first save. JSForm remembers that the record began as new,
 performs an `INSERT` including that ID, and preserves the assigned value. This
 supports permanent catalog identifiers without embedding any application-
 specific allocation policy in JSForm.
+
+Application-assigned IDs and other record-only system fields do not need visible
+controls. Dirty-state and required-field highlighting safely ignores fields that
+are absent from the form while still including them in record persistence.

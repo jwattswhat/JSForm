@@ -1,5 +1,6 @@
 """Tests for application-assigned primary keys on new JSForm records."""
 
+from pathlib import Path
 import unittest
 
 from clsDB import clsRecord
@@ -53,6 +54,11 @@ class PreassignedPrimaryKeyTests(unittest.TestCase):
         records.setfieldvalue("Name", "Changed")
         records.update_current_record_in_DB()
         self.assertEqual(connection.executed[0], "UPDATE")
+
+    def test_hidden_assigned_id_is_safe_during_dirty_check(self):
+        source = (Path(__file__).parents[1] / "clsForm.py").read_text(encoding="utf-8")
+        self.assertIn("control = self.CONTROLID.get(field)", source)
+        self.assertNotIn("self.CONTROLID[field].SetWarningColor()", source)
 
 
 if __name__ == "__main__":
