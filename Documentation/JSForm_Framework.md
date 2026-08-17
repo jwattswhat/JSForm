@@ -1285,3 +1285,12 @@ These limitations do not prevent building an application with JSForm, but they s
 ---
 
 This documentation reflects the framework files present in this repository as of August 2026. When behavior differs from this guide, inspect the installed version of `clsForm.py`, `clsField.py`, and `clsSQL.py`, because those modules determine runtime behavior.
+
+## Application-assigned primary keys
+
+JSForm normally accepts the database-generated `ID` after inserting a new
+record. An application may instead assign a stable `ID` to the current blank
+record before its first save. JSForm remembers that the record began as new,
+performs an `INSERT` including that ID, and preserves the assigned value. This
+supports permanent catalog identifiers without embedding any application-
+specific allocation policy in JSForm.

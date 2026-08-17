@@ -193,14 +193,20 @@ class clsRecord(RecordState):
         self.delete()
 
     def update_current_record_in_DB(self):
+        """Save the current record, preserving an assigned ID on first insert.
 
-        # Insert New Record "ID" Field is None
-        if self._record[self._position]["ID"] == None:
+        A record is new when its saved original ID was blank. Applications may
+        therefore assign a stable primary key before the first save without
+        causing JSForm to mistake the record for an existing database row.
+        """
+        is_new = self.original.record.get("ID") is None
+        if is_new:
             cursor = self.DBConnection.cursor()
+            assigned_id = self.current().get("ID")
             sql, values = self.sql.insert_statement(self.current())
             try:
                 cursor.execute(sql, values)
-                new_id = cursor.lastrowid
+                new_id = assigned_id if assigned_id is not None else cursor.lastrowid
                 self.DBConnection.commit()
             except Exception as error:
                 self.DBConnection.rollback()
