@@ -21,6 +21,15 @@ class ProjectDocumentationTests(unittest.TestCase):
             with self.subTest(relative=relative):
                 self.assertTrue((ROOT / relative).is_file())
 
+    def test_distribution_acceptance_is_documented_and_shipped(self):
+        self.assertTrue((ROOT / "accept_distribution.py").is_file())
+        manifest = (ROOT / "MANIFEST.in").read_text(encoding="utf-8")
+        releasing = (ROOT / "Documentation" / "RELEASING.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("accept_distribution.py", manifest)
+        self.assertIn("accept_distribution.py", releasing)
+
     def test_license_and_readme_identify_lgpl(self):
         license_text = (ROOT / "LICENSE").read_text(encoding="utf-8")
         readme = (ROOT / "README.md").read_text(encoding="utf-8")

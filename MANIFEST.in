@@ -6,6 +6,7 @@ include SUPPORT.md
 include JSFORM_ENHANCEMENTS.md
 include requirements.txt
 include run_jsform_tests.py
+include accept_distribution.py
 include jsformschema.json
 recursive-include Documentation *.md
 recursive-include examples *.py *.md *.json *.sql *.cmd

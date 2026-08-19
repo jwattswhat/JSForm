@@ -28,6 +28,10 @@ behavior or require ChurchManager to be present.
 6. Run the School Bus Routes sample against the installed distribution before a
    packaging release is accepted.
 
+`python accept_distribution.py` automates archive verification, isolated wheel
+installation, installed-package imports, and SHA-256 checksum generation. It
+does not replace the separate visual GUI and PDF review.
+
 ## Verification levels
 
 1. **Unit tests:** `python run_jsform_tests.py`
