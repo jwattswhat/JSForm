@@ -577,8 +577,6 @@ class clsForm:
                         self.CONTROLID[field].Bind(wx.EVT_BUTTON, self._openformevent)
                     case "openfile":
                         self.CONTROLID[field].Bind(wx.EVT_BUTTON, self._openfileevent)
-                    case "openreport":
-                        self.CONTROLID[field].Bind(wx.EVT_BUTTON, self._openreportevent)
                     case "editchecklist":
                         self.CONTROLID[field].Bind(wx.EVT_BUTTON, self._editchecklist)
                     case "process":
@@ -836,19 +834,6 @@ class clsForm:
             if "table" in self.FORMDESCRIPTON:
                 self.RECORDS.setfieldvalue(field, self.CONTROLID[field].GetValue())
                 self.fill_form(self.RECORDS.current())
-
-    def _openreportevent(self, event):
-        JSForm.LG.log()
-        field = event.GetEventObject().GetName()
-        report = self.CONTROLDESCRIPTION[field]["action"][1]
-        SQL = "SELECT * FROM tblReports WHERE Report = '{report}';".format(
-            report=report
-        )
-        cursor = self.DBConnection.cursor()
-        cursor.execute(SQL)
-        row = cursor.fetchone()
-        cursor.close()
-        JSForm.RunReport(row[0], self, self.DBConnection)
 
     def _openfileevent(self, event):
         JSForm.LG.log()

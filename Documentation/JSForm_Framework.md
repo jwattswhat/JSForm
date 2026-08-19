@@ -41,7 +41,7 @@ The framework is especially suited to traditional line-of-business applications 
 - Linked forms and embedded subforms.
 - Date, time, numeric, checklist, file, HTML, list, and data-view controls.
 - Optional JSON Schema validation.
-- LimeReport report generation.
+- Native JSON-defined PDF reports and visual report design.
 - Database-backed configuration, options, and font settings.
 
 This document describes the implementation in this repository. Where the older text documentation, JSON Schema, examples, and Python implementation disagree, the Python implementation is treated as authoritative and the disagreement is noted.
@@ -62,7 +62,8 @@ The principal modules are:
 | `clsOption.py` | Reads and writes application options. |
 | `clsFont.py` | Creates the configured wxPython font and performs layout conversions. |
 | `clsConstant.py` | Defines framework constants, allowed wxPython parameters, and standard buttons. |
-| `fnReport.py` | Runs LimeReport definitions and opens generated PDF files. |
+| `report_renderer.py` | Renders approved report datasets from JSON definitions to PDF. |
+| `report_designer.py` | Provides the visual report-layout editor. |
 | `fnUtil.py` | Provides layout, date, connectivity, and database helper functions. |
 | `clsSMTP.py` | Historical compatibility email wrapper. New work uses `mail_service.py`. |
 | `mail_service.py` | Provider-neutral email validation, privacy-safe delivery, attachments, and SMTP transport. |
@@ -88,7 +89,6 @@ The checked-in `requirements.txt` lists the historical runtime dependencies. The
 - `jsonschema` for optional form validation.
 - `requests` for the connectivity helper.
 - `yagmail` for `clsSMTP`.
-- LimeReport installed separately if reports are used.
 
 The repository's checked-in `.venv` is machine-specific and should not be considered portable. Create a fresh environment on each development machine.
 
@@ -101,7 +101,6 @@ Important directories are:
 | `Forms/` | JSON form definitions included with the framework. |
 | `Documentation/` | Human-readable design and usage documentation. |
 | `schema/` | Experimental or newer schema-validation work. |
-| `LimeReportPattern/` | LimeReport `.lrxml` report definitions. |
 | `reports/` | Generated or sample PDF reports. |
 | `BackupDB/` | Historical SQL dumps. Treat these as sensitive. |
 | `DevelopmentTesting/` | Exploratory scripts and control experiments. |
@@ -223,7 +222,7 @@ If a username or password is omitted, `clsDB` displays a wxPython credentials di
 ## Refactored framework boundaries
 
 JSForm keeps its historical public imports (`JSForm.clsForm`, `JSForm.clsDB`,
-`JSForm.clsRecord`, `JSForm.clsSQL`, and `JSForm.RunReport`) so existing
+`JSForm.clsRecord` and `JSForm.clsSQL`) so existing
 applications continue to work. Internally, focused services now separate the
 framework's major responsibilities:
 
@@ -243,9 +242,8 @@ framework's major responsibilities:
 - `form_services.FormDefinitionLoader`, `ControlFactory`, and
   `required_fields` handle definition loading, schema validation, control
   creation, and required-value checks outside the form coordinator.
-- `report_runtime.LimeReportProcess` is the external process boundary for
-  LimeReport. It builds argument lists, checks the exit status, and can be
-  replaced with a fake launcher in tests.
+- `report_definition`, `report_dataset`, and `report_renderer` keep report
+  layout, approved data, and PDF rendering separate and testable.
 
 Database write failures now roll back and raise a contextual `RuntimeError`.
 `clsForm` catches those errors at the user-interface boundary and displays a
@@ -855,7 +853,6 @@ The current form binder recognizes:
 | `openlinkedform` | Opens a form declared in `linkedform`. |
 | `openformfromfield` | Derives the form to open from a field value. |
 | `openfile` | Opens the file referenced by another control. |
-| `openreport` | Looks up and runs a configured report. |
 | `editchecklist` | Performs merge, replace, or clear checklist operations. |
 | `process` | Invokes application-specific processing through `_processaction`. |
 | `onchange` | Handles a combo-box change through `_processaction`. |
@@ -1013,8 +1010,6 @@ Common configuration families used by this repository include:
 | `Location/Form` | Application form directory. |
 | `Location/JSONSchema` | JSON Schema directory. |
 | `Location/Report` | Generated report directory. |
-| `Location/LimeReport` | Directory containing the LimeReport executable. |
-| `Location/LimeReportPattern` | `.lrxml` definitions directory. |
 | `Format/Date` | Python/wx date display format. |
 | `Format/Time` | Python/wx time display format. |
 | `Format/DateTime` | Python/wx date-time display format. |
@@ -1046,39 +1041,16 @@ The resulting font controls both display and conversion of `posch`/`sizech` valu
 
 ## Reports
 
-The report runner expects a `tblReports` table corresponding to this conceptual layout:
+JSForm reports use JSON definitions loaded by `ReportDefinitionLoader`. An
+application supplies a `ReportDataset` that conforms to an approved
+`ReportDatasetContract`; definitions cannot contain SQL or database
+credentials. `PDFReportRenderer` produces the PDF, while `ReportDesignerModel`
+and the report catalog support recoverable starters and separate user
+customizations.
 
-| Column position | Meaning |
-| --- | --- |
-| 0 | `ID` |
-| 1 | Report code/name |
-| 2 | Title |
-| 3 | Bracketed list of required parameter-control names |
-| 4 | Bracketed list of report codes to run as a batch |
-| 5 | Note |
-
-The historical SQL backup uses fields named `ID`, `Report`, `Title`, `Parameters`, `Batch`, and `Note`.
-
-Call:
-
-```python
-JSForm.RunReport(report_id, form, database.DBConnection)
-```
-
-The runner:
-
-1. Loads the report record.
-2. Reads required values from `form.CONTROLID`.
-3. Builds a LimeReport command line.
-4. Deletes an older PDF of the same name if possible.
-5. Waits for LimeReport to generate the PDF.
-6. Opens the resulting PDF with the operating system.
-
-Special parameter names `StartDate` and `EndDate` are formatted as `YYYY/MM/DD`. Other parameters use their controls' normal `GetValue()`.
-
-Required configuration values are `Location/LimeReport`, `Location/LimeReportPattern`, and `Location/Report`.
-
-The report runner constructs a command-line string. Treat report definitions and parameter values as trusted data, and harden this mechanism before accepting untrusted input.
+Applications own report selection, parameter collection, dataset construction,
+authorization, output location, and opening the finished file. See the School
+Bus Route Manifest for a small end-to-end example.
 
 ## Public Python API
 
@@ -1113,7 +1085,6 @@ The package exports these main objects from `__init__.py`:
 - `next_weekday(date, weekday)`
 - `sql_table_exists(connection, table)`
 - `check_internetconnection(timeout)`
-- `RunReport(report_id, form, connection)`
 
 ### Showing and closing forms
 
@@ -1241,7 +1212,6 @@ These limitations do not prevent building an application with JSForm, but they s
 - [ ] Decide whether JSForm will remain a package named `JSForm` or be repackaged.
 - [ ] Create a disposable development database.
 - [ ] Create least-privilege database credentials outside the repository.
-- [ ] Install and configure LimeReport only if reports are required.
 
 ### Database
 

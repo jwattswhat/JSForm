@@ -263,7 +263,7 @@
                   "items": [
                     {
                       "type":"string",
-                      "enum": ["openlinkedform","refreshform","editchecklist","openfile","openreport","process","onchange"]
+                      "enum": ["openlinkedform","refreshform","editchecklist","openfile","process","onchange"]
                     },
                     {"type":"string"}
                   ]

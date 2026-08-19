@@ -9,7 +9,6 @@ import json
 import sys
 import types
 import unittest
-import xml.etree.ElementTree as ET
 from decimal import Decimal
 from pathlib import Path
 
@@ -25,7 +24,7 @@ EXPECTED_PUBLIC_NAMES = {
     "clsDB", "clsRecord", "clsChoice", "clsErrorHandler", "clsSMTP",
     "clsSQL", "clsField", "getcontrolparameters", "convertNavButtons",
     "charactertopoint", "date_to_datetime", "next_weekday",
-    "sql_table_exists", "check_internetconnection", "RunReport",
+    "sql_table_exists", "check_internetconnection",
     "ChildFormRegistry",
     "DatabaseConnections", "DatabaseSettings",
     "OriginalRecord", "RecordState",
@@ -34,7 +33,6 @@ EXPECTED_PUBLIC_NAMES = {
     "resolve_form_schema",
     "AllowAllAuthorizationPolicy", "AuthorizationDenied",
     "DenyAllAuthorizationPolicy", "FormSecurity",
-    "LimeReportProcess", "ReportProcessError",
     "ReportDefinition", "ReportDefinitionError", "ReportDefinitionLoader",
     "save_report_definition",
     "ReportCollection", "ReportDataset", "ReportDatasetContract",
@@ -716,39 +714,6 @@ class TestMonitorMetrics(unittest.TestCase):
         self.assertEqual(metrics["pixelsperinch"], [96, 96])
 
 
-class TestReportRuntime(unittest.TestCase):
-    def test_report_process_builds_argument_list_and_opens_output(self):
-        from report_runtime import LimeReportProcess
-
-        calls = []
-        opened = []
-
-        class Process:
-            def wait(self):
-                return 0
-
-        def popen(command):
-            calls.append(command)
-            return Process()
-
-        runner = LimeReportProcess(r"C:\Program Files\LimeReport", popen, opened.append)
-        runner.generate("template.lrxml", "output.pdf", {"StartDate": "2026/08/10"})
-        runner.open_output("output.pdf")
-
-        self.assertIsInstance(calls[0], list)
-        self.assertIn("-stemplate.lrxml", calls[0])
-        self.assertIn("-pStartDate=2026/08/10", calls[0])
-        self.assertEqual(opened, ["output.pdf"])
-
-    def test_report_process_surfaces_nonzero_exit(self):
-        from report_runtime import LimeReportProcess, ReportProcessError
-
-        process = types.SimpleNamespace(wait=lambda: 7)
-        runner = LimeReportProcess(".", lambda command: process, lambda output: None)
-        with self.assertRaisesRegex(ReportProcessError, "status 7"):
-            runner.generate("template.lrxml", "output.pdf")
-
-
 class TestFormServices(unittest.TestCase):
     def test_bundled_unified_schema_wins_over_legacy_configured_copy(self):
         import tempfile
@@ -995,7 +960,6 @@ class TestJSFormPython(unittest.TestCase):
             if isinstance(node, ast.ImportFrom):
                 exported.update(alias.asname or alias.name for alias in node.names)
         self.assertEqual(EXPECTED_PUBLIC_NAMES - exported, set())
-
     def test_public_api_fingerprint_changes_intentionally(self):
         tree = ast.parse((ROOT / "__init__.py").read_text(encoding="utf-8"))
         names = sorted(
@@ -1006,10 +970,10 @@ class TestJSFormPython(unittest.TestCase):
         fingerprint = hashlib.sha256(
             ("\n".join(names) + "\n").encode("utf-8")
         ).hexdigest()
-        self.assertEqual(len(names), 147)
+        self.assertEqual(len(names), 143)
         self.assertEqual(
             fingerprint,
-            "d138c09c540c7df41b5868193e79b48e6e8f3ac89e94e5dbace35b584d9f75c5",
+            "26187522ac0ab1993dc1ac0b5c86d3b6902caede9718a9255c800ce15839fd61",
         )
         self.assertIn("__all__", (ROOT / "__init__.py").read_text(encoding="utf-8"))
 
@@ -1155,9 +1119,3 @@ class TestJSFormDefinitions(unittest.TestCase):
                 data = json.loads((ROOT / name).read_text(encoding="utf-8-sig"))
                 self.assertIsInstance(data, dict)
                 self.assertIn("$schema", data)
-
-    def test_any_legacy_lime_report_patterns_are_well_formed_xml(self):
-        patterns = sorted((ROOT / "LimeReportPattern").glob("*.lrxml"))
-        for path in patterns:
-            with self.subTest(pattern=path.name):
-                ET.parse(path)

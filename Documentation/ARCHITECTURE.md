@@ -35,7 +35,7 @@ as public.
 | Records and SQL | `clsDB.py`, `clsSQL.py`, `record_state.py`, `sql_statements.py` |
 | Choices and selection | `clsChoice.py`, `choice_manager.py`, `search_select.py` |
 | Screen design | `screen_definition.py`, `screen_catalog.py`, `screen_designer.py` |
-| Reports | `report_definition.py`, `report_dataset.py`, `report_runtime.py`, `report_renderer.py`, `report_designer.py` |
+| Reports | `report_definition.py`, `report_dataset.py`, `report_renderer.py`, `report_designer.py` |
 | Long operations | `background_operation.py` |
 | Diagnostics | `error_reporting.py`, `error_redaction.py`, `support_package.py` |
 

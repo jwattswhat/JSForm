@@ -58,6 +58,23 @@ class ProjectDocumentationTests(unittest.TestCase):
         self.assertIn("prune DevelopmentTesting", manifest)
         self.assertIn("global-exclude Log.txt", manifest)
 
+    def test_obsolete_external_report_integration_is_absent(self):
+        obsolete_name = "Lime" + "Report"
+        checked = [ROOT / "README.md", ROOT / "__init__.py", ROOT / "clsForm.py"]
+        checked.extend((ROOT / "Documentation").glob("*.md"))
+        checked.extend((ROOT / "Forms").glob("*.json"))
+        checked.extend((ROOT / "schema").glob("*.json"))
+        for path in checked:
+            with self.subTest(path=path.name):
+                text = path.read_text(encoding="utf-8-sig")
+                self.assertNotIn(obsolete_name.lower(), text.lower())
+                self.assertNotIn("." + "lrxml", text.lower())
+        for removed in (
+            "fnReport.py", "report_runtime.py", "report_credentials.py",
+            "Forms/frmReports.json",
+        ):
+            self.assertFalse((ROOT / removed).exists(), removed)
+
     def test_package_version_is_pep440_compatible(self):
         version_source = (ROOT / "version.py").read_text(encoding="utf-8")
         match = re.search(r'__version__\s*=\s*"([^"]+)"', version_source)

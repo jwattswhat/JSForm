@@ -9,11 +9,6 @@ import JSForm
 import wx
 
 def _buttonclick(event):
-    def _runReports(event):
-        reportid = frm.CONTROLID["ReportID"].GetValue()
-        JSForm.RunReport(reportid, frm, JSFormDB.DBConnection)
-        frm.FORM.Close()
-
     select = event.GetEventObject().GetName()
     formname = None 
     match select:
@@ -21,16 +16,6 @@ def _buttonclick(event):
             formname = "frmOptions"
         case "lblConfig":
             formname = "frmConfig"
-        case "lblReports":
-            frm = JSForm.clsForm(cmfrm, JSFormDB.DBConnection, "frmReports", ["Close"])
-            frm.CONTROLID["btnRun"].Bind(wx.EVT_LEFT_DOWN, _runReports)
-            frm.disable_all_buttons()
-            frm.enable_button("ReportID")
-            frm.enable_button("btnRun")
-            frm.enable_button("btnClose")
-            frm.show()
-            return
-
         case _:
             print("form name not found found. {}".format(formname))
 
@@ -77,7 +62,5 @@ cmfrm = JSForm.clsForm(None, JSFormDB.DBConnection, "frmJSForm", ["Close"])
 
 cmfrm.CONTROLID["lblOptions"].Bind(wx.EVT_LEFT_DOWN, _buttonclick)
 cmfrm.CONTROLID["lblConfig"].Bind(wx.EVT_LEFT_DOWN, _buttonclick)
-cmfrm.CONTROLID["lblReports"].Bind(wx.EVT_LEFT_DOWN, _buttonclick)
-
 cmfrm.show()
 app.MainLoop()

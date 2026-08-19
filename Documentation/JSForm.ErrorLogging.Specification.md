@@ -102,7 +102,7 @@ JSForm.install_error_hooks(wx_application=None)
 error_id = JSForm.report_exception(
     exception,
     operation="report.preview",
-    screen="frmReports",
+    screen="ReportPreview",
     severity="error",
     user_message=None,
     safe_context=None,
