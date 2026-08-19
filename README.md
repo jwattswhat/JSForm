@@ -69,8 +69,7 @@ Optional database checks are explained in [`tests/README.md`](tests/README.md).
 JSForm contains reusable framework behavior. Application-specific workflows,
 authorization policies, database migrations, and domain rules belong in the
 application repository. ChurchManager is a separate application built on
-JSForm; neither project depends on or modifies the frozen ChurchManager-Legacy
-program.
+JSForm; neither project imports application-specific behavior into the other.
 
 ## License
 
