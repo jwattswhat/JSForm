@@ -78,6 +78,8 @@ JSForm` from outside the repository.
 - [Framework reference](Documentation/JSForm_Framework.md)
 - [Architecture](Documentation/ARCHITECTURE.md)
 - [Development guide](Documentation/DEVELOPMENT.md)
+- [Public API policy](Documentation/PUBLIC_API.md)
+- [Package release procedure](Documentation/RELEASING.md)
 - [Versioning](Documentation/VERSIONING.md)
 - [Enhancement backlog](JSFORM_ENHANCEMENTS.md)
 - [Error-reporting specification](Documentation/JSForm.ErrorLogging.Specification.md)

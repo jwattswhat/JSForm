@@ -15,6 +15,7 @@ class ProjectDocumentationTests(unittest.TestCase):
             "README.md", "LICENSE", "CONTRIBUTING.md", "SECURITY.md", "SUPPORT.md",
             "Documentation/ARCHITECTURE.md", "Documentation/DEVELOPMENT.md",
             "Documentation/JSForm_Framework.md", "Documentation/VERSIONING.md",
+            "Documentation/PUBLIC_API.md", "Documentation/RELEASING.md",
         )
         for relative in required:
             with self.subTest(relative=relative):
@@ -37,6 +38,25 @@ class ProjectDocumentationTests(unittest.TestCase):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("distribution name is `jsform-desktop`", readme)
         self.assertIn("`import JSForm`", readme)
+
+    def test_compatibility_requirements_match_project_dependencies(self):
+        metadata = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        requirements = {
+            line.strip() for line in (ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        }
+        dependency_block = metadata.split("dependencies = [", 1)[1].split("]", 1)[0]
+        declared = {
+            match.group(1) for match in re.finditer(r'^\s*"([^"]+)",?\s*$', dependency_block, re.MULTILINE)
+        }
+        self.assertEqual(requirements, declared)
+
+    def test_source_manifest_includes_public_project_material(self):
+        manifest = (ROOT / "MANIFEST.in").read_text(encoding="utf-8")
+        self.assertIn("recursive-include Documentation *.md", manifest)
+        self.assertIn("recursive-include examples", manifest)
+        self.assertIn("prune DevelopmentTesting", manifest)
+        self.assertIn("global-exclude Log.txt", manifest)
 
     def test_package_version_is_pep440_compatible(self):
         version_source = (ROOT / "version.py").read_text(encoding="utf-8")

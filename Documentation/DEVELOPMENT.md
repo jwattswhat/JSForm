@@ -21,6 +21,7 @@ behavior or require ChurchManager to be present.
 3. Inspect both archives and confirm that `Forms/*.json` and `schema/*.json` are
    included while tests, logs, reports, backups, and virtual environments are
    excluded from the wheel.
+   Run `python verify_distribution.py` to enforce the artifact contents.
 4. Install the wheel into a clean environment without the repository on
    `sys.path`.
 5. Import `JSForm`, verify `JSForm.__version__`, and resolve the bundled schema.
