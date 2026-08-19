@@ -40,6 +40,13 @@ dependencies = [
     "yagmail>=0.15,<1",
 ]
 
+[project.urls]
+Homepage = "https://jwattswhat.github.io/JSForm-Website/"
+Documentation = "https://github.com/jwattswhat/JSForm/blob/main/Documentation/JSForm_Framework.md"
+Repository = "https://github.com/jwattswhat/JSForm"
+Issues = "https://github.com/jwattswhat/JSForm/issues"
+Security = "https://github.com/jwattswhat/JSForm/security"
+
 [project.optional-dependencies]
 development = [
     "build>=1.2,<2",

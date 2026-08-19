@@ -8,7 +8,9 @@ development branch; no older release line is presently supported.
 ## Reporting a vulnerability
 
 Do not put credentials, personal data, database dumps, or exploit details in a
-public issue. Contact the project maintainer privately with:
+public issue. Use GitHub's
+[private vulnerability reporting](https://github.com/jwattswhat/JSForm/security/advisories/new)
+to contact the project maintainer privately with:
 
 - the affected version and module;
 - steps to reproduce using non-sensitive test data;

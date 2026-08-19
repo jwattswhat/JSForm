@@ -5,6 +5,11 @@ applications from JSON screen definitions. It supplies database-backed fields,
 record navigation, validation, responsive layouts, visual screen and report
 designers, PDF reporting, background operations, and support diagnostics.
 
+**[Website](https://jwattswhat.github.io/JSForm-Website/)** ·
+**[Documentation](Documentation/JSForm_Framework.md)** ·
+**[Releases](https://github.com/jwattswhat/JSForm/releases)** ·
+**[Issues](https://github.com/jwattswhat/JSForm/issues)**
+
 The repository includes the deliberately small **School Bus Routes** sample in
 [`examples/JSFormSample`](examples/JSFormSample/README.md). It is the preferred
 place to learn or verify framework behavior without ChurchManager data or
