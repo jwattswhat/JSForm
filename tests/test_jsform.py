@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 import importlib.util
 import json
 import sys
@@ -994,6 +995,23 @@ class TestJSFormPython(unittest.TestCase):
             if isinstance(node, ast.ImportFrom):
                 exported.update(alias.asname or alias.name for alias in node.names)
         self.assertEqual(EXPECTED_PUBLIC_NAMES - exported, set())
+
+    def test_public_api_fingerprint_changes_intentionally(self):
+        tree = ast.parse((ROOT / "__init__.py").read_text(encoding="utf-8"))
+        names = sorted(
+            alias.asname or alias.name
+            for node in tree.body if isinstance(node, ast.ImportFrom)
+            for alias in node.names
+        )
+        fingerprint = hashlib.sha256(
+            ("\n".join(names) + "\n").encode("utf-8")
+        ).hexdigest()
+        self.assertEqual(len(names), 147)
+        self.assertEqual(
+            fingerprint,
+            "d138c09c540c7df41b5868193e79b48e6e8f3ac89e94e5dbace35b584d9f75c5",
+        )
+        self.assertIn("__all__", (ROOT / "__init__.py").read_text(encoding="utf-8"))
 
     def test_record_navigation_and_dirty_tracking(self):
         module = load_clsdb_with_stubs()

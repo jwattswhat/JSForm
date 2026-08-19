@@ -1,5 +1,7 @@
 """Public package exports for the JSForm desktop application framework."""
 
+import types as _types
+
 from JSForm.version import __version__
 from JSForm.clsConstant import CONST
 from JSForm.clsConfig import CONFIG
@@ -101,3 +103,12 @@ from JSForm.credential_store import WindowsCredentialStore
 
 from JSForm.fnUtil import convertNavButtons, charactertopoint, date_to_datetime, next_weekday, sql_table_exists, check_internetconnection
 from JSForm.fnReport import RunReport, prepare_lime_report_template
+
+
+# Keep wildcard imports deterministic. The release test fingerprints this
+# collection so an exported name cannot disappear unnoticed.
+__all__ = tuple(
+    name for name, value in globals().items()
+    if (name == "__version__" or not name.startswith("_"))
+    and not isinstance(value, _types.ModuleType)
+)

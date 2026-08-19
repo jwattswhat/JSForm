@@ -4,6 +4,8 @@ Applications install the `jsform-desktop` distribution and use `import JSForm`.
 Names re-exported by `JSForm/__init__.py` are the supported Python API during
 the current pre-release series. Direct imports from internal modules may change
 unless the framework reference specifically documents them.
+`JSForm.__all__` is the machine-readable inventory of these exports. Its release
+test requires an intentional review whenever a name is added or removed.
 
 The supported surface includes:
 
