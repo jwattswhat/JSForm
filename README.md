@@ -25,8 +25,17 @@ than depending on implementation details.
 - The packages in [`requirements.txt`](requirements.txt)
 
 Create a fresh virtual environment rather than copying one from another
-computer. From the repository's parent directory, applications can import the
-framework with `import JSForm`.
+computer. JSForm's distribution name is `jsform-desktop`; its Python import
+remains `import JSForm`.
+
+For framework development, install this checkout in editable mode:
+
+```powershell
+python -m pip install -e .
+```
+
+Applications can install a built wheel without requiring the JSForm repository
+to remain beside the application.
 
 ## Quick start
 
@@ -51,6 +60,18 @@ python run_jsform_tests.py
 
 The default suite does not open the GUI, send mail, or modify a database.
 Optional database checks are explained in [`tests/README.md`](tests/README.md).
+
+## Build the package
+
+Build the wheel and source archive from the repository root:
+
+```powershell
+python -m build
+```
+
+Generated distributions are written to `dist/` and are not committed. Release
+acceptance installs the wheel into a clean environment and tests `import
+JSForm` from outside the repository.
 
 ## Documentation map
 

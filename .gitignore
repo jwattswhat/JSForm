@@ -8,3 +8,6 @@ Sermons/
 BackupDB/*.SQL
 Log.txt
 *.pyc
+build/
+dist/
+*.egg-info/

@@ -2,6 +2,7 @@
 
 import ast
 from pathlib import Path
+import re
 import unittest
 
 
@@ -24,6 +25,24 @@ class ProjectDocumentationTests(unittest.TestCase):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("LGPL-3.0-or-later", license_text)
         self.assertIn("LGPL-3.0-or-later", readme)
+
+    def test_package_metadata_preserves_public_identity(self):
+        metadata = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        self.assertRegex(metadata, r'(?m)^name = "jsform-desktop"$')
+        self.assertIn('package-dir = {JSForm = "."}', metadata)
+        self.assertIn('version = {attr = "JSForm.version.__version__"}', metadata)
+        self.assertIn('"Forms/*.json"', metadata)
+        self.assertIn('"schema/*.json"', metadata)
+
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("distribution name is `jsform-desktop`", readme)
+        self.assertIn("`import JSForm`", readme)
+
+    def test_package_version_is_pep440_compatible(self):
+        version_source = (ROOT / "version.py").read_text(encoding="utf-8")
+        match = re.search(r'__version__\s*=\s*"([^"]+)"', version_source)
+        self.assertIsNotNone(match)
+        self.assertRegex(match.group(1), r"^\d+\.\d+\.\d+-(?:dev|beta\.\d+)$")
 
     def test_top_level_python_modules_have_docstrings(self):
         excluded = {"Log.txt"}
