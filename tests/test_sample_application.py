@@ -29,6 +29,12 @@ class SampleApplicationTests(unittest.TestCase):
         for name in ("app.py", "setup_sample.py", "route_manifest.py", "route_stop_editor.py", "student_finder.py", "sample_tools.py", "version.py"):
             ast.parse((SAMPLE / name).read_text(encoding="utf-8"), filename=name)
 
+    def test_sample_uses_the_installed_jsform_package(self):
+        for name in ("app.py", "setup_sample.py"):
+            source = (SAMPLE / name).read_text(encoding="utf-8")
+            self.assertNotIn("sys.path.insert", source)
+            self.assertNotIn("PACKAGE_ROOT", source)
+
     def test_route_screen_proves_ordered_child_editor(self):
         launcher = (SAMPLE / "app.py").read_text(encoding="utf-8")
         editor = (SAMPLE / "route_stop_editor.py").read_text(encoding="utf-8")

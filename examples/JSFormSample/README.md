@@ -5,6 +5,8 @@ framework version).
 
 A deliberately small demonstration application for JSForm. It uses fictional
 Pine Valley School District data in its own local `JSFormSample` database.
+The launchers import the installed `jsform-desktop` distribution; they do not
+add a source checkout to Python's import path.
 
 ## Setup
 
