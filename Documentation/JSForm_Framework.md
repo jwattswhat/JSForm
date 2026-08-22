@@ -1052,6 +1052,34 @@ Applications own report selection, parameter collection, dataset construction,
 authorization, output location, and opening the finished file. See the School
 Bus Route Manifest for a small end-to-end example.
 
+For dashboard-style forms made from several independent `StaticBox` groups,
+set the form layout to `{"type": "columns"}`. Each top-level group's
+`layout.column` selects its column and `layout.row` determines its order within
+that column. Columns pack independently, so a short group no longer inherits
+the height of a taller group beside it.
+
+For dashboard-style forms made from several independent `StaticBox` groups,
+set the form layout to `{"type": "columns"}`. Each top-level group's
+`layout.column` selects its column and `layout.row` determines its order within
+that column. Columns pack independently, so a short group no longer inherits
+the height of a taller group beside it.
+
+Repeating controls draw a light separator after each record by default. Set
+`"separator": false` on a repeater when its items represent preprinted labels
+or another layout where record-divider lines must not be rendered. Set the
+report-level `"showdefaultpagenumber": false` when preprinted stationery or
+labels must not receive JSForm's fallback page number. The default is `true`.
+
+A repeater can fill fixed stock across the page before moving downward by
+setting `"repeatcolumns"` and, when needed, `"columngap"`. This is useful for
+mailing labels and other repeated cards. Multi-column repeaters do not support
+report groups; use a single sorted collection for the repeated records.
+
+Report-level `"filters"` use the same validated conditions as control
+visibility. They remove collection rows before sorting and rendering, allowing
+generic JSON reports to select records without embedding SQL or application
+code in the definition.
+
 ## Public Python API
 
 The package exports these main objects from `__init__.py`:

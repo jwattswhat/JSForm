@@ -23,7 +23,7 @@ def supports_responsive_layout(form_description, control_descriptions):
     mode = layout.get("type", "auto") if isinstance(layout, dict) else layout
     if mode == "legacy":
         return False
-    if mode in {"responsive", "master_detail"}:
+    if mode in {"responsive", "master_detail", "columns"}:
         return True
     if form_description.get("type") == "StaticBox":
         return False
@@ -184,6 +184,25 @@ def master_detail_panes(descriptions):
     return panes
 
 
+def column_layout_panes(descriptions):
+    """Partition top-level controls into independently stacked columns."""
+    groups = grouped_controls(descriptions)
+    assigned = {name for members in groups.values() for name in members}
+    top_level = {
+        name: description for name, description in descriptions.items()
+        if name not in assigned and name not in NAVIGATION_NAMES
+        and not description.get("layout", {}).get("hidden")
+    }
+    columns = {}
+    for name, description in top_level.items():
+        column = _logical_position(description)[1]
+        pane = columns.setdefault(column, {})
+        pane[name] = description
+        for child in groups.get(name, ()):
+            pane[child] = descriptions[child]
+    return tuple(columns[key] for key in sorted(columns))
+
+
 def frame_position(area, size, requested=None, margin=8):
     """Center or clamp a frame inside the usable display, including its header."""
     left, top, available_width, available_height = area
@@ -292,6 +311,12 @@ def apply_responsive_layout(form, frame, controls, descriptions, settings=None):
 
         form.Bind(wx.EVT_SIZE, reflow)
         form._jsform_master_detail_reflow = reflow
+    elif layout_type == "columns":
+        content_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        for pane in column_layout_panes(descriptions):
+            content_sizer.Add(
+                build_content_grid(pane), 1, wx.EXPAND | wx.ALL, item_padding,
+            )
     else:
         content_sizer = build_content_grid(descriptions)
 

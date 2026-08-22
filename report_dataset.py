@@ -92,6 +92,8 @@ class ReportDatasetContract:
                     })
         for sort in definition.settings.get("sort", ()):
             self._validate_binding(sort)
+        for condition in definition.settings.get("filters", ()):
+            self._validate_binding(condition)
         for group in definition.settings.get("groups", ()):
             self._validate_binding(group)
 

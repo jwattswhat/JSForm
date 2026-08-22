@@ -557,6 +557,44 @@ class TestResponsiveLayout(unittest.TestCase):
         self.assertEqual(set(panes["master"]), {"masterBox", "memberList"})
         self.assertEqual(set(panes["detail"]), {"Name"})
 
+    def test_column_layout_stacks_each_column_independently(self):
+        from layout_engine import column_layout_panes
+
+        descriptions = {
+            "First": {"type": "StaticBox", "posch": [1, 1], "sizech": [10, 5],
+                      "layout": {"row": 0, "column": 0}},
+            "FirstItem": {"type": "StaticText", "posch": [2, 2]},
+            "Second": {"type": "StaticBox", "posch": [1, 7], "sizech": [10, 4],
+                       "layout": {"row": 1, "column": 0}},
+            "SecondItem": {"type": "StaticText", "posch": [2, 8]},
+            "Other": {"type": "StaticBox", "posch": [12, 1], "sizech": [10, 9],
+                      "layout": {"row": 0, "column": 1}},
+            "OtherItem": {"type": "StaticText", "posch": [13, 2]},
+        }
+        panes = column_layout_panes(descriptions)
+        self.assertEqual(len(panes), 2)
+        self.assertEqual(set(panes[0]), {"First", "FirstItem", "Second", "SecondItem"})
+        self.assertEqual(set(panes[1]), {"Other", "OtherItem"})
+
+    def test_column_layout_stacks_each_column_independently(self):
+        from layout_engine import column_layout_panes
+
+        descriptions = {
+            "First": {"type": "StaticBox", "posch": [1, 1], "sizech": [10, 5],
+                      "layout": {"row": 0, "column": 0}},
+            "FirstItem": {"type": "StaticText", "posch": [2, 2]},
+            "Second": {"type": "StaticBox", "posch": [1, 7], "sizech": [10, 4],
+                       "layout": {"row": 1, "column": 0}},
+            "SecondItem": {"type": "StaticText", "posch": [2, 8]},
+            "Other": {"type": "StaticBox", "posch": [12, 1], "sizech": [10, 9],
+                      "layout": {"row": 0, "column": 1}},
+            "OtherItem": {"type": "StaticText", "posch": [13, 2]},
+        }
+        panes = column_layout_panes(descriptions)
+        self.assertEqual(len(panes), 2)
+        self.assertEqual(set(panes[0]), {"First", "FirstItem", "Second", "SecondItem"})
+        self.assertEqual(set(panes[1]), {"Other", "OtherItem"})
+
     def test_frame_position_accounts_for_header_and_usable_screen_bounds(self):
         from layout_engine import frame_position
 

@@ -194,6 +194,25 @@ class TestPDFReportRenderer(unittest.TestCase):
             {"systemvalue": "run_user", "prefix": "Run by: "}, definition
         ), "Run by: Jonathan Watt")
 
+    def test_default_page_number_can_be_suppressed(self):
+        class RecordingPDF:
+            def __init__(self):
+                self.text = []
+
+            def setFont(self, *_args): pass
+            def setFillColorRGB(self, *_args): pass
+            def drawRightString(self, *_args): self.text.append(_args[-1])
+
+        source = valid_definition()
+        source["CMMD01REPORT"]["REPORT"]["showdefaultpagenumber"] = False
+        definition = ReportDefinitionLoader().from_dict(source)
+        pdf = RecordingPDF()
+        PDFReportRenderer()._draw_footer(
+            pdf, definition, None, 20, 612,
+            {"left": 36, "right": 36, "top": 36, "bottom": 36}, 1,
+        )
+        self.assertEqual(pdf.text, [])
+
     def test_approved_condition_operators_are_deterministic(self):
         contract = ReportDatasetContract(
             "membership.directory", 1, "reports.membership.contact",

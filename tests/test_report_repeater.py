@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import sys
 import tempfile
 import unittest
@@ -13,6 +14,36 @@ from test_report_definition import valid_definition
 
 
 class TestReportRepeater(unittest.TestCase):
+    def test_schema_accepts_multi_column_repeater_settings(self):
+        schema = json.loads(
+            (Path(__file__).parents[1] / "schema" / "report_definition_schema.json").read_text()
+        )
+        properties = schema["$defs"]["control"]["properties"]
+        self.assertEqual(properties["repeatcolumns"]["minimum"], 1)
+        self.assertIn("columngap", properties)
+
+    def test_repeater_can_suppress_record_separator(self):
+        class FakePDF:
+            def __init__(self):
+                self.lines = []
+
+            def setStrokeColorRGB(self, *_args):
+                pass
+
+            def setLineWidth(self, *_args):
+                pass
+
+            def line(self, *args):
+                self.lines.append(args)
+
+        pdf = FakePDF()
+        repeater = {
+            "position": [0, 0], "size": [200, 30], "itemheight": 30,
+            "separator": False, "items": [],
+        }
+        PDFReportRenderer()._draw_repeater(pdf, repeater, {}, 100, 20, 30)
+        self.assertEqual(pdf.lines, [])
+
     def test_repeater_wraps_and_paginates_records(self):
         source = valid_definition()
         source["CMMD01REPORT"]["CONTROLS"]["FamilyName"] = {
@@ -40,6 +71,39 @@ class TestReportRepeater(unittest.TestCase):
             self.assertGreater(len(reader.pages), 1)
             self.assertIn("Family 0", text)
             self.assertIn("Family 39", text)
+
+    def test_multi_column_repeater_fills_across_then_down(self):
+        source = valid_definition()
+        report = source["CMMD01REPORT"]["REPORT"]
+        report["margins"] = {"top": 36, "right": 13.5, "bottom": 28, "left": 13.5}
+        report["bands"] = {"Detail": {"type": "detail", "height": 72}}
+        source["CMMD01REPORT"]["CONTROLS"] = {
+            "Labels": {
+                "type": "repeater", "band": "Detail", "position": [0, 0],
+                "size": [189, 72], "repeatcollection": "entries", "itemheight": 72,
+                "repeatcolumns": 3, "columngap": 9, "separator": False,
+                "items": [{
+                    "name": "Name", "field": "Name", "position": [8, 7],
+                    "size": [173, 14], "fontsize": 9,
+                }],
+            }
+        }
+        definition = ReportDefinitionLoader().from_dict(source)
+        contract = ReportDatasetContract(
+            "membership.directory", 1, "reports.membership.contact",
+            (ReportCollection("entries", "Entries", (ReportField("Name", "Name"),)),),
+        )
+        dataset = ReportDataset.create(
+            contract, {"entries": [{"Name": f"Label {number:02d}"} for number in range(1, 32)]},
+        )
+        with tempfile.TemporaryDirectory() as folder:
+            output = Path(folder) / "labels.pdf"
+            PDFReportRenderer().render(definition, dataset, output)
+            reader = PdfReader(output)
+            self.assertEqual(len(reader.pages), 2)
+            self.assertIn("Label 30", reader.pages[0].extract_text())
+            self.assertNotIn("Label 31", reader.pages[0].extract_text())
+            self.assertIn("Label 31", reader.pages[1].extract_text())
 
     def test_long_unbroken_values_are_split_to_the_available_width(self):
         lines = PDFReportRenderer._wrapped_lines(
