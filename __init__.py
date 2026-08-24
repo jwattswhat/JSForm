@@ -93,6 +93,11 @@ from JSForm.error_reporting import (
 )
 from JSForm.error_dialog import show_error_dialog, show_error_dialog_threadsafe
 from JSForm.control_values import phone_display, phone_storage
+from JSForm.dynamic_fields import (
+    DynamicFieldChange, DynamicFieldDescriptor, DynamicFieldError,
+    DynamicFieldHost, DynamicFieldOption, normalize_dynamic_value,
+    validate_dynamic_descriptors,
+)
 from JSForm.mail_service import (
     DeliveryResult, MailConfigurationError, MailDeliveryError, MailMessage,
     MailService, MailSettings, SMTPTransport, normalized_email,

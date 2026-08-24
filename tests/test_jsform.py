@@ -1008,10 +1008,10 @@ class TestJSFormPython(unittest.TestCase):
         fingerprint = hashlib.sha256(
             ("\n".join(names) + "\n").encode("utf-8")
         ).hexdigest()
-        self.assertEqual(len(names), 143)
+        self.assertEqual(len(names), 150)
         self.assertEqual(
             fingerprint,
-            "26187522ac0ab1993dc1ac0b5c86d3b6902caede9718a9255c800ce15839fd61",
+            "23d55d17a68aab858b1c31f98d6c9ee04e66bd4eef07b9598c0fb8f666a30b69",
         )
         self.assertIn("__all__", (ROOT / "__init__.py").read_text(encoding="utf-8"))
 

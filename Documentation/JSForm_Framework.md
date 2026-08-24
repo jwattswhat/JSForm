@@ -67,6 +67,7 @@ The principal modules are:
 | `fnUtil.py` | Provides layout, date, connectivity, and database helper functions. |
 | `clsSMTP.py` | Historical compatibility email wrapper. New work uses `mail_service.py`. |
 | `mail_service.py` | Provider-neutral email validation, privacy-safe delivery, attachments, and SMTP transport. |
+| `dynamic_fields.py` | Application-neutral typed dynamic-field descriptors, validation, controls, and change sets. |
 | `fnSchedule.py` | Application-specific scheduling and notification functions. It is not required by the core form engine. |
 
 A typical runtime flow is:
