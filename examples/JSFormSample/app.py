@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import getpass
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -12,7 +13,7 @@ from pathlib import Path
 import wx
 import JSForm
 import mysql.connector
-from route_manifest import show_route_manifest
+from route_manifest import CONTRACT as ROUTE_MANIFEST_CONTRACT, show_route_manifest
 from route_stop_editor import show_ordered_route_stops
 from student_finder import show_student_finder
 from sample_tools import show_background_task, show_diagnostics, show_mail_preview
@@ -22,6 +23,13 @@ from JSForm.windows_credentials import read_credential
 
 FORMS = Path(__file__).with_name("Forms")
 MENUS = Path(__file__).with_name("Menus")
+REPORTS = Path(__file__).with_name("Reports")
+SAMPLE_ICON = Path(__file__).with_name("assets") / "school-bus-routes.ico"
+USER_ROOT = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "JSFormSample"
+USER_FORMS = USER_ROOT / "Forms"
+USER_MENUS = USER_ROOT / "Menus"
+USER_REPORTS = USER_ROOT / "Reports"
+USER_OUTPUT = USER_ROOT / "Output"
 EDIT_CONTROLS = ["Navigation", "New", "Update", "Delete", "Close"]
 ROUTES = {
     "btnSchools": ("records.schools", "frmSchool", "&Schools"),
@@ -77,6 +85,7 @@ def connect_database(settings, attempts=3):
 def main(argv=None):
     settings = arguments(argv)
     os.environ["JSFORM_SCREEN_OVERLAY"] = str(FORMS)
+    JSForm.configure_application_icon(SAMPLE_ICON)
     wx_app = wx.App(0)
     database = connect_database(settings)
     JSForm.CONFIG.set_Config_DBConnection(database)
@@ -158,7 +167,73 @@ def main(argv=None):
             lambda _context: show_background_task(main_form.FRAME),
             help_text="Run the responsive background-operation demonstration",
         ),
+        JSForm.ApplicationCommand(
+            "tools.screen_designer", "&Screen Designer...",
+            lambda _context: open_sample_screen_catalog(),
+            help_text="Customize sample screen layouts",
+        ),
+        JSForm.ApplicationCommand(
+            "tools.report_designer", "&Report Designer...",
+            lambda _context: open_sample_report_catalog(),
+            help_text="Customize sample report layouts",
+        ),
+        JSForm.ApplicationCommand(
+            "tools.menu_designer", "Menu &Designer...",
+            lambda _context: open_sample_menu_designer(),
+            help_text="Customize the sample application menu for the next launch",
+        ),
     ))
+
+    def menu_descriptors():
+        categories = {
+            "app": "Application", "records": "Records",
+            "reports": "Reports", "tools": "Tools",
+        }
+        return tuple(
+            JSForm.MenuCommandDescriptor(
+                command.name, command.label, help_text=command.help_text,
+                category=categories.get(command.name.split(".", 1)[0], "Other"),
+            )
+            for command in (registry.get(name) for name in registry.names)
+        )
+
+    def open_sample_menu_designer():
+        catalog = JSForm.MenuCatalogModel(USER_MENUS, MENUS)
+        entry = next(item for item in catalog.entries() if item["filename"] == "main.menu.json")
+        custom = catalog.open_customization(entry)
+        return JSForm.open_menu_designer(
+            custom, menu_descriptors(), save_path=custom,
+            starter_path=MENUS / "main.menu.json",
+        )
+
+    def open_sample_screen_catalog():
+        def open_selected(entry):
+            USER_FORMS.mkdir(parents=True, exist_ok=True)
+            target = USER_FORMS / entry["path"].name
+            if not target.is_file():
+                shutil.copy2(entry["path"], target)
+            JSForm.open_screen_designer(
+                target,
+                starter_definition_path=entry.get("starter"),
+                allowed_directory=USER_FORMS,
+            )
+
+        return JSForm.open_screen_catalog(
+            USER_FORMS, FORMS, open_selected, parent=main_form.FRAME,
+        )
+
+    def open_sample_report_catalog():
+        def open_selected(path):
+            JSForm.open_report_designer(
+                path,
+                dataset_contract=ROUTE_MANIFEST_CONTRACT,
+                starter_definition_path=REPORTS / path.name,
+                export_directory=USER_OUTPUT,
+            )
+
+        return JSForm.open_report_catalog(
+            USER_REPORTS, REPORTS, open_selected, parent=main_form.FRAME,
+        )
 
     def command_context():
         return JSForm.CommandContext(
@@ -187,7 +262,10 @@ def main(argv=None):
     }.items():
         bind_button(control_name, command_name)
 
-    menu_definition = JSForm.MenuDefinitionLoader().load(MENUS / "main.menu.json")
+    menu_definition = JSForm.MenuDefinitionLoader().load_application(
+        MENUS / "main.menu.json", USER_MENUS / "main.menu.json",
+        fallback_to_starter=True,
+    )
     menu_installer = JSForm.MenuInstaller(
         main_form.FRAME, registry, context_provider=command_context,
     )

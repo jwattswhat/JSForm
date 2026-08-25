@@ -11,10 +11,13 @@ from pathlib import Path, PurePosixPath
 
 REQUIRED_WHEEL_SUFFIXES = {
     "JSForm/__init__.py",
+    "JSForm/assets/jsform.ico",
     "JSForm/Forms/frmJSForm.json",
     "JSForm/menu_builder.py",
     "JSForm/menu_commands.py",
     "JSForm/menu_definition.py",
+    "JSForm/menu_designer.py",
+    "JSForm/menu_catalog.py",
     "JSForm/schema/menu_definition_schema.json",
     "JSForm/schema/unified_schema.json",
     "JSForm/standard_commands.py",
@@ -26,6 +29,7 @@ REQUIRED_SDIST_SUFFIXES = {
     "Documentation/DEVELOPMENT.md",
     "Documentation/PUBLIC_API.md",
     "examples/JSFormSample/app.py",
+    "examples/JSFormSample/assets/school-bus-routes.ico",
     "examples/JSFormSample/Menus/main.menu.json",
     "examples/JSFormSample/README.md",
     "tests/test_versioning.py",

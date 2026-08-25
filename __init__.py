@@ -3,6 +3,10 @@
 import types as _types
 
 from JSForm.version import __version__
+from JSForm.window_icons import (
+    DEFAULT_ICON_PATH, application_icon_path, apply_window_icon,
+    configure_application_icon,
+)
 from JSForm.clsConstant import CONST
 from JSForm.clsConfig import CONFIG
 from JSForm.clsOption import OPTION
@@ -94,6 +98,11 @@ from JSForm.menu_commands import (
     ApplicationCommand, CommandContext, CommandRegistry, CommandState,
 )
 from JSForm.menu_builder import MenuInstallationError, MenuInstaller
+from JSForm.menu_designer import (
+    MenuCommandDescriptor, MenuDesignerFrame, MenuDesignerModel,
+    open_menu_designer,
+)
+from JSForm.menu_catalog import MenuCatalogModel, open_menu_catalog
 from JSForm.standard_commands import (
     standard_application_commands, standard_edit_commands,
     standard_record_commands,

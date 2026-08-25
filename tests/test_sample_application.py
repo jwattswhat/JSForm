@@ -75,6 +75,29 @@ class SampleApplicationTests(unittest.TestCase):
         self.assertEqual(definition.report_id, "SBRT01")
         self.assertIn("Stops", definition.controls)
 
+    def test_sample_exposes_all_three_designers_with_separate_user_storage(self):
+        launcher = (SAMPLE / "app.py").read_text(encoding="utf-8")
+        menu = json.loads(
+            (SAMPLE / "Menus" / "main.menu.json").read_text(encoding="utf-8")
+        )
+        for command, opener in (
+            ("tools.screen_designer", "open_screen_catalog"),
+            ("tools.report_designer", "open_report_catalog"),
+            ("tools.menu_designer", "open_menu_designer"),
+        ):
+            self.assertIn('"{}"'.format(command), launcher)
+            self.assertIn(opener, launcher)
+        designers = next(
+            item for item in menu["menus"][3]["items"] if item.get("label") == "&Designers"
+        )
+        self.assertEqual(
+            [item["command"] for item in designers["items"]],
+            ["tools.screen_designer", "tools.report_designer", "tools.menu_designer"],
+        )
+        self.assertIn('USER_FORMS = USER_ROOT / "Forms"', launcher)
+        self.assertIn('USER_REPORTS = USER_ROOT / "Reports"', launcher)
+        self.assertIn('USER_MENUS = USER_ROOT / "Menus"', launcher)
+
     def test_reset_schema_owns_only_prefixed_tables(self):
         schema = (SAMPLE / "schema.sql").read_text(encoding="utf-8")
         self.assertNotIn("ChurchDB", schema)

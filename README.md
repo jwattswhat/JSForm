@@ -129,6 +129,7 @@ JSForm` from outside the repository.
 - [Enhancement backlog](JSFORM_ENHANCEMENTS.md)
 - [Error-reporting specification](Documentation/JSForm.ErrorLogging.Specification.md)
 - [Application-menu specification](Documentation/JSForm.ApplicationMenus.Specification.md)
+- [Visual menu-designer specification](Documentation/JSForm.MenuDesigner.Specification.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)
 - [Support](SUPPORT.md)

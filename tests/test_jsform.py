@@ -51,6 +51,10 @@ EXPECTED_PUBLIC_NAMES = {
     "save_menu_definition", "MenuInstallationError", "MenuInstaller",
     "action_from_command", "standard_application_commands",
     "standard_edit_commands", "standard_record_commands",
+    "DEFAULT_ICON_PATH", "application_icon_path", "apply_window_icon",
+    "configure_application_icon",
+    "MenuCommandDescriptor", "MenuDesignerFrame", "MenuDesignerModel",
+    "MenuCatalogModel", "open_menu_designer", "open_menu_catalog",
 }
 
 
@@ -1013,10 +1017,10 @@ class TestJSFormPython(unittest.TestCase):
         fingerprint = hashlib.sha256(
             ("\n".join(names) + "\n").encode("utf-8")
         ).hexdigest()
-        self.assertEqual(len(names), 164)
+        self.assertEqual(len(names), 174)
         self.assertEqual(
             fingerprint,
-            "973fd131114b13b930b00ed1e84791399908e0859b2bc9876d984d682048ab7d",
+            "41c1a71d2b5bb050835cc229cac82808208b99c74d7105cb31f0bc2c2dd5335f",
         )
         self.assertIn("__all__", (ROOT / "__init__.py").read_text(encoding="utf-8"))
 

@@ -584,6 +584,8 @@ class ScreenPreviewFrame(wx.Frame):
     def __init__(self, definition):
         title = definition.form.get("title", definition.form_name)
         super().__init__(None, title="Screen Preview - {}".format(title), size=(1000, 700))
+        from JSForm.window_icons import apply_window_icon
+        apply_window_icon(self)
         self.canvas = ScreenCanvas(self, ScreenDesignerModel(definition))
         self.canvas.show_grid = False
         self.canvas.Enable(False)
@@ -607,6 +609,8 @@ class ScreenDesignerFrame(wx.Frame):
         definition = self.loader.load(self.path)
         self.model = ScreenDesignerModel(definition, self.loader)
         super().__init__(None, title="JSForm Screen Designer - {}".format(definition.form.get("title", definition.form_name)), size=(1500, 900))
+        from JSForm.window_icons import apply_window_icon
+        apply_window_icon(self)
         self.preview_handler = preview_handler or open_screen_preview
         self.starter_definition_path = Path(starter_definition_path) if starter_definition_path else None
         self.allowed_directory = Path(allowed_directory).resolve() if allowed_directory else None

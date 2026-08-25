@@ -11,6 +11,7 @@ from JSForm.screen_definition import (
 from JSForm.list_behavior import ListCtrlBehavior
 from JSForm.catalog_paths import CatalogDirectories
 from JSForm.action_ui import confirm_destructive_action
+from JSForm.window_icons import apply_window_icon
 
 
 SCREEN_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_]{1,63}$")
@@ -104,6 +105,7 @@ class ScreenCatalogModel:
 class ScreenCatalogDialog(wx.Dialog):
     def __init__(self, parent, model, open_handler):
         super().__init__(parent, title="Screen Designer", size=(840, 560))
+        apply_window_icon(self)
         self.model = model
         self.open_handler = open_handler
         root = wx.BoxSizer(wx.VERTICAL)

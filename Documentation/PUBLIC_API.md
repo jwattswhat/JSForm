@@ -16,8 +16,9 @@ The supported surface includes:
 - background operations, conditional status formatting, mail services,
   credential storage, error reporting, and support packages; and
 - validated application-menu definitions, command registration and state,
-  native menu installation, command-backed action bars, and standard application,
-  Edit, and record command factories; and
+native menu installation, command-backed action bars, and standard application,
+  Edit, and record command factories;
+- bundled and application-selected Windows icon support; and
 - the constants and compatibility classes already re-exported by `JSForm`.
 
 JSON contracts are versioned alongside the Python API. Applications should use
@@ -44,10 +45,25 @@ The supported application-menu surface is:
 | `standard_application_commands` | Exit and About command factory. |
 | `standard_edit_commands` | Focus-sensitive Cut, Copy, Paste, and Select All factory. |
 | `standard_record_commands` | Current-form New, Save, Delete, and Refresh factory. |
+| `MenuCommandDescriptor` | Safe application-supplied command metadata for design. |
+| `MenuDesignerModel` | Undoable menu hierarchy and property editing model. |
+| `MenuDesignerFrame` | Visual command palette, tree, properties, validation, and preview interface. |
+| `MenuCatalogModel` | Protected starter and separate customization lifecycle. |
+| `open_menu_designer` | Open one modeless visual designer. |
+| `open_menu_catalog` | Open the modal starter/customization menu catalog. |
 
 `Action`, `StandardActionBar`, and `install_action_menu()` remain public and
 backward compatible. Command-backed actions require a `CommandRegistry` and use
 the same dispatch authorization as native JSON menu items.
+
+## Application icons
+
+JSForm applies its bundled `assets/jsform.ico` to framework-created forms and
+designer windows. Applications may call `configure_application_icon(path)`
+before constructing forms to select their own `.ico` file. The selected icon is
+process-wide and remains application-owned; calling the function with `None`
+restores the JSForm default. `application_icon_path()` returns the active path,
+and `apply_window_icon(window)` applies it to another wx top-level window.
 
 ## Compatibility policy
 

@@ -64,6 +64,7 @@ The principal modules are:
 | `clsConstant.py` | Defines framework constants, allowed wxPython parameters, and standard buttons. |
 | `report_renderer.py` | Renders approved report datasets from JSON definitions to PDF. |
 | `report_designer.py` | Provides the visual report-layout editor. |
+| `menu_designer.py` | Proposed visual editor for application-menu JSON; see the draft menu-designer specification. |
 | `fnUtil.py` | Provides layout, date, connectivity, and database helper functions. |
 | `clsSMTP.py` | Historical compatibility email wrapper. New work uses `mail_service.py`. |
 | `mail_service.py` | Provider-neutral email validation, privacy-safe delivery, attachments, and SMTP transport. |
@@ -219,6 +220,21 @@ app.MainLoop()
 ```
 
 If a username or password is omitted, `clsDB` displays a wxPython credentials dialog.
+
+### Application icon
+
+Framework-created forms use the bundled JSForm Windows icon by default. To give
+an application its own identity, configure an `.ico` file before constructing
+forms:
+
+```python
+JSForm.configure_application_icon("assets/my-application.ico")
+```
+
+`application_icon_path()` reports the active icon. Use
+`apply_window_icon(window)` for application-created wx frames that do not use
+`clsForm`. Passing `None` to `configure_application_icon()` restores the bundled
+JSForm icon.
 
 ## Refactored framework boundaries
 
@@ -967,6 +983,39 @@ Without `fallback_to_starter=True`, an invalid existing customization raises
 `MenuDefinitionError`. Neither source is silently rewritten or deleted.
 `save_menu_definition()` validates before atomic replacement and preserves the
 previous target as `<name>.bak`.
+
+### Visual menu designer
+
+Applications can expose an approved command catalog to the framework designer
+without exposing handlers, services, permissions, or application modules:
+
+```python
+descriptors = (
+    JSForm.MenuCommandDescriptor(
+        "records.routes", "&Routes", "Open route records", category="Records"
+    ),
+)
+frame = JSForm.open_menu_designer(
+    "UserMenus/main.menu.json",
+    descriptors,
+    save_path="UserMenus/main.menu.json",
+    starter_path="Menus/main.menu.json",
+)
+```
+
+`MenuDesignerModel` provides undoable add, update, move, indent, outdent,
+duplicate, delete, validation, and serialization operations. The wx designer
+adds a searchable command palette, hierarchy tree, property editor, validation
+results, Save As, starter/previous recovery, and an inert native preview.
+Preview commands only identify themselves in a status bar; they never call the
+application's real handlers.
+
+Protected starters and editable files must be kept in separate directories.
+`MenuCatalogModel` and `open_menu_catalog()` implement that lifecycle, including
+creating a customization, listing invalid files for recovery, restoring the
+starter after deletion, and retaining the prior valid `.bak`. A saved menu is
+normally loaded on the application's next launch unless that application
+explicitly implements a controlled reload.
 
 ### Registering commands
 

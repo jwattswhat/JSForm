@@ -16,6 +16,7 @@ class ProjectDocumentationTests(unittest.TestCase):
             "Documentation/ARCHITECTURE.md", "Documentation/DEVELOPMENT.md",
             "Documentation/JSForm_Framework.md", "Documentation/VERSIONING.md",
             "Documentation/PUBLIC_API.md", "Documentation/RELEASING.md",
+            "Documentation/JSForm.MenuDesigner.Specification.md",
         )
         for relative in required:
             with self.subTest(relative=relative):
@@ -43,6 +44,7 @@ class ProjectDocumentationTests(unittest.TestCase):
         self.assertIn('version = {attr = "JSForm.version.__version__"}', metadata)
         self.assertIn('"Forms/*.json"', metadata)
         self.assertIn('"schema/*.json"', metadata)
+        self.assertIn('"assets/*.ico"', metadata)
 
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("distribution name is `jsform-desktop`", readme)
@@ -64,6 +66,7 @@ class ProjectDocumentationTests(unittest.TestCase):
         manifest = (ROOT / "MANIFEST.in").read_text(encoding="utf-8")
         self.assertIn("recursive-include Documentation *.md", manifest)
         self.assertIn("recursive-include examples", manifest)
+        self.assertIn("prune examples/JSFormSample/Reports/Custom", manifest)
         self.assertIn("prune DevelopmentTesting", manifest)
         self.assertIn("global-exclude Log.txt", manifest)
 

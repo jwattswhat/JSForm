@@ -25,6 +25,7 @@ from JSForm.form_services import (
 )
 from JSForm.layout_engine import apply_responsive_layout, supports_responsive_layout
 from JSForm.security import AuthorizationDenied, FormSecurity
+from JSForm.window_icons import apply_window_icon
 
 #
 #   import system classes
@@ -336,6 +337,7 @@ class clsForm:
                 FRAME.Center(wx.VERTICAL)
 
         FRAME.SetFont(JSForm.FONT.Get_Current_Font())
+        apply_window_icon(FRAME)
         FORM.SetFont(JSForm.FONT.Get_Current_Font())
 
         return FRAME, FORM

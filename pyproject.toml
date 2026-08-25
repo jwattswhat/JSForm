@@ -62,6 +62,8 @@ version = {attr = "JSForm.version.__version__"}
 
 [tool.setuptools.package-data]
 JSForm = [
+    "assets/*.ico",
+    "assets/*.png",
     "Forms/*.json",
     "schema/*.json",
 ]

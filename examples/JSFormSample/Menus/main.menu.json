@@ -32,7 +32,16 @@
       "items": [
         {"command": "tools.diagnostics"},
         {"command": "tools.mail_preview"},
-        {"command": "tools.background_task"}
+        {"command": "tools.background_task"},
+        {"separator": true},
+        {
+          "label": "&Designers",
+          "items": [
+            {"command": "tools.screen_designer"},
+            {"command": "tools.report_designer"},
+            {"command": "tools.menu_designer"}
+          ]
+        }
       ]
     },
     {
