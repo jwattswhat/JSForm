@@ -36,8 +36,9 @@ as public.
 | Records and SQL | `clsDB.py`, `clsSQL.py`, `record_state.py`, `sql_statements.py` |
 | Choices and selection | `clsChoice.py`, `choice_manager.py`, `search_select.py` |
 | Screen design | `screen_definition.py`, `screen_catalog.py`, `screen_designer.py` |
-| Reports | `report_definition.py`, `report_dataset.py`, `report_renderer.py`, `report_designer.py` |
-| Application menus | `menu_definition.py`, `menu_commands.py`, `menu_builder.py`, `standard_commands.py`, `action_ui.py` |
+| Reports | `report_definition.py`, `report_dataset.py`, `report_renderer.py`, `report_catalog.py`, `report_designer.py` |
+| Application menus | `menu_definition.py`, `menu_commands.py`, `menu_builder.py`, `menu_catalog.py`, `menu_designer.py`, `standard_commands.py`, `action_ui.py` |
+| Window icons | `window_icons.py` |
 | Long operations | `background_operation.py` |
 | Diagnostics | `error_reporting.py`, `error_redaction.py`, `support_package.py` |
 
@@ -53,4 +54,5 @@ as public.
 - Framework errors may include technical context but must redact secrets.
 
 The detailed control and database contracts are maintained in
-[`JSForm_Framework.md`](JSForm_Framework.md).
+[`JSForm_Framework.md`](JSForm_Framework.md). Report design and customization
+are covered in [`REPORT_DESIGNER.md`](REPORT_DESIGNER.md).

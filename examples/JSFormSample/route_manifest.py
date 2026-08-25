@@ -129,7 +129,7 @@ class RouteManifestDialog(wx.Dialog):
                 definition, build_dataset(self.connection, route_id), OUTPUT
             ),
             starter_definition_path=STARTER,
-            export_directory=ROOT / "Output",
+            export_directory=OUTPUT.parent,
         )
 
 

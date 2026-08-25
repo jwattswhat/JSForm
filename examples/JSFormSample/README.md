@@ -65,3 +65,7 @@ shipped with the sample remain protected starters. Saved screen and report
 customizations are used by the sample immediately when those definitions are
 next opened; a saved menu customization is loaded on the next application
 launch.
+
+The report contract, preview callback, protected starter, and user-local output
+workflow are explained in the framework's
+[`Report Designer guide`](../../Documentation/REPORT_DESIGNER.md).

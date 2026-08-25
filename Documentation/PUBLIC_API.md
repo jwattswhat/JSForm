@@ -14,9 +14,9 @@ The supported surface includes:
 - reusable list, grid, search/select, ordered-child, and compact-editor behavior;
 - screen and report definitions, catalogs, designers, datasets, and PDF output;
 - background operations, conditional status formatting, mail services,
-  credential storage, error reporting, and support packages; and
+  credential storage, error reporting, and support packages;
 - validated application-menu definitions, command registration and state,
-native menu installation, command-backed action bars, and standard application,
+  native menu installation, command-backed action bars, and standard application,
   Edit, and record command factories;
 - bundled and application-selected Windows icon support; and
 - the constants and compatibility classes already re-exported by `JSForm`.
@@ -24,6 +24,48 @@ native menu installation, command-backed action bars, and standard application,
 JSON contracts are versioned alongside the Python API. Applications should use
 the bundled schemas and documented properties rather than relying on parser
 implementation details.
+
+## Reports
+
+| Name | Contract |
+| --- | --- |
+| `ReportDefinition` | Immutable validated report JSON. |
+| `ReportDefinitionError` | Definition loading or schema-validation failure. |
+| `ReportDefinitionLoader` | Load UTF-8 report JSON or validate a dictionary. |
+| `save_report_definition` | Atomic validated-definition save with `.bak` retention. |
+| `ReportProtectionManifest` | Application-required report settings, sections, and controls. |
+| `ReportField` | One approved field and its data type and sensitivity. |
+| `ReportCollection` | Named report rows and optional parent relationship. |
+| `ReportDatasetContract` | Versioned collection and field allow-list. |
+| `ReportDataset` | Immutable application-supplied report rows. |
+| `ReportDatasetError` | Dataset or binding contract failure. |
+| `PDFReportRenderer` | Deterministic validated-definition PDF renderer. |
+| `ReportRenderError` | Bounded PDF rendering failure. |
+| `ReportDesignerModel` | Undoable report-layout editing and validation model. |
+| `ReportCanvas` | Native report layout canvas used by the designer. |
+| `ReportDesignerFrame` | Visual report designer window. |
+| `open_report_designer` | Open a modeless report designer. |
+| `ReportCatalogModel` | Protected starter and separate customization lifecycle. |
+| `open_report_catalog` | Open the modal report catalog. |
+
+See [JSForm Report Designer](REPORT_DESIGNER.md) for the complete workflow.
+
+## Screens
+
+| Name | Contract |
+| --- | --- |
+| `ScreenDefinition` | Validated screen JSON. |
+| `ScreenDefinitionLoader` | Load and validate screen definitions. |
+| `save_screen_definition` | Atomic screen save with `.bak` retention. |
+| `screen_definitions_equal` | Compare definitions with supported normalization. |
+| `ScreenDesignerModel` | Undoable visual screen editing model. |
+| `ScreenCanvas` | Native screen layout canvas. |
+| `ScreenDesignerFrame` | Visual screen designer window. |
+| `ScreenPreviewFrame` | Inert screen-definition preview window. |
+| `open_screen_designer` | Open a modeless screen designer. |
+| `open_screen_preview` | Open an inert screen preview. |
+| `ScreenCatalogModel` | Protected starter and user customization lifecycle. |
+| `open_screen_catalog` | Open the modal screen catalog. |
 
 ## Application menus and commands
 

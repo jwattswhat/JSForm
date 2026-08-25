@@ -64,7 +64,10 @@ The principal modules are:
 | `clsConstant.py` | Defines framework constants, allowed wxPython parameters, and standard buttons. |
 | `report_renderer.py` | Renders approved report datasets from JSON definitions to PDF. |
 | `report_designer.py` | Provides the visual report-layout editor. |
-| `menu_designer.py` | Proposed visual editor for application-menu JSON; see the draft menu-designer specification. |
+| `report_catalog.py` | Manages protected report starters and user customizations. |
+| `menu_designer.py` | Provides the visual application-menu editor. |
+| `menu_catalog.py` | Manages protected menu starters and user customizations. |
+| `window_icons.py` | Configures and applies framework or application icons. |
 | `fnUtil.py` | Provides layout, date, connectivity, and database helper functions. |
 | `clsSMTP.py` | Historical compatibility email wrapper. New work uses `mail_service.py`. |
 | `mail_service.py` | Provider-neutral email validation, privacy-safe delivery, attachments, and SMTP transport. |
@@ -1286,13 +1289,9 @@ customizations.
 
 Applications own report selection, parameter collection, dataset construction,
 authorization, output location, and opening the finished file. See the School
-Bus Route Manifest for a small end-to-end example.
-
-For dashboard-style forms made from several independent `StaticBox` groups,
-set the form layout to `{"type": "columns"}`. Each top-level group's
-`layout.column` selects its column and `layout.row` determines its order within
-that column. Columns pack independently, so a short group no longer inherits
-the height of a taller group beside it.
+Bus Route Manifest for a small end-to-end example. The complete designer,
+catalog, dataset, preview, protection, and recovery workflow is documented in
+[JSForm Report Designer](REPORT_DESIGNER.md).
 
 For dashboard-style forms made from several independent `StaticBox` groups,
 set the form layout to `{"type": "columns"}`. Each top-level group's

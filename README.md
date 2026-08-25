@@ -130,6 +130,7 @@ JSForm` from outside the repository.
 - [Error-reporting specification](Documentation/JSForm.ErrorLogging.Specification.md)
 - [Application-menu specification](Documentation/JSForm.ApplicationMenus.Specification.md)
 - [Visual menu-designer specification](Documentation/JSForm.MenuDesigner.Specification.md)
+- [Report Designer guide](Documentation/REPORT_DESIGNER.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)
 - [Support](SUPPORT.md)
