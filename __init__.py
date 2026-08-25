@@ -83,8 +83,20 @@ from JSForm.compact_dialogs import (
     LinkedRecordViewerDialog, edit_compact_record, view_linked_record,
 )
 from JSForm.action_ui import (
-    Action, OutputLocation, StandardActionBar, confirm_destructive_action,
+    Action, OutputLocation, StandardActionBar, action_from_command, confirm_destructive_action,
     destructive_confirmation_message, install_action_menu,
+)
+from JSForm.menu_definition import (
+    MenuDefinition, MenuDefinitionError, MenuDefinitionLoader,
+    save_menu_definition,
+)
+from JSForm.menu_commands import (
+    ApplicationCommand, CommandContext, CommandRegistry, CommandState,
+)
+from JSForm.menu_builder import MenuInstallationError, MenuInstaller
+from JSForm.standard_commands import (
+    standard_application_commands, standard_edit_commands,
+    standard_record_commands,
 )
 from JSForm.error_reporting import (
     ErrorReporter, ErrorReportingConfig, configure_error_reporting, create_support_package,

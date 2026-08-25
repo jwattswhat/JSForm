@@ -21,13 +21,14 @@ from JSForm.windows_credentials import read_credential
 
 
 FORMS = Path(__file__).with_name("Forms")
+MENUS = Path(__file__).with_name("Menus")
 EDIT_CONTROLS = ["Navigation", "New", "Update", "Delete", "Close"]
 ROUTES = {
-    "btnSchools": "frmSchool",
-    "btnDrivers": "frmDriver",
-    "btnBuses": "frmBus",
-    "btnRoutes": "frmRoute",
-    "btnStudents": "frmStudent",
+    "btnSchools": ("records.schools", "frmSchool", "&Schools"),
+    "btnDrivers": ("records.drivers", "frmDriver", "&Drivers"),
+    "btnBuses": ("records.buses", "frmBus", "&Buses"),
+    "btnRoutes": ("records.routes", "frmRoute", "&Routes and Stops"),
+    "btnStudents": ("records.students", "frmStudent", "&Students"),
 }
 SAMPLE_CREDENTIAL_TARGET = "JSFormSample/Database"
 
@@ -100,9 +101,9 @@ def main(argv=None):
         None, database.DBConnection, "frmSampleMain", ["Close"],
         authorization_policy=JSForm.AllowAllAuthorizationPolicy(),
     )
+    main_form.FRAME.SetSize(main_form.FRAME.GetSize() + wx.Size(36, 46))
 
-    def open_form(event):
-        form_name = ROUTES[event.GetEventObject().GetName()]
+    def open_form(form_name):
         form = JSForm.clsForm(
             main_form, database.DBConnection, form_name, EDIT_CONTROLS,
             authorization_policy=JSForm.AllowAllAuthorizationPolicy(),
@@ -115,26 +116,82 @@ def main(argv=None):
             form.CONTROLID["btnOrderedStops"].Bind(wx.EVT_BUTTON, open_ordered_stops)
         form.show()
 
-    for control_name in ROUTES:
-        main_form.CONTROLID[control_name].Bind(wx.EVT_BUTTON, open_form)
-    main_form.CONTROLID["btnManifest"].Bind(
-        wx.EVT_BUTTON,
-        lambda _event: show_route_manifest(main_form.FRAME, database.DBConnection),
+    registry = JSForm.CommandRegistry()
+    registry.register_many(JSForm.standard_application_commands(
+        "JSForm School Bus Sample", application_version=SAMPLE_VERSION,
+    ))
+    for _control_name, (command_name, form_name, label) in ROUTES.items():
+        registry.register(JSForm.ApplicationCommand(
+            command_name, label,
+            lambda _context, selected=form_name: open_form(selected),
+            help_text="Open {} records".format(label.replace("&", "")),
+        ))
+    registry.register_many((
+        JSForm.ApplicationCommand(
+            "records.student_finder", "&Find Student...",
+            lambda _context: show_student_finder(
+                main_form.FRAME, database.DBConnection
+            ),
+            help_text="Find a student by name, school, or route",
+        ),
+        JSForm.ApplicationCommand(
+            "reports.route_manifest", "Route &Manifest",
+            lambda _context: show_route_manifest(
+                main_form.FRAME, database.DBConnection
+            ),
+            help_text="Create the route manifest report",
+        ),
+        JSForm.ApplicationCommand(
+            "tools.diagnostics", "&Diagnostics",
+            lambda _context: show_diagnostics(main_form.FRAME),
+            help_text="Open safe application diagnostics",
+        ),
+        JSForm.ApplicationCommand(
+            "tools.mail_preview", "Mail &Preview",
+            lambda _context: show_mail_preview(
+                main_form.FRAME, database.DBConnection
+            ),
+            help_text="Preview a fictional message without sending email",
+        ),
+        JSForm.ApplicationCommand(
+            "tools.background_task", "&Background Task Demo...",
+            lambda _context: show_background_task(main_form.FRAME),
+            help_text="Run the responsive background-operation demonstration",
+        ),
+    ))
+
+    def command_context():
+        return JSForm.CommandContext(
+            frame=main_form.FRAME,
+            current_form=main_form,
+            authorization_policy=main_form.AUTHORIZATION_POLICY,
+            services={"database": database.DBConnection},
+        )
+
+    def bind_button(control_name, command_name):
+        main_form.CONTROLID[control_name].Bind(
+            wx.EVT_BUTTON,
+            lambda event, selected=command_name: registry.dispatch(
+                selected, command_context(), event=event, source="button"
+            ),
+        )
+
+    for control_name, (command_name, _form_name, _label) in ROUTES.items():
+        bind_button(control_name, command_name)
+    for control_name, command_name in {
+        "btnManifest": "reports.route_manifest",
+        "btnDiagnostics": "tools.diagnostics",
+        "btnMailPreview": "tools.mail_preview",
+        "btnStudentFinder": "records.student_finder",
+        "btnBackgroundTask": "tools.background_task",
+    }.items():
+        bind_button(control_name, command_name)
+
+    menu_definition = JSForm.MenuDefinitionLoader().load(MENUS / "main.menu.json")
+    menu_installer = JSForm.MenuInstaller(
+        main_form.FRAME, registry, context_provider=command_context,
     )
-    main_form.CONTROLID["btnDiagnostics"].Bind(
-        wx.EVT_BUTTON, lambda _event: show_diagnostics(main_form.FRAME)
-    )
-    main_form.CONTROLID["btnMailPreview"].Bind(
-        wx.EVT_BUTTON,
-        lambda _event: show_mail_preview(main_form.FRAME, database.DBConnection),
-    )
-    main_form.CONTROLID["btnStudentFinder"].Bind(
-        wx.EVT_BUTTON,
-        lambda _event: show_student_finder(main_form.FRAME, database.DBConnection),
-    )
-    main_form.CONTROLID["btnBackgroundTask"].Bind(
-        wx.EVT_BUTTON, lambda _event: show_background_task(main_form.FRAME)
-    )
+    menu_installer.install(menu_definition, current_form=lambda: main_form)
     main_form.FRAME.SetTitle(
         "JSForm Sample {} - School Bus Routes - {}".format(
             SAMPLE_VERSION, settings.database,
@@ -142,6 +199,7 @@ def main(argv=None):
     )
     main_form.show()
     wx_app.MainLoop()
+    menu_installer.dispose()
     database.DBConnection.close()
     database.JSConnection.close()
 

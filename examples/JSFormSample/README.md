@@ -41,3 +41,9 @@ Credential Manager so a desktop shortcut can start without a console password.
 The **Routes** screen demonstrates JSForm's responsive master-detail layout:
 ordered stops appear at left and route details at right. Resize the window
 narrower than the configured breakpoint to see the panes stack automatically.
+
+The main window's File, Records, Reports, Tools, and Help menus are defined in
+`Menus/main.menu.json`. Python registers the command handlers; the JSON contains
+only presentation and stable command names. The visible navigation and tool
+buttons dispatch through the same command registry as the menu items, showing how
+one command can be shared safely by multiple interface surfaces.

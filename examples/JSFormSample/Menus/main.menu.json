@@ -1,0 +1,45 @@
+{
+  "$schema": "https://jsform.local/schema/menu-definition-v1.json",
+  "schema_version": 1,
+  "name": "main",
+  "menus": [
+    {
+      "label": "&File",
+      "items": [
+        {"command": "app.exit"}
+      ]
+    },
+    {
+      "label": "&Records",
+      "items": [
+        {"command": "records.schools"},
+        {"command": "records.drivers"},
+        {"command": "records.buses"},
+        {"command": "records.routes"},
+        {"command": "records.students"},
+        {"separator": true},
+        {"command": "records.student_finder"}
+      ]
+    },
+    {
+      "label": "&Reports",
+      "items": [
+        {"command": "reports.route_manifest"}
+      ]
+    },
+    {
+      "label": "&Tools",
+      "items": [
+        {"command": "tools.diagnostics"},
+        {"command": "tools.mail_preview"},
+        {"command": "tools.background_task"}
+      ]
+    },
+    {
+      "label": "&Help",
+      "items": [
+        {"command": "app.about"}
+      ]
+    }
+  ]
+}

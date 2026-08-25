@@ -874,7 +874,174 @@ form.CONTROLID["btnRun"].Bind(wx.EVT_BUTTON, on_run)
 
 Use the native event appropriate to the control. The repository's launcher sometimes uses `wx.EVT_LEFT_DOWN`; `wx.EVT_BUTTON` is generally preferable for buttons because it preserves keyboard activation and normal button semantics.
 
-### Enabling and disabling buttons
+### Shared Python commands
+
+`Action` remains compatible with direct event handlers. It can also reference a
+registered application command so an action-bar button and a menu item use the
+same handler, state provider, and authorization path:
+
+```python
+command = JSForm.ApplicationCommand(
+    "tools.export", "&Export", export_records,
+    help_text="Export the current records",
+)
+registry.register(command)
+action = JSForm.action_from_command(command)
+bar = JSForm.StandardActionBar(
+    parent, [action], registry=registry,
+    context_provider=current_command_context,
+)
+```
+
+Legacy `Action(name, label, handler)` construction and `install_action_menu()`
+continue to work. A command-backed action requires a `CommandRegistry`.
+`StandardActionBar.refresh()` applies the command's enabled and visible state.
+The approved design contract is recorded in
+`JSForm.ApplicationMenus.Specification.md`.
+
+## JSON application menus
+
+Application menu bars are application-shell definitions, not form controls.
+They use `schema/menu_definition_schema.json` and are installed only on a
+top-level `wx.Frame`. Individual panels and dialogs continue to use their own
+controls or the owning frame's application menu.
+
+### Definition shape
+
+```json
+{
+  "$schema": "https://jsform.local/schema/menu-definition-v1.json",
+  "schema_version": 1,
+  "name": "main",
+  "menus": [
+    {
+      "label": "&File",
+      "items": [
+        {"command": "file.open", "accelerator": "Ctrl+O"},
+        {"separator": true},
+        {"command": "app.exit"}
+      ]
+    },
+    {
+      "label": "&View",
+      "items": [
+        {"command": "view.status_bar", "kind": "check"},
+        {
+          "label": "&Theme",
+          "items": [
+            {"command": "view.theme.system", "kind": "radio", "radio_group": "theme"},
+            {"command": "view.theme.light", "kind": "radio", "radio_group": "theme"}
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Top-level menus and submenus require `label` and nonempty `items`. An item is
+exactly one registered command, separator, or submenu. Command items may override
+`label` and `help_text`, declare a portable `accelerator`, and use `normal`,
+`check`, or `radio` kind. Radio items require an adjacent `radio_group`. Menu
+nesting is limited to four levels. Unknown properties and schema versions fail
+closed.
+
+The loader accepts UTF-8 and UTF-8 with BOM:
+
+```python
+loader = JSForm.MenuDefinitionLoader()
+definition = loader.load("Menus/main.menu.json")
+```
+
+For recoverable customization, keep the protected starter and user file apart:
+
+```python
+definition = loader.load_application(
+    "Menus/main.menu.json",
+    "UserMenus/main.menu.json",
+    fallback_to_starter=True,
+)
+```
+
+Without `fallback_to_starter=True`, an invalid existing customization raises
+`MenuDefinitionError`. Neither source is silently rewritten or deleted.
+`save_menu_definition()` validates before atomic replacement and preserves the
+previous target as `<name>.bak`.
+
+### Registering commands
+
+JSON never imports Python or contains a handler, SQL, expression, credential, or
+service implementation. Applications register stable dotted names in Python:
+
+```python
+registry = JSForm.CommandRegistry()
+registry.register(JSForm.ApplicationCommand(
+    name="records.routes",
+    label="&Routes",
+    help_text="Open route records",
+    handler=open_routes,
+    permission="routes.records.view",
+    state_provider=current_route_state,
+))
+```
+
+Handlers and state providers receive `CommandContext`. It supplies the frame,
+current JSForm form, source presentation, wx event, authorization policy, and a
+read-only mapping of explicitly supplied application services. State providers
+return `CommandState(enabled=..., visible=..., checked=...)`.
+
+Names and explicit wx IDs must be unique. Batch registration is transactional.
+A protected command with no usable authorization policy fails closed. State
+evaluation disables unauthorized commands, and dispatch checks authorization
+again immediately before calling the handler. Handler and state failures use
+JSForm's configured error-reporting boundary.
+
+### Installation and lifecycle
+
+```python
+installer = JSForm.MenuInstaller(
+    main_form.FRAME,
+    registry,
+    context_provider=current_command_context,
+)
+installer.install(definition, current_form=lambda: main_form)
+```
+
+Installation resolves every command and constructs the complete native menu bar
+before replacing the frame's existing bar. A failure preserves the previous bar
+and removes partial bindings. `refresh()` applies current state, removes hidden
+items, redundant separators, empty submenus, and empty top-level menus. State is
+also refreshed on `wx.EVT_MENU_OPEN`. `dispose()` removes owned bindings and
+restores the bar that preceded the first successful installation.
+
+The same command may appear more than once and may also back a visible button:
+
+```python
+action = JSForm.action_from_command(registry.get("records.routes"))
+bar = JSForm.StandardActionBar(
+    parent, [action], registry=registry,
+    context_provider=current_command_context,
+)
+```
+
+Existing `Action(name, label, handler)` and `install_action_menu()` callers remain
+supported.
+
+### Standard command factories
+
+- `standard_application_commands(name, application_version=...)` supplies Exit
+  and About with standard wx IDs.
+- `standard_edit_commands()` supplies focus-sensitive Cut, Copy, Paste, and
+  Select All.
+- `standard_record_commands()` supplies New, Save, Delete, and Refresh against
+  `CommandContext.current_form`.
+
+`clsForm.new_record()`, `save_record()`, `delete_record()`, and
+`refresh_records()` are the shared public record workflows used by existing
+buttons and standard commands. Long-running application handlers must use
+JSForm's background-operation API rather than blocking the wx main thread.
+
+## Enabling and disabling buttons
 
 `clsForm` exposes:
 
@@ -968,6 +1135,10 @@ The form's standard navigation buttons call these methods and refill the control
 
 New-record handling creates/selects a blank record. Fields with defaults are filled when displayed. For linked forms, `fillonblank` can copy foreign keys from the parent.
 
+Applications and registered commands may call `form.new_record()`. It returns
+`True` when the blank record was created and `False` when authorization or dirty
+state prevented the operation.
+
 ### Updates
 
 Before saving, the form:
@@ -980,9 +1151,24 @@ Before saving, the form:
 
 Although comments say that only changed fields are updated, the current SQL builder constructs assignments from the supplied record. Do not rely on minimal-column updates without testing or revising `clsSQL.update()`.
 
+`form.save_record()` runs the same authorization, required-field, persistence,
+audit, navigation-state, and user-notification workflow as the standard Update
+button. It returns whether the save completed.
+
 ### Deletes
 
 Delete uses the current record's `ID`, commits the transaction, removes the record from the in-memory list, and moves to the previous record.
+
+`form.delete_record()` runs the same authorization, dirty-state, persistence,
+audit, notification, refill, and child-form cleanup workflow as the standard
+Delete button. It returns whether the deletion completed.
+
+### Refresh
+
+`form.refresh_records()` reloads the form's declared table, preserves the current
+record by `ID` when it still exists, refills the controls, and closes linked
+forms whose data may now be stale. It returns `False` when the form is not
+data-bound, dirty-state handling cancels the operation, or reloading fails.
 
 ### Required fields
 
