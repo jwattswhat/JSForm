@@ -819,7 +819,12 @@ A file picker. Its `directory` property identifies the configuration family and 
 }
 ```
 
-The current implementation returns the selected filename, not a full path. The selected directory is maintained separately inside the control.
+The control stores the selected filename while maintaining its directory
+separately. An `openfile` action resolves the remembered directory first and
+then the configured initial directory, and asks the operating system to open
+the resulting file with its registered application. The behavior is not
+limited to a particular extension; DOCX, PDF, spreadsheet, image, text, and
+other registered file types are supported.
 
 ### `HTMLCtrl`
 

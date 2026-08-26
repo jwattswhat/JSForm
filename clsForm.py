@@ -19,6 +19,7 @@ import json
 #   import framework classes
 #
 import JSForm
+from JSForm.file_actions import resolve_picker_file
 from JSForm.form_lifecycle import ChildFormRegistry
 from JSForm.form_services import (
     ControlFactory, FormDefinitionLoader, required_fields, resolve_form_schema,
@@ -927,11 +928,13 @@ class clsForm:
         openctrl = self.CONTROLDESCRIPTION[field]["action"][1]
         match self.CONTROLDESCRIPTION[openctrl]["type"]:
             case "FilePickerCtrl":
-                path = JSForm.CONFIG.get_Config_Value(
+                configured_directory = JSForm.CONFIG.get_Config_Value(
                     self.CONTROLDESCRIPTION[openctrl]["directory"][0],
                     self.CONTROLDESCRIPTION[openctrl]["directory"][1],
                 )
-                file = path + self.CONTROLID[openctrl].GetPath()
+                file = resolve_picker_file(
+                    self.CONTROLID[openctrl], configured_directory
+                )
             case "TextCtrl":
                 file = self.CONTROLID[openctrl].GetValue()
             case "ComboBox":
@@ -944,8 +947,8 @@ class clsForm:
                 file = row[0]
             case otherwise:
                 file = None
-        if file != None:
-            os.startfile(file)
+        if file is not None:
+            os.startfile(str(file))
 
     def _openformevent(self, event):
         JSForm.LG.log()
