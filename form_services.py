@@ -26,8 +26,12 @@ def resolve_form_schema(package_file, configured_directory=None):
 
 class FormDefinitionLoader:
     def __init__(self, primary_directory, fallback_directory, schema_path=None, validator=None):
-        self.primary_directory = Path(primary_directory)
+        if fallback_directory is None:
+            raise ValueError("A fallback form directory is required")
         self.fallback_directory = Path(fallback_directory)
+        self.primary_directory = (
+            Path(primary_directory) if primary_directory else self.fallback_directory
+        )
         self.schema_path = Path(schema_path) if schema_path else None
         self.validator = validator
 

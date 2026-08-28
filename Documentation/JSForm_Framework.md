@@ -1289,6 +1289,10 @@ Configuration is read only from the application's `tblConfig` table. Missing
 values return `None` so the application or framework component can use an
 explicit built-in default.
 
+When `Location/Form` is absent, the form loader uses the application's bundled
+fallback form directory. A missing configuration record must never be passed
+to `pathlib.Path` as a path value.
+
 Configuration families, types, and values are passed to MySQL Connector as
 parameters on the application path. They remain
 data even when they contain quotes, comments, or SQL keywords. Applications
