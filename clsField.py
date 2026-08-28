@@ -40,6 +40,12 @@ from JSForm.control_values import (
 import JSForm
 
 
+def _set_initial_directory_if_configured(picker, directory):
+    """Set a picker directory only when the application supplied one."""
+    if directory:
+        picker.SetInitialDirectory(str(directory))
+
+
 def getcontrolparameters(controldictionary):
     """
     This function strips away the parameters that are not passed to the wx.<controls>
@@ -1277,11 +1283,12 @@ class clsField:
 
             # filepickerctrl postprocess
 
-            self.SetInitialDirectory(
+            _set_initial_directory_if_configured(
+                self,
                 JSForm.CONFIG.get_Config_Value(
                     self.CONTROLDESCRIPTION["directory"][0],
                     self.CONTROLDESCRIPTION["directory"][1],
-                )
+                ),
             )
 
             self.SetNormalColor()

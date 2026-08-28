@@ -8,8 +8,10 @@ from JSForm.error_reporting import configure_error_reporting
 
 
 class VersioningTests(unittest.TestCase):
-    def test_public_version_is_semantic_development_version(self):
-        self.assertRegex(JSForm.__version__, r"^\d+\.\d+\.\d+-dev$")
+    def test_public_version_is_semantic_prerelease_version(self):
+        self.assertRegex(
+            JSForm.__version__, r"^\d+\.\d+\.\d+-(?:dev|beta\.\d+)$"
+        )
 
     def test_error_reporting_uses_framework_version_by_default(self):
         reporter = configure_error_reporting(application_name="Version Test")

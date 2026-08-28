@@ -3,6 +3,10 @@
 import types as _types
 
 from JSForm.version import __version__
+from JSForm.window_icons import (
+    DEFAULT_ICON_PATH, application_icon_path, apply_window_icon,
+    configure_application_icon,
+)
 from JSForm.clsConstant import CONST
 from JSForm.clsConfig import CONFIG
 from JSForm.clsOption import OPTION
@@ -83,8 +87,25 @@ from JSForm.compact_dialogs import (
     LinkedRecordViewerDialog, edit_compact_record, view_linked_record,
 )
 from JSForm.action_ui import (
-    Action, OutputLocation, StandardActionBar, confirm_destructive_action,
+    Action, OutputLocation, StandardActionBar, action_from_command, confirm_destructive_action,
     destructive_confirmation_message, install_action_menu,
+)
+from JSForm.menu_definition import (
+    MenuDefinition, MenuDefinitionError, MenuDefinitionLoader,
+    save_menu_definition,
+)
+from JSForm.menu_commands import (
+    ApplicationCommand, CommandContext, CommandRegistry, CommandState,
+)
+from JSForm.menu_builder import MenuInstallationError, MenuInstaller
+from JSForm.menu_designer import (
+    MenuCommandDescriptor, MenuDesignerFrame, MenuDesignerModel,
+    open_menu_designer,
+)
+from JSForm.menu_catalog import MenuCatalogModel, open_menu_catalog
+from JSForm.standard_commands import (
+    standard_application_commands, standard_edit_commands,
+    standard_record_commands,
 )
 from JSForm.error_reporting import (
     ErrorReporter, ErrorReportingConfig, configure_error_reporting, create_support_package,
@@ -93,6 +114,11 @@ from JSForm.error_reporting import (
 )
 from JSForm.error_dialog import show_error_dialog, show_error_dialog_threadsafe
 from JSForm.control_values import phone_display, phone_storage
+from JSForm.dynamic_fields import (
+    DynamicFieldChange, DynamicFieldDescriptor, DynamicFieldError,
+    DynamicFieldHost, DynamicFieldOption, normalize_dynamic_value,
+    validate_dynamic_descriptors,
+)
 from JSForm.mail_service import (
     DeliveryResult, MailConfigurationError, MailDeliveryError, MailMessage,
     MailService, MailSettings, SMTPTransport, normalized_email,

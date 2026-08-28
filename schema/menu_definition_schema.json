@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jsform.local/schema/menu-definition-v1.json",
+  "title": "JSForm Application Menu Definition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "name", "menus"],
+  "properties": {
+    "$schema": {"type": "string", "format": "uri", "maxLength": 500},
+    "schema_version": {"const": 1},
+    "name": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{0,63}$"},
+    "menus": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 20,
+      "items": {"$ref": "#/$defs/menuLevel1"}
+    }
+  },
+  "$defs": {
+    "label": {"type": "string", "minLength": 1, "maxLength": 100},
+    "helpText": {"type": "string", "minLength": 1, "maxLength": 500},
+    "commandName": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "maxLength": 129
+    },
+    "accelerator": {
+      "type": "string",
+      "pattern": "^(?:(?:Ctrl|Alt|Shift)\\+){0,3}(?:[A-Z0-9]|F(?:[1-9]|1[0-9]|2[0-4])|Backspace|Delete|Down|End|Enter|Escape|Home|Insert|Left|PageDown|PageUp|Right|Space|Tab|Up)$"
+    },
+    "commandItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command"],
+      "properties": {
+        "command": {"$ref": "#/$defs/commandName"},
+        "label": {"$ref": "#/$defs/label"},
+        "help_text": {"$ref": "#/$defs/helpText"},
+        "accelerator": {"$ref": "#/$defs/accelerator"},
+        "kind": {"enum": ["normal", "check", "radio"]},
+        "radio_group": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["kind"],
+            "properties": {"kind": {"const": "radio"}}
+          },
+          "then": {"required": ["radio_group"]},
+          "else": {"not": {"required": ["radio_group"]}}
+        }
+      ]
+    },
+    "separatorItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["separator"],
+      "properties": {"separator": {"const": true}}
+    },
+    "menuLevel1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "items"],
+      "properties": {
+        "label": {"$ref": "#/$defs/label"},
+        "help_text": {"$ref": "#/$defs/helpText"},
+        "items": {
+          "type": "array", "minItems": 1, "maxItems": 100,
+          "items": {
+            "oneOf": [
+              {"$ref": "#/$defs/commandItem"},
+              {"$ref": "#/$defs/separatorItem"},
+              {"$ref": "#/$defs/menuLevel2"}
+            ]
+          }
+        }
+      }
+    },
+    "menuLevel2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "items"],
+      "properties": {
+        "label": {"$ref": "#/$defs/label"},
+        "help_text": {"$ref": "#/$defs/helpText"},
+        "items": {
+          "type": "array", "minItems": 1, "maxItems": 100,
+          "items": {
+            "oneOf": [
+              {"$ref": "#/$defs/commandItem"},
+              {"$ref": "#/$defs/separatorItem"},
+              {"$ref": "#/$defs/menuLevel3"}
+            ]
+          }
+        }
+      }
+    },
+    "menuLevel3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "items"],
+      "properties": {
+        "label": {"$ref": "#/$defs/label"},
+        "help_text": {"$ref": "#/$defs/helpText"},
+        "items": {
+          "type": "array", "minItems": 1, "maxItems": 100,
+          "items": {
+            "oneOf": [
+              {"$ref": "#/$defs/commandItem"},
+              {"$ref": "#/$defs/separatorItem"},
+              {"$ref": "#/$defs/menuLevel4"}
+            ]
+          }
+        }
+      }
+    },
+    "menuLevel4": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "items"],
+      "properties": {
+        "label": {"$ref": "#/$defs/label"},
+        "help_text": {"$ref": "#/$defs/helpText"},
+        "items": {
+          "type": "array", "minItems": 1, "maxItems": 100,
+          "items": {
+            "oneOf": [
+              {"$ref": "#/$defs/commandItem"},
+              {"$ref": "#/$defs/separatorItem"}
+            ]
+          }
+        }
+      }
+    }
+  }
+}

@@ -166,6 +166,35 @@ class PDFReportRenderer:
                     dataset, repeater["repeatcollection"],
                 )
                 groups = self._groups_for(definition, repeater["repeatcollection"])
+                repeat_columns = repeater.get("repeatcolumns", 1)
+                if repeat_columns > 1:
+                    if groups:
+                        raise ReportRenderError(
+                            "Multi-column repeaters cannot also use report groups."
+                        )
+                    column_gap = repeater.get("columngap", 0)
+                    column_width = repeater["size"][0]
+                    for offset in range(0, len(rows), repeat_columns):
+                        row_group = rows[offset:offset + repeat_columns]
+                        height = max(self._repeater_height(repeater, row) for row in row_group)
+                        if current_y - height <= usable_bottom + footer_height + 4:
+                            pdf.showPage()
+                            page_number += 1
+                            self._page_number = page_number
+                            current_y = start_page(first=False)
+                        for column_index, row in enumerate(row_group):
+                            column_left = margins["left"] + column_index * (
+                                column_width + column_gap
+                            )
+                            self._draw_repeater(
+                                pdf, repeater, row, current_y, column_left, height,
+                            )
+                        current_y -= height
+                    if not rows:
+                        current_y = self._draw_empty_message(
+                            pdf, definition, current_y, margins, page_width
+                        )
+                    continue
                 active_values = None
                 previous_row = None
                 for row in rows:
@@ -307,7 +336,14 @@ class PDFReportRenderer:
 
     @classmethod
     def _sorted_rows(cls, rows, definition, dataset, collection_name):
-        result = list(rows)
+        filters = [
+            item for item in definition.settings.get("filters", ())
+            if item["collection"] == collection_name
+        ]
+        result = [
+            row for row in rows
+            if all(cls._condition_matches(item, dataset, row, collection_name) for item in filters)
+        ]
         specifications = [
             item for item in definition.settings.get("sort", ())
             if item["collection"] == collection_name
@@ -371,7 +407,7 @@ class PDFReportRenderer:
             control.get("type") == "systemtext" and control.get("systemvalue") == "page_number"
             for control in definition.controls.values()
         )
-        if not has_page_control:
+        if not has_page_control and definition.settings.get("showdefaultpagenumber", True):
             pdf.setFont("Helvetica", 8)
             pdf.setFillColorRGB(0.35, 0.35, 0.35)
             pdf.drawRightString(page_width - margins["right"], bottom + 6, f"Page {page_number}")
@@ -758,9 +794,10 @@ class PDFReportRenderer:
 
     def _draw_repeater(self, pdf, repeater, row, top, left, height):
         x0 = left + repeater["position"][0]
-        pdf.setStrokeColorRGB(0.82, 0.82, 0.82)
-        pdf.setLineWidth(0.4)
-        pdf.line(x0, top - height, x0 + repeater["size"][0], top - height)
+        if repeater.get("separator", True):
+            pdf.setStrokeColorRGB(0.82, 0.82, 0.82)
+            pdf.setLineWidth(0.4)
+            pdf.line(x0, top - height, x0 + repeater["size"][0], top - height)
         for item, lines, effective_y in self._repeater_layout(repeater, row):
             x = x0 + item["position"][0]
             y_top = top - effective_y

@@ -16,6 +16,8 @@ class ProjectDocumentationTests(unittest.TestCase):
             "Documentation/ARCHITECTURE.md", "Documentation/DEVELOPMENT.md",
             "Documentation/JSForm_Framework.md", "Documentation/VERSIONING.md",
             "Documentation/PUBLIC_API.md", "Documentation/RELEASING.md",
+            "Documentation/JSForm.MenuDesigner.Specification.md",
+            "Documentation/REPORT_DESIGNER.md",
         )
         for relative in required:
             with self.subTest(relative=relative):
@@ -43,6 +45,7 @@ class ProjectDocumentationTests(unittest.TestCase):
         self.assertIn('version = {attr = "JSForm.version.__version__"}', metadata)
         self.assertIn('"Forms/*.json"', metadata)
         self.assertIn('"schema/*.json"', metadata)
+        self.assertIn('"assets/*.ico"', metadata)
 
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("distribution name is `jsform-desktop`", readme)
@@ -64,8 +67,38 @@ class ProjectDocumentationTests(unittest.TestCase):
         manifest = (ROOT / "MANIFEST.in").read_text(encoding="utf-8")
         self.assertIn("recursive-include Documentation *.md", manifest)
         self.assertIn("recursive-include examples", manifest)
+        self.assertIn("prune examples/JSFormSample/Reports/Custom", manifest)
         self.assertIn("prune DevelopmentTesting", manifest)
         self.assertIn("global-exclude Log.txt", manifest)
+
+    def test_local_markdown_links_resolve(self):
+        documents = [ROOT / "README.md", ROOT / "examples" / "JSFormSample" / "README.md"]
+        documents.extend((ROOT / "Documentation").glob("*.md"))
+        pattern = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+        for document in documents:
+            for target in pattern.findall(document.read_text(encoding="utf-8-sig")):
+                if target.startswith(("#", "http://", "https://", "mailto:")):
+                    continue
+                relative = target.split("#", 1)[0].strip("<>")
+                if not relative:
+                    continue
+                with self.subTest(document=document.name, target=target):
+                    self.assertTrue((document.parent / relative).resolve().exists())
+
+    def test_report_designer_public_documentation_matches_exports(self):
+        public_api = (ROOT / "Documentation" / "PUBLIC_API.md").read_text(encoding="utf-8")
+        report_guide = (ROOT / "Documentation" / "REPORT_DESIGNER.md").read_text(encoding="utf-8")
+        for name in (
+            "ReportDefinition", "ReportDefinitionLoader", "ReportProtectionManifest",
+            "ReportDatasetContract", "ReportDataset", "PDFReportRenderer",
+            "ReportDesignerModel", "ReportDesignerFrame", "open_report_designer",
+            "ReportCatalogModel", "open_report_catalog",
+        ):
+            with self.subTest(name=name):
+                self.assertIn(name, public_api)
+                self.assertIn(name, report_guide)
+        framework = (ROOT / "Documentation" / "JSForm_Framework.md").read_text(encoding="utf-8")
+        self.assertNotIn("Proposed visual editor for application-menu JSON", framework)
 
     def test_obsolete_external_report_integration_is_absent(self):
         obsolete_name = "Lime" + "Report"

@@ -1,4 +1,4 @@
-"""Opt-in, read-only checks for a disposable JSForm test database."""
+"""Opt-in checks that obsolete JSForm framework tables are absent."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ if str(CHURCHMANAGER_ROOT) not in sys.path:
 from credential_store import read_credential
 
 
-REQUIRED_TABLES = {
+OBSOLETE_TABLES = {
     "jsChoices", "jsConfig", "jsEnhancemnet", "jsOptions", "jsReports"
 }
 
@@ -83,40 +83,6 @@ class TestJSFormDatabase(unittest.TestCase):
         finally:
             cursor.close()
 
-    def test_required_framework_tables_exist(self):
-        required = {table.casefold() for table in REQUIRED_TABLES}
-        self.assertEqual(required - self.available_tables, set())
-
-    def test_required_tables_are_readable(self):
-        for table in sorted(REQUIRED_TABLES):
-            with self.subTest(table=table):
-                if table.casefold() not in self.available_tables:
-                    continue
-                self.query(f"SELECT 1 FROM `{table}` LIMIT 1")
-
-    def test_configuration_keys_are_unique(self):
-        if "jsconfig" not in self.available_tables:
-            self.skipTest("jsConfig is missing")
-        duplicates = self.query(
-            "SELECT ConfigFamily, ConfigType, COUNT(*) FROM jsConfig "
-            "GROUP BY ConfigFamily, ConfigType HAVING COUNT(*) > 1"
-        )
-        self.assertEqual(duplicates, [])
-
-    def test_option_keys_are_unique(self):
-        if "jsoptions" not in self.available_tables:
-            self.skipTest("jsOptions is missing")
-        duplicates = self.query(
-            "SELECT OptionFor, OptionType, COUNT(*) FROM jsOptions "
-            "GROUP BY OptionFor, OptionType HAVING COUNT(*) > 1"
-        )
-        self.assertEqual(duplicates, [])
-
-    def test_report_codes_are_unique(self):
-        if "jsreports" not in self.available_tables:
-            self.skipTest("jsReports is missing")
-        duplicates = self.query(
-            "SELECT Report, COUNT(*) FROM jsReports WHERE Report IS NOT NULL AND Report <> '' "
-            "GROUP BY Report HAVING COUNT(*) > 1"
-        )
-        self.assertEqual(duplicates, [])
+    def test_obsolete_framework_tables_are_absent(self):
+        obsolete = {table.casefold() for table in OBSOLETE_TABLES}
+        self.assertEqual(obsolete & self.available_tables, set())

@@ -185,6 +185,16 @@ is never silently converted to `NULL`.
 
 ## Capabilities that remain application-owned
 
+### Dynamic field host — implemented
+
+- Accept an application-authorized bounded descriptor collection.
+- Render short text, long text, integer, decimal, date, Boolean, single-choice,
+  and multiple-choice controls in ordered sections.
+- Validate and return native typed values and changed-value records without
+  discovering definitions or writing application tables.
+- Keep permissions, privacy, persistence, searching, reporting, and import or
+  export policy application-owned.
+
 The following ChurchManager behavior must not be moved into JSForm:
 
 - worship-planning, Propers, reading, hymn, and participant rules;

@@ -41,3 +41,31 @@ Credential Manager so a desktop shortcut can start without a console password.
 The **Routes** screen demonstrates JSForm's responsive master-detail layout:
 ordered stops appear at left and route details at right. Resize the window
 narrower than the configured breakpoint to see the panes stack automatically.
+
+The main window's File, Records, Reports, Tools, and Help menus are defined in
+`Menus/main.menu.json`. Python registers the command handlers; the JSON contains
+only presentation and stable command names. The visible navigation and tool
+buttons dispatch through the same command registry as the menu items, showing how
+one command can be shared safely by multiple interface surfaces.
+
+The launcher configures `assets/school-bus-routes.ico` before creating its
+forms, demonstrating how an application overrides JSForm's bundled framework
+icon without changing framework code.
+
+**Tools > Designers** provides all three JSForm visual design tools:
+
+- **Screen Designer** customizes the sample's form layouts.
+- **Report Designer** customizes the route-manifest report.
+- **Menu Designer** customizes the application menu and uses the sample's
+  approved command catalog.
+
+Each designer stores editable files under the current user's local
+`JSFormSample` application-data folder. The Forms, Reports, and Menus folders
+shipped with the sample remain protected starters. Saved screen and report
+customizations are used by the sample immediately when those definitions are
+next opened; a saved menu customization is loaded on the next application
+launch.
+
+The report contract, preview callback, protected starter, and user-local output
+workflow are explained in the framework's
+[`Report Designer guide`](../../Documentation/REPORT_DESIGNER.md).

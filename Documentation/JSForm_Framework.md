@@ -64,9 +64,14 @@ The principal modules are:
 | `clsConstant.py` | Defines framework constants, allowed wxPython parameters, and standard buttons. |
 | `report_renderer.py` | Renders approved report datasets from JSON definitions to PDF. |
 | `report_designer.py` | Provides the visual report-layout editor. |
+| `report_catalog.py` | Manages protected report starters and user customizations. |
+| `menu_designer.py` | Provides the visual application-menu editor. |
+| `menu_catalog.py` | Manages protected menu starters and user customizations. |
+| `window_icons.py` | Configures and applies framework or application icons. |
 | `fnUtil.py` | Provides layout, date, connectivity, and database helper functions. |
 | `clsSMTP.py` | Historical compatibility email wrapper. New work uses `mail_service.py`. |
 | `mail_service.py` | Provider-neutral email validation, privacy-safe delivery, attachments, and SMTP transport. |
+| `dynamic_fields.py` | Application-neutral typed dynamic-field descriptors, validation, controls, and change sets. |
 | `fnSchedule.py` | Application-specific scheduling and notification functions. It is not required by the core form engine. |
 
 A typical runtime flow is:
@@ -219,6 +224,21 @@ app.MainLoop()
 
 If a username or password is omitted, `clsDB` displays a wxPython credentials dialog.
 
+### Application icon
+
+Framework-created forms use the bundled JSForm Windows icon by default. To give
+an application its own identity, configure an `.ico` file before constructing
+forms:
+
+```python
+JSForm.configure_application_icon("assets/my-application.ico")
+```
+
+`application_icon_path()` reports the active icon. Use
+`apply_window_icon(window)` for application-created wx frames that do not use
+`clsForm`. Passing `None` to `configure_application_icon()` restores the bundled
+JSForm icon.
+
 ## Refactored framework boundaries
 
 JSForm keeps its historical public imports (`JSForm.clsForm`, `JSForm.clsDB`,
@@ -271,12 +291,10 @@ by the complete ChurchManager suite, including their read-only `JSFormTest` and
 
 ### Database wrapper
 
-`JSForm.clsDB(host, databasename, username, password)` creates two connector connections:
-
-- `DBConnection`: the application database named by `databasename`.
-- `JSConnection`: a connection to the framework/configuration database named exactly `JSForm`.
-
-The current implementation expects the secondary JSForm database to be available as part of its connection setup. Configuration and options are first sought in the application database, then in framework fallback tables.
+`JSForm.clsDB(host, databasename, username, password)` creates one connector
+connection to the application database named by `databasename`. The compatibility
+attributes `DBConnection` and `JSConnection` refer to that same connection.
+JSForm owns no separate database, tables, or records.
 
 ### Framework singletons
 
@@ -512,7 +530,9 @@ Related forms can substitute values from the parent record:
 "condition": "PersonID = {ID}"
 ```
 
-For a parent record with `ID` 42, this becomes `PersonID = 42`.
+For a parent record with `ID` 42, JSForm compiles this as `PersonID = %s` and
+passes `(42,)` separately to the database connector. Quotes, comments, and SQL
+keywords inside a parent value remain data and cannot change the query.
 
 ### Option placeholders
 
@@ -522,7 +542,14 @@ A condition can incorporate an option:
 "condition": "Lectionary = {OPTION:Lectionary:Current}"
 ```
 
-The current parser interprets the two colon-separated components using its historical option lookup logic. Test every option condition against the installed version because the variable names in the implementation are confusingly reversed.
+The parser preserves the historical option-component mapping. The returned
+option value is bound through a connector parameter and is never inserted into
+the SQL text.
+
+Low-level callers may use `clsSQL.select_statement()` to receive
+`(sql_text, parameter_tuple)` for `cursor.execute()`. `clsSQL.select()` remains
+available for inspecting SQL text, but dynamic output contains `%s` markers and
+must not be executed without the corresponding parameters.
 
 ### Forms without tables
 
@@ -799,7 +826,26 @@ A file picker. Its `directory` property identifies the configuration family and 
 }
 ```
 
-The current implementation returns the selected filename, not a full path. The selected directory is maintained separately inside the control.
+The control stores the selected filename while maintaining its directory
+separately. An `openfile` action resolves the remembered directory first and
+then the configured initial directory. Before constructing forms that use
+`openfile`, the application must configure its approved local document roots
+and passive extensions:
+
+```python
+JSForm.configure_file_opening(
+    approved_roots=[documents_directory],
+    passive_extensions={".pdf", ".docx", ".xlsx", ".txt"},
+)
+```
+
+No configured policy means file opening is denied. The configured picker
+directory helps resolve a stored basename but does not itself grant approval.
+The final existing regular file must resolve beneath an approved local root and
+use an application-approved passive extension. JSForm rejects remote, device,
+URL, shortcut, executable, script, installer, alternate-stream, reparse, and
+outside-root targets before asking Windows to open the document with its
+registered application.
 
 ### `HTMLCtrl`
 
@@ -852,7 +898,7 @@ The current form binder recognizes:
 | `openform` | Opens the named form. |
 | `openlinkedform` | Opens a form declared in `linkedform`. |
 | `openformfromfield` | Derives the form to open from a field value. |
-| `openfile` | Opens the file referenced by another control. |
+| `openfile` | Opens an application-approved passive local file referenced by another control. |
 | `editchecklist` | Performs merge, replace, or clear checklist operations. |
 | `process` | Invokes application-specific processing through `_processaction`. |
 | `onchange` | Handles a combo-box change through `_processaction`. |
@@ -873,7 +919,207 @@ form.CONTROLID["btnRun"].Bind(wx.EVT_BUTTON, on_run)
 
 Use the native event appropriate to the control. The repository's launcher sometimes uses `wx.EVT_LEFT_DOWN`; `wx.EVT_BUTTON` is generally preferable for buttons because it preserves keyboard activation and normal button semantics.
 
-### Enabling and disabling buttons
+### Shared Python commands
+
+`Action` remains compatible with direct event handlers. It can also reference a
+registered application command so an action-bar button and a menu item use the
+same handler, state provider, and authorization path:
+
+```python
+command = JSForm.ApplicationCommand(
+    "tools.export", "&Export", export_records,
+    help_text="Export the current records",
+)
+registry.register(command)
+action = JSForm.action_from_command(command)
+bar = JSForm.StandardActionBar(
+    parent, [action], registry=registry,
+    context_provider=current_command_context,
+)
+```
+
+Legacy `Action(name, label, handler)` construction and `install_action_menu()`
+continue to work. A command-backed action requires a `CommandRegistry`.
+`StandardActionBar.refresh()` applies the command's enabled and visible state.
+The approved design contract is recorded in
+`JSForm.ApplicationMenus.Specification.md`.
+
+## JSON application menus
+
+Application menu bars are application-shell definitions, not form controls.
+They use `schema/menu_definition_schema.json` and are installed only on a
+top-level `wx.Frame`. Individual panels and dialogs continue to use their own
+controls or the owning frame's application menu.
+
+### Definition shape
+
+```json
+{
+  "$schema": "https://jsform.local/schema/menu-definition-v1.json",
+  "schema_version": 1,
+  "name": "main",
+  "menus": [
+    {
+      "label": "&File",
+      "items": [
+        {"command": "file.open", "accelerator": "Ctrl+O"},
+        {"separator": true},
+        {"command": "app.exit"}
+      ]
+    },
+    {
+      "label": "&View",
+      "items": [
+        {"command": "view.status_bar", "kind": "check"},
+        {
+          "label": "&Theme",
+          "items": [
+            {"command": "view.theme.system", "kind": "radio", "radio_group": "theme"},
+            {"command": "view.theme.light", "kind": "radio", "radio_group": "theme"}
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Top-level menus and submenus require `label` and nonempty `items`. An item is
+exactly one registered command, separator, or submenu. Command items may override
+`label` and `help_text`, declare a portable `accelerator`, and use `normal`,
+`check`, or `radio` kind. Radio items require an adjacent `radio_group`. Menu
+nesting is limited to four levels. Unknown properties and schema versions fail
+closed.
+
+The loader accepts UTF-8 and UTF-8 with BOM:
+
+```python
+loader = JSForm.MenuDefinitionLoader()
+definition = loader.load("Menus/main.menu.json")
+```
+
+For recoverable customization, keep the protected starter and user file apart:
+
+```python
+definition = loader.load_application(
+    "Menus/main.menu.json",
+    "UserMenus/main.menu.json",
+    fallback_to_starter=True,
+)
+```
+
+Without `fallback_to_starter=True`, an invalid existing customization raises
+`MenuDefinitionError`. Neither source is silently rewritten or deleted.
+`save_menu_definition()` validates before atomic replacement and preserves the
+previous target as `<name>.bak`.
+
+### Visual menu designer
+
+Applications can expose an approved command catalog to the framework designer
+without exposing handlers, services, permissions, or application modules:
+
+```python
+descriptors = (
+    JSForm.MenuCommandDescriptor(
+        "records.routes", "&Routes", "Open route records", category="Records"
+    ),
+)
+frame = JSForm.open_menu_designer(
+    "UserMenus/main.menu.json",
+    descriptors,
+    save_path="UserMenus/main.menu.json",
+    starter_path="Menus/main.menu.json",
+)
+```
+
+`MenuDesignerModel` provides undoable add, update, move, indent, outdent,
+duplicate, delete, validation, and serialization operations. The wx designer
+adds a searchable command palette, hierarchy tree, property editor, validation
+results, Save As, starter/previous recovery, and an inert native preview.
+Preview commands only identify themselves in a status bar; they never call the
+application's real handlers.
+
+Protected starters and editable files must be kept in separate directories.
+`MenuCatalogModel` and `open_menu_catalog()` implement that lifecycle, including
+creating a customization, listing invalid files for recovery, restoring the
+starter after deletion, and retaining the prior valid `.bak`. A saved menu is
+normally loaded on the application's next launch unless that application
+explicitly implements a controlled reload.
+
+### Registering commands
+
+JSON never imports Python or contains a handler, SQL, expression, credential, or
+service implementation. Applications register stable dotted names in Python:
+
+```python
+registry = JSForm.CommandRegistry()
+registry.register(JSForm.ApplicationCommand(
+    name="records.routes",
+    label="&Routes",
+    help_text="Open route records",
+    handler=open_routes,
+    permission="routes.records.view",
+    state_provider=current_route_state,
+))
+```
+
+Handlers and state providers receive `CommandContext`. It supplies the frame,
+current JSForm form, source presentation, wx event, authorization policy, and a
+read-only mapping of explicitly supplied application services. State providers
+return `CommandState(enabled=..., visible=..., checked=...)`.
+
+Names and explicit wx IDs must be unique. Batch registration is transactional.
+A protected command with no usable authorization policy fails closed. State
+evaluation disables unauthorized commands, and dispatch checks authorization
+again immediately before calling the handler. Handler and state failures use
+JSForm's configured error-reporting boundary.
+
+### Installation and lifecycle
+
+```python
+installer = JSForm.MenuInstaller(
+    main_form.FRAME,
+    registry,
+    context_provider=current_command_context,
+)
+installer.install(definition, current_form=lambda: main_form)
+```
+
+Installation resolves every command and constructs the complete native menu bar
+before replacing the frame's existing bar. A failure preserves the previous bar
+and removes partial bindings. `refresh()` applies current state, removes hidden
+items, redundant separators, empty submenus, and empty top-level menus. State is
+also refreshed on `wx.EVT_MENU_OPEN`. `dispose()` removes owned bindings and
+restores the bar that preceded the first successful installation.
+
+The same command may appear more than once and may also back a visible button:
+
+```python
+action = JSForm.action_from_command(registry.get("records.routes"))
+bar = JSForm.StandardActionBar(
+    parent, [action], registry=registry,
+    context_provider=current_command_context,
+)
+```
+
+Existing `Action(name, label, handler)` and `install_action_menu()` callers remain
+supported.
+
+### Standard command factories
+
+- `standard_application_commands(name, application_version=...)` supplies Exit
+  and About with standard wx IDs.
+- `standard_edit_commands()` supplies focus-sensitive Cut, Copy, Paste, and
+  Select All.
+- `standard_record_commands()` supplies New, Save, Delete, and Refresh against
+  `CommandContext.current_form`.
+
+`clsForm.new_record()`, `save_record()`, `delete_record()`, and
+`refresh_records()` are the shared public record workflows used by existing
+buttons and standard commands. Long-running application handlers must use
+JSForm's background-operation API rather than blocking the wx main thread.
+
+## Enabling and disabling buttons
 
 `clsForm` exposes:
 
@@ -967,21 +1213,59 @@ The form's standard navigation buttons call these methods and refill the control
 
 New-record handling creates/selects a blank record. Fields with defaults are filled when displayed. For linked forms, `fillonblank` can copy foreign keys from the parent.
 
+Applications and registered commands may call `form.new_record()`. It returns
+`True` when the blank record was created and `False` when authorization or dirty
+state prevented the operation.
+
 ### Updates
 
 Before saving, the form:
 
 1. Checks required controls.
 2. Reads control values into the current record.
-3. Inserts when `ID` is `None`; otherwise updates the existing row.
+3. Classifies the save from the original snapshot: an original blank ID is a
+   create/INSERT, while an original populated ID is an update/UPDATE.
 4. Commits the database transaction.
 5. Saves a new original-record snapshot for dirty tracking.
 
 Although comments say that only changed fields are updated, the current SQL builder constructs assignments from the supplied record. Do not rely on minimal-column updates without testing or revising `clsSQL.update()`.
 
+`form.save_record()` asks the application's authorization policy for `create`
+or `update`, matching the operation classified from the saved original record.
+The form-owned `clsRecord` repeats that check immediately before persistence,
+so a permission change after the initial UI check cannot permit SQL. A new
+record with an application-assigned current ID remains a create because its
+original ID was blank. Automatic blank records follow the same rule. Successful
+audits identify the committed operation as `create` or `update`.
+
+The Save/Update button and registered `record.save` command use that pending
+operation when calculating their enabled state after record creation,
+navigation, and refresh. This state is advisory; the persistence-boundary
+authorization remains authoritative. `save_record()` otherwise runs the same
+required-field, persistence, audit, navigation-state, and notification workflow
+and returns whether the save completed.
+
+Low-level applications may construct `clsRecord(connection, table,
+operation_authorizer=callback)`. The optional callback receives `"create"` or
+`"update"` immediately before the corresponding write. Form-owned records use
+`FormSecurity.require`, which delegates permission meaning and the final
+allow/deny decision to the application-supplied authorization policy. JSForm
+does not define application permissions or roles.
+
 ### Deletes
 
 Delete uses the current record's `ID`, commits the transaction, removes the record from the in-memory list, and moves to the previous record.
+
+`form.delete_record()` runs the same authorization, dirty-state, persistence,
+audit, notification, refill, and child-form cleanup workflow as the standard
+Delete button. It returns whether the deletion completed.
+
+### Refresh
+
+`form.refresh_records()` reloads the form's declared table, preserves the current
+record by `ID` when it still exists, refills the controls, and closes linked
+forms whose data may now be stale. It returns `False` when the form is not
+data-bound, dirty-state handling cancels the operation, or reloading fails.
 
 ### Required fields
 
@@ -1001,7 +1285,24 @@ family = JSForm.CONFIG.get_Config_Family("Font")
 JSForm.CONFIG.set_Config_Value("Location", "Form", ".\\Forms\\")
 ```
 
-The application database's `tblConfig` is checked first. If a value is missing, the framework connection's `jsConfig` table is used as fallback.
+Configuration is read only from the application's `tblConfig` table. Missing
+values return `None` so the application or framework component can use an
+explicit built-in default.
+
+When `Location/Form` is absent, the form loader uses the application's bundled
+fallback form directory. A missing configuration record must never be passed
+to `pathlib.Path` as a path value.
+
+File-picker directory settings are optional. When an application has no
+configured directory, JSForm leaves the native picker at its Windows default
+instead of passing `None` to `SetInitialDirectory`.
+
+Configuration families, types, and values are passed to MySQL Connector as
+parameters on the application path. They remain
+data even when they contain quotes, comments, or SQL keywords. Applications
+remain responsible for deciding which configuration names and values are
+meaningful and permitted. `set_Config_Value()` does not commit or roll back;
+the application retains ownership of its transaction boundary.
 
 Common configuration families used by this repository include:
 
@@ -1024,7 +1325,12 @@ value = JSForm.OPTION.get_Option_Value("JSONSchema", "CheckForms")
 JSForm.OPTION.set_Option_Value("JSONSchema", "CheckForms", "Yes")
 ```
 
-The application database's `tblOptions` is checked first, followed by the framework connection's `jsOptions` fallback table.
+Options are read only from the application's `tblOptions` table.
+
+Option groups, types, and values are connector parameters on lookup and update.
+JSForm does not define their application meaning or authorize
+who may change them. `set_Option_Value()` leaves commit and rollback decisions
+to the application.
 
 ### Font configuration
 
@@ -1050,7 +1356,31 @@ customizations.
 
 Applications own report selection, parameter collection, dataset construction,
 authorization, output location, and opening the finished file. See the School
-Bus Route Manifest for a small end-to-end example.
+Bus Route Manifest for a small end-to-end example. The complete designer,
+catalog, dataset, preview, protection, and recovery workflow is documented in
+[JSForm Report Designer](REPORT_DESIGNER.md).
+
+For dashboard-style forms made from several independent `StaticBox` groups,
+set the form layout to `{"type": "columns"}`. Each top-level group's
+`layout.column` selects its column and `layout.row` determines its order within
+that column. Columns pack independently, so a short group no longer inherits
+the height of a taller group beside it.
+
+Repeating controls draw a light separator after each record by default. Set
+`"separator": false` on a repeater when its items represent preprinted labels
+or another layout where record-divider lines must not be rendered. Set the
+report-level `"showdefaultpagenumber": false` when preprinted stationery or
+labels must not receive JSForm's fallback page number. The default is `true`.
+
+A repeater can fill fixed stock across the page before moving downward by
+setting `"repeatcolumns"` and, when needed, `"columngap"`. This is useful for
+mailing labels and other repeated cards. Multi-column repeaters do not support
+report groups; use a single sorted collection for the repeated records.
+
+Report-level `"filters"` use the same validated conditions as control
+visibility. They remove collection rows before sorting and rendering, allowing
+generic JSON reports to select records without embedding SQL or application
+code in the definition.
 
 ## Public Python API
 
@@ -1129,7 +1459,12 @@ automated suite validates every JSForm definition against this canonical schema.
 
 ### Logging
 
-Framework methods call the global logger `JSForm.LG`. The current logger writes invocation information to its configured log file. Avoid logging passwords, tokens, or sensitive record content.
+Framework methods call the global logger `JSForm.LG`. This legacy diagnostic
+logger is disabled by default, opens its file only when diagnostics are enabled,
+and stores an installed application's log under
+`%LOCALAPPDATA%\<ApplicationName>\Logs\Log.txt`. An unavailable log location
+must never prevent the application from starting. Avoid logging passwords,
+tokens, or sensitive record content.
 
 ### Common failures
 
@@ -1163,15 +1498,16 @@ Use environment variables, a credential manager, or a protected local configurat
 
 ### SQL construction
 
-The current implementation constructs SQL with string formatting. That affects:
+Parent-record and option values in table conditions are parameterized. Modern
+record writes and the public configuration and option storage APIs also use
+connector parameters. Some older direct choice APIs still construct SQL with
+string formatting and are tracked separately in the security-remediation
+roadmap.
 
-- Table descriptions and conditions.
-- configuration and option lookups.
-- record insertion and updating.
-- choice lookups.
-- report lookups.
-
-Only use trusted table/form definitions and trusted values with the current implementation. For new development, migrate value handling to parameterized connector queries and validate identifiers against allowlists. Do not expose raw condition or order-by strings to end users.
+Table names, field expressions, static condition structure, and `orderby`
+cannot be connector parameters. Use only trusted framework or application table
+definitions, validate identifiers against allowlists, and never expose raw
+condition or order-by strings to end users.
 
 ### Process launching
 
@@ -1268,3 +1604,10 @@ specific allocation policy in JSForm.
 Application-assigned IDs and other record-only system fields do not need visible
 controls. Dirty-state and required-field highlighting safely ignores fields that
 are absent from the form while still including them in record persistence.
+
+## Database ownership
+
+JSForm owns no database tables or records and opens no separate framework
+database. Applications own their schema, configuration, options, and data.
+The compatibility `JSConnection` attribute refers to the same connection as
+`DBConnection`; it does not represent another database.

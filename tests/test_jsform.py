@@ -46,6 +46,15 @@ EXPECTED_PUBLIC_NAMES = {
     "layout_spacing",
     "frame_position",
     "master_detail_orientation", "master_detail_panes",
+    "ApplicationCommand", "CommandContext", "CommandRegistry", "CommandState",
+    "MenuDefinition", "MenuDefinitionError", "MenuDefinitionLoader",
+    "save_menu_definition", "MenuInstallationError", "MenuInstaller",
+    "action_from_command", "standard_application_commands",
+    "standard_edit_commands", "standard_record_commands",
+    "DEFAULT_ICON_PATH", "application_icon_path", "apply_window_icon",
+    "configure_application_icon",
+    "MenuCommandDescriptor", "MenuDesignerFrame", "MenuDesignerModel",
+    "MenuCatalogModel", "open_menu_designer", "open_menu_catalog",
 }
 
 
@@ -557,6 +566,44 @@ class TestResponsiveLayout(unittest.TestCase):
         self.assertEqual(set(panes["master"]), {"masterBox", "memberList"})
         self.assertEqual(set(panes["detail"]), {"Name"})
 
+    def test_column_layout_stacks_each_column_independently(self):
+        from layout_engine import column_layout_panes
+
+        descriptions = {
+            "First": {"type": "StaticBox", "posch": [1, 1], "sizech": [10, 5],
+                      "layout": {"row": 0, "column": 0}},
+            "FirstItem": {"type": "StaticText", "posch": [2, 2]},
+            "Second": {"type": "StaticBox", "posch": [1, 7], "sizech": [10, 4],
+                       "layout": {"row": 1, "column": 0}},
+            "SecondItem": {"type": "StaticText", "posch": [2, 8]},
+            "Other": {"type": "StaticBox", "posch": [12, 1], "sizech": [10, 9],
+                      "layout": {"row": 0, "column": 1}},
+            "OtherItem": {"type": "StaticText", "posch": [13, 2]},
+        }
+        panes = column_layout_panes(descriptions)
+        self.assertEqual(len(panes), 2)
+        self.assertEqual(set(panes[0]), {"First", "FirstItem", "Second", "SecondItem"})
+        self.assertEqual(set(panes[1]), {"Other", "OtherItem"})
+
+    def test_column_layout_stacks_each_column_independently(self):
+        from layout_engine import column_layout_panes
+
+        descriptions = {
+            "First": {"type": "StaticBox", "posch": [1, 1], "sizech": [10, 5],
+                      "layout": {"row": 0, "column": 0}},
+            "FirstItem": {"type": "StaticText", "posch": [2, 2]},
+            "Second": {"type": "StaticBox", "posch": [1, 7], "sizech": [10, 4],
+                       "layout": {"row": 1, "column": 0}},
+            "SecondItem": {"type": "StaticText", "posch": [2, 8]},
+            "Other": {"type": "StaticBox", "posch": [12, 1], "sizech": [10, 9],
+                      "layout": {"row": 0, "column": 1}},
+            "OtherItem": {"type": "StaticText", "posch": [13, 2]},
+        }
+        panes = column_layout_panes(descriptions)
+        self.assertEqual(len(panes), 2)
+        self.assertEqual(set(panes[0]), {"First", "FirstItem", "Second", "SecondItem"})
+        self.assertEqual(set(panes[1]), {"Other", "OtherItem"})
+
     def test_frame_position_accounts_for_header_and_usable_screen_bounds(self):
         from layout_engine import frame_position
 
@@ -798,7 +845,7 @@ class TestWriteStatements(unittest.TestCase):
 
 
 class TestDatabaseConnections(unittest.TestCase):
-    def test_pair_opens_expected_databases_and_closes_both(self):
+    def test_opens_only_application_database_and_closes_it(self):
         from db_connections import DatabaseConnections, DatabaseSettings
 
         opened = []
@@ -821,11 +868,12 @@ class TestDatabaseConnections(unittest.TestCase):
             DatabaseSettings("server", "JSFormTest", "user", "secret"),
             connect,
         )
-        self.assertEqual([item.arguments["database"] for item in opened], ["ChurchDBTest", "JSFormTest"])
+        self.assertEqual([item.arguments["database"] for item in opened], ["ChurchDBTest"])
+        self.assertIs(pair.application, pair.framework)
         pair.close()
         self.assertTrue(all(item.closed for item in opened))
 
-    def test_framework_failure_closes_application_connection(self):
+    def test_framework_database_setting_is_not_opened(self):
         from db_connections import DatabaseConnections, DatabaseSettings
 
         opened = []
@@ -843,12 +891,14 @@ class TestDatabaseConnections(unittest.TestCase):
             opened.append(connection)
             return connection
 
-        with self.assertRaisesRegex(RuntimeError, "framework unavailable"):
-            DatabaseConnections(
-                DatabaseSettings("server", "ChurchDBTest", "user", "secret"),
-                DatabaseSettings("server", "JSFormTest", "user", "secret"),
-                connect,
-            )
+        pair = DatabaseConnections(
+            DatabaseSettings("server", "ChurchDBTest", "user", "secret"),
+            DatabaseSettings("server", "JSFormTest", "user", "secret"),
+            connect,
+        )
+        self.assertEqual(len(opened), 1)
+        self.assertFalse(opened[0].closed)
+        pair.close()
         self.assertTrue(opened[0].closed)
 
 
@@ -970,10 +1020,10 @@ class TestJSFormPython(unittest.TestCase):
         fingerprint = hashlib.sha256(
             ("\n".join(names) + "\n").encode("utf-8")
         ).hexdigest()
-        self.assertEqual(len(names), 143)
+        self.assertEqual(len(names), 174)
         self.assertEqual(
             fingerprint,
-            "26187522ac0ab1993dc1ac0b5c86d3b6902caede9718a9255c800ce15839fd61",
+            "41c1a71d2b5bb050835cc229cac82808208b99c74d7105cb31f0bc2c2dd5335f",
         )
         self.assertIn("__all__", (ROOT / "__init__.py").read_text(encoding="utf-8"))
 

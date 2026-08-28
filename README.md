@@ -55,6 +55,46 @@ For a full framework introduction, database contract, JSON properties, control
 reference, reports, public API, and application checklist, read
 [`Documentation/JSForm_Framework.md`](Documentation/JSForm_Framework.md).
 
+### JSON application menus
+
+Top-level wxPython frames can install a native menu bar from validated JSON.
+JSON controls placement and presentation; Python registers the executable
+handlers:
+
+```json
+{
+  "schema_version": 1,
+  "name": "main",
+  "menus": [
+    {
+      "label": "&File",
+      "items": [
+        {"command": "file.open", "accelerator": "Ctrl+O"},
+        {"separator": true},
+        {"command": "app.exit"}
+      ]
+    }
+  ]
+}
+```
+
+```python
+registry = JSForm.CommandRegistry()
+registry.register(JSForm.ApplicationCommand(
+    "file.open", "&Open", open_file,
+    help_text="Open a file",
+))
+registry.register_many(JSForm.standard_application_commands("My Application"))
+
+definition = JSForm.MenuDefinitionLoader().load("Menus/main.menu.json")
+installer = JSForm.MenuInstaller(frame, registry)
+installer.install(definition)
+```
+
+The [School Bus Sample](examples/JSFormSample/README.md) demonstrates File,
+Records, Reports, Tools, and Help menus whose commands are also used by visible
+buttons.
+
 ## Tests
 
 Run the safe framework suite from this directory:
@@ -88,6 +128,9 @@ JSForm` from outside the repository.
 - [Versioning](Documentation/VERSIONING.md)
 - [Enhancement backlog](JSFORM_ENHANCEMENTS.md)
 - [Error-reporting specification](Documentation/JSForm.ErrorLogging.Specification.md)
+- [Application-menu specification](Documentation/JSForm.ApplicationMenus.Specification.md)
+- [Visual menu-designer specification](Documentation/JSForm.MenuDesigner.Specification.md)
+- [Report Designer guide](Documentation/REPORT_DESIGNER.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)
 - [Support](SUPPORT.md)

@@ -19,12 +19,14 @@ import json
 #   import framework classes
 #
 import JSForm
+from JSForm.file_actions import resolve_picker_file
 from JSForm.form_lifecycle import ChildFormRegistry
 from JSForm.form_services import (
     ControlFactory, FormDefinitionLoader, required_fields, resolve_form_schema,
 )
 from JSForm.layout_engine import apply_responsive_layout, supports_responsive_layout
 from JSForm.security import AuthorizationDenied, FormSecurity
+from JSForm.window_icons import apply_window_icon
 
 #
 #   import system classes
@@ -336,6 +338,7 @@ class clsForm:
                 FRAME.Center(wx.VERTICAL)
 
         FRAME.SetFont(JSForm.FONT.Get_Current_Font())
+        apply_window_icon(FRAME)
         FORM.SetFont(JSForm.FONT.Get_Current_Font())
 
         return FRAME, FORM
@@ -751,9 +754,10 @@ class clsForm:
         return self.FRAME.ShowModal()
 
     def new_record(self):
+        """Start a new authorized record using the form's existing workflow."""
         JSForm.LG.log()
         if not self._authorize_operation("create"):
-            return
+            return False
         if not self.FORMDirty():
             self.RECORDS.add(self.RECORDS.sql.get_blank_record())
             if self.fillonblank:
@@ -767,6 +771,87 @@ class clsForm:
             if self.NavControlsPresent:
                 self.disable_navigation_buttons()
                 self.CONTROLID["btnUpdate"].Enable()
+            return True
+        return False
+
+    def save_record(self):
+        """Validate and save the current record through the standard workflow."""
+        JSForm.LG.log()
+        if not self._authorize_operation("update"):
+            return False
+        required = self._check_required_fields()
+        if required:
+            for fld in required:
+                self.CONTROLID[fld].SetWarningColor()
+            dlg = wx.MessageDialog(
+                self.FORM, "Fields: " + ",".join(required), "Required Fields", wx.OK
+            )
+            dlg.ShowModal()
+            dlg.Destroy()
+            return False
+        self.update_screen_to_record()
+        changed_fields = self.RECORDS.recordisdirty()
+        try:
+            self.RECORDS.update_current_record_in_DB()
+        except RuntimeError as error:
+            self._show_operation_error(str(error))
+            return False
+        self._audit_operation("update", changed_fields)
+        self.enable_navigation_buttons()
+        dlg = wx.MessageDialog(
+            self.FORM, "Record Updated.", "Updated", wx.OK
+        )
+        dlg.ShowModal()
+        dlg.Destroy()
+        self.set_all_controls_to_normal_color()
+        return True
+
+    def delete_record(self):
+        """Delete the current authorized record through the standard workflow."""
+        JSForm.LG.log()
+        if not self._authorize_operation("delete"):
+            return False
+        current = self.RECORDS.current()
+        record_id = current.get("ID") if current else None
+        if self.FORMDirty():
+            return False
+        try:
+            self.RECORDS.delete_record_from_DB()
+        except RuntimeError as error:
+            self._show_operation_error(str(error))
+            return False
+        self._audit_operation("delete", ("ID",), record_id)
+        dlg = wx.MessageDialog(self.FORM, "Record Deleted.", "Deleted", wx.OK)
+        dlg.ShowModal()
+        dlg.Destroy()
+        self.fill_form(self.RECORDS.current())
+        self._close_linked_forms()
+        return True
+
+    def refresh_records(self):
+        """Reload records while preserving the selected ID when it still exists."""
+        JSForm.LG.log()
+        if not self.RECORDS or "table" not in self.FORMDESCRIPTON:
+            return False
+        if self.FORMDirty():
+            return False
+        current = self.RECORDS.current()
+        current_id = current.get("ID") if current else None
+        try:
+            self.RECORDS.load_records(
+                self.FORMDESCRIPTON["table"], self.parentkey
+            )
+        except RuntimeError as error:
+            self._show_operation_error(str(error))
+            return False
+        if current_id is not None:
+            for position, record in enumerate(self.RECORDS._record or ()):
+                if record.get("ID") == current_id:
+                    self.RECORDS._select(position)
+                    break
+        self.fill_form(self.RECORDS.current())
+        self._close_linked_forms()
+        return True
 
     def set_all_controls_to_normal_color(self):
         JSForm.LG.log()
@@ -843,11 +928,13 @@ class clsForm:
         openctrl = self.CONTROLDESCRIPTION[field]["action"][1]
         match self.CONTROLDESCRIPTION[openctrl]["type"]:
             case "FilePickerCtrl":
-                path = JSForm.CONFIG.get_Config_Value(
+                configured_directory = JSForm.CONFIG.get_Config_Value(
                     self.CONTROLDESCRIPTION[openctrl]["directory"][0],
                     self.CONTROLDESCRIPTION[openctrl]["directory"][1],
                 )
-                file = path + self.CONTROLID[openctrl].GetPath()
+                file = resolve_picker_file(
+                    self.CONTROLID[openctrl], configured_directory
+                )
             case "TextCtrl":
                 file = self.CONTROLID[openctrl].GetValue()
             case "ComboBox":
@@ -860,8 +947,8 @@ class clsForm:
                 file = row[0]
             case otherwise:
                 file = None
-        if file != None:
-            os.startfile(file)
+        if file is not None:
+            os.startfile(str(file))
 
     def _openformevent(self, event):
         JSForm.LG.log()
@@ -979,65 +1066,14 @@ class clsForm:
         self.new_record()
 
     def _on_delete_record_click(self, event):
-        JSForm.LG.log()
-        if not self._authorize_operation("delete"):
-            return
-        current = self.RECORDS.current()
-        record_id = current.get("ID") if current else None
-        if not self.FORMDirty():
-            try:
-                self.RECORDS.delete_record_from_DB()
-            except RuntimeError as error:
-                self._show_operation_error(str(error))
-                return
-            self._audit_operation("delete", ("ID",), record_id)
-            dlg = wx.MessageDialog(
-                self.FORM,
-                "Record Deleted.",
-                "Deleted",
-                wx.OK,
-            )
-            result = dlg.ShowModal()
-            dlg.Destroy()
-            self.fill_form(self.RECORDS.current())
-            self._close_linked_forms()
+        return self.delete_record()
 
     def _close_linked_forms(self):
         JSForm.LG.log()
         self._close_child_forms(self.LINKEDFORM)
 
     def _on_update_record_click(self, event):
-        JSForm.LG.log()
-        if not self._authorize_operation("update"):
-            return
-        required = self._check_required_fields()
-        if required:
-            for fld in required:
-                self.CONTROLID[fld].SetWarningColor()
-            dlg = wx.MessageDialog(
-                self.FORM, "Fields: " + ",".join(required), "Required Fields", wx.OK
-            )
-            result = dlg.ShowModal()
-            dlg.Destroy()
-            return
-        self.update_screen_to_record()
-        changed_fields = self.RECORDS.recordisdirty()
-        try:
-            self.RECORDS.update_current_record_in_DB()
-        except RuntimeError as error:
-            self._show_operation_error(str(error))
-            return
-        self._audit_operation("update", changed_fields)
-        self.enable_navigation_buttons()
-        dlg = wx.MessageDialog(
-            self.FORM,
-            "Record Updated.",
-            "Updated",
-            wx.OK,
-        )
-        result = dlg.ShowModal()
-        dlg.Destroy()
-        self.set_all_controls_to_normal_color()
+        return self.save_record()
 
     def _show_operation_error(self, message):
         dialog = wx.MessageDialog(self.FORM, message, "Database operation failed", wx.OK)

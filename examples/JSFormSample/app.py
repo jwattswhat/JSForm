@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import getpass
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -12,7 +13,7 @@ from pathlib import Path
 import wx
 import JSForm
 import mysql.connector
-from route_manifest import show_route_manifest
+from route_manifest import CONTRACT as ROUTE_MANIFEST_CONTRACT, show_route_manifest
 from route_stop_editor import show_ordered_route_stops
 from student_finder import show_student_finder
 from sample_tools import show_background_task, show_diagnostics, show_mail_preview
@@ -21,13 +22,21 @@ from JSForm.windows_credentials import read_credential
 
 
 FORMS = Path(__file__).with_name("Forms")
+MENUS = Path(__file__).with_name("Menus")
+REPORTS = Path(__file__).with_name("Reports")
+SAMPLE_ICON = Path(__file__).with_name("assets") / "school-bus-routes.ico"
+USER_ROOT = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "JSFormSample"
+USER_FORMS = USER_ROOT / "Forms"
+USER_MENUS = USER_ROOT / "Menus"
+USER_REPORTS = USER_ROOT / "Reports"
+USER_OUTPUT = USER_ROOT / "Output"
 EDIT_CONTROLS = ["Navigation", "New", "Update", "Delete", "Close"]
 ROUTES = {
-    "btnSchools": "frmSchool",
-    "btnDrivers": "frmDriver",
-    "btnBuses": "frmBus",
-    "btnRoutes": "frmRoute",
-    "btnStudents": "frmStudent",
+    "btnSchools": ("records.schools", "frmSchool", "&Schools"),
+    "btnDrivers": ("records.drivers", "frmDriver", "&Drivers"),
+    "btnBuses": ("records.buses", "frmBus", "&Buses"),
+    "btnRoutes": ("records.routes", "frmRoute", "&Routes and Stops"),
+    "btnStudents": ("records.students", "frmStudent", "&Students"),
 }
 SAMPLE_CREDENTIAL_TARGET = "JSFormSample/Database"
 
@@ -76,6 +85,7 @@ def connect_database(settings, attempts=3):
 def main(argv=None):
     settings = arguments(argv)
     os.environ["JSFORM_SCREEN_OVERLAY"] = str(FORMS)
+    JSForm.configure_application_icon(SAMPLE_ICON)
     wx_app = wx.App(0)
     database = connect_database(settings)
     JSForm.CONFIG.set_Config_DBConnection(database)
@@ -100,9 +110,9 @@ def main(argv=None):
         None, database.DBConnection, "frmSampleMain", ["Close"],
         authorization_policy=JSForm.AllowAllAuthorizationPolicy(),
     )
+    main_form.FRAME.SetSize(main_form.FRAME.GetSize() + wx.Size(36, 46))
 
-    def open_form(event):
-        form_name = ROUTES[event.GetEventObject().GetName()]
+    def open_form(form_name):
         form = JSForm.clsForm(
             main_form, database.DBConnection, form_name, EDIT_CONTROLS,
             authorization_policy=JSForm.AllowAllAuthorizationPolicy(),
@@ -115,26 +125,151 @@ def main(argv=None):
             form.CONTROLID["btnOrderedStops"].Bind(wx.EVT_BUTTON, open_ordered_stops)
         form.show()
 
-    for control_name in ROUTES:
-        main_form.CONTROLID[control_name].Bind(wx.EVT_BUTTON, open_form)
-    main_form.CONTROLID["btnManifest"].Bind(
-        wx.EVT_BUTTON,
-        lambda _event: show_route_manifest(main_form.FRAME, database.DBConnection),
+    registry = JSForm.CommandRegistry()
+    registry.register_many(JSForm.standard_application_commands(
+        "JSForm School Bus Sample", application_version=SAMPLE_VERSION,
+    ))
+    for _control_name, (command_name, form_name, label) in ROUTES.items():
+        registry.register(JSForm.ApplicationCommand(
+            command_name, label,
+            lambda _context, selected=form_name: open_form(selected),
+            help_text="Open {} records".format(label.replace("&", "")),
+        ))
+    registry.register_many((
+        JSForm.ApplicationCommand(
+            "records.student_finder", "&Find Student...",
+            lambda _context: show_student_finder(
+                main_form.FRAME, database.DBConnection
+            ),
+            help_text="Find a student by name, school, or route",
+        ),
+        JSForm.ApplicationCommand(
+            "reports.route_manifest", "Route &Manifest",
+            lambda _context: show_route_manifest(
+                main_form.FRAME, database.DBConnection
+            ),
+            help_text="Create the route manifest report",
+        ),
+        JSForm.ApplicationCommand(
+            "tools.diagnostics", "&Diagnostics",
+            lambda _context: show_diagnostics(main_form.FRAME),
+            help_text="Open safe application diagnostics",
+        ),
+        JSForm.ApplicationCommand(
+            "tools.mail_preview", "Mail &Preview",
+            lambda _context: show_mail_preview(
+                main_form.FRAME, database.DBConnection
+            ),
+            help_text="Preview a fictional message without sending email",
+        ),
+        JSForm.ApplicationCommand(
+            "tools.background_task", "&Background Task Demo...",
+            lambda _context: show_background_task(main_form.FRAME),
+            help_text="Run the responsive background-operation demonstration",
+        ),
+        JSForm.ApplicationCommand(
+            "tools.screen_designer", "&Screen Designer...",
+            lambda _context: open_sample_screen_catalog(),
+            help_text="Customize sample screen layouts",
+        ),
+        JSForm.ApplicationCommand(
+            "tools.report_designer", "&Report Designer...",
+            lambda _context: open_sample_report_catalog(),
+            help_text="Customize sample report layouts",
+        ),
+        JSForm.ApplicationCommand(
+            "tools.menu_designer", "Menu &Designer...",
+            lambda _context: open_sample_menu_designer(),
+            help_text="Customize the sample application menu for the next launch",
+        ),
+    ))
+
+    def menu_descriptors():
+        categories = {
+            "app": "Application", "records": "Records",
+            "reports": "Reports", "tools": "Tools",
+        }
+        return tuple(
+            JSForm.MenuCommandDescriptor(
+                command.name, command.label, help_text=command.help_text,
+                category=categories.get(command.name.split(".", 1)[0], "Other"),
+            )
+            for command in (registry.get(name) for name in registry.names)
+        )
+
+    def open_sample_menu_designer():
+        catalog = JSForm.MenuCatalogModel(USER_MENUS, MENUS)
+        entry = next(item for item in catalog.entries() if item["filename"] == "main.menu.json")
+        custom = catalog.open_customization(entry)
+        return JSForm.open_menu_designer(
+            custom, menu_descriptors(), save_path=custom,
+            starter_path=MENUS / "main.menu.json",
+        )
+
+    def open_sample_screen_catalog():
+        def open_selected(entry):
+            USER_FORMS.mkdir(parents=True, exist_ok=True)
+            target = USER_FORMS / entry["path"].name
+            if not target.is_file():
+                shutil.copy2(entry["path"], target)
+            JSForm.open_screen_designer(
+                target,
+                starter_definition_path=entry.get("starter"),
+                allowed_directory=USER_FORMS,
+            )
+
+        return JSForm.open_screen_catalog(
+            USER_FORMS, FORMS, open_selected, parent=main_form.FRAME,
+        )
+
+    def open_sample_report_catalog():
+        def open_selected(path):
+            JSForm.open_report_designer(
+                path,
+                dataset_contract=ROUTE_MANIFEST_CONTRACT,
+                starter_definition_path=REPORTS / path.name,
+                export_directory=USER_OUTPUT,
+            )
+
+        return JSForm.open_report_catalog(
+            USER_REPORTS, REPORTS, open_selected, parent=main_form.FRAME,
+        )
+
+    def command_context():
+        return JSForm.CommandContext(
+            frame=main_form.FRAME,
+            current_form=main_form,
+            authorization_policy=main_form.AUTHORIZATION_POLICY,
+            services={"database": database.DBConnection},
+        )
+
+    def bind_button(control_name, command_name):
+        main_form.CONTROLID[control_name].Bind(
+            wx.EVT_BUTTON,
+            lambda event, selected=command_name: registry.dispatch(
+                selected, command_context(), event=event, source="button"
+            ),
+        )
+
+    for control_name, (command_name, _form_name, _label) in ROUTES.items():
+        bind_button(control_name, command_name)
+    for control_name, command_name in {
+        "btnManifest": "reports.route_manifest",
+        "btnDiagnostics": "tools.diagnostics",
+        "btnMailPreview": "tools.mail_preview",
+        "btnStudentFinder": "records.student_finder",
+        "btnBackgroundTask": "tools.background_task",
+    }.items():
+        bind_button(control_name, command_name)
+
+    menu_definition = JSForm.MenuDefinitionLoader().load_application(
+        MENUS / "main.menu.json", USER_MENUS / "main.menu.json",
+        fallback_to_starter=True,
     )
-    main_form.CONTROLID["btnDiagnostics"].Bind(
-        wx.EVT_BUTTON, lambda _event: show_diagnostics(main_form.FRAME)
+    menu_installer = JSForm.MenuInstaller(
+        main_form.FRAME, registry, context_provider=command_context,
     )
-    main_form.CONTROLID["btnMailPreview"].Bind(
-        wx.EVT_BUTTON,
-        lambda _event: show_mail_preview(main_form.FRAME, database.DBConnection),
-    )
-    main_form.CONTROLID["btnStudentFinder"].Bind(
-        wx.EVT_BUTTON,
-        lambda _event: show_student_finder(main_form.FRAME, database.DBConnection),
-    )
-    main_form.CONTROLID["btnBackgroundTask"].Bind(
-        wx.EVT_BUTTON, lambda _event: show_background_task(main_form.FRAME)
-    )
+    menu_installer.install(menu_definition, current_form=lambda: main_form)
     main_form.FRAME.SetTitle(
         "JSForm Sample {} - School Bus Routes - {}".format(
             SAMPLE_VERSION, settings.database,
@@ -142,6 +277,7 @@ def main(argv=None):
     )
     main_form.show()
     wx_app.MainLoop()
+    menu_installer.dispose()
     database.DBConnection.close()
     database.JSConnection.close()
 

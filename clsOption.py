@@ -4,6 +4,17 @@ import mysql
 import mysql.connector
 
 import JSForm
+
+
+def _close_cursor(cursor, operation_failed=False):
+    """Close ``cursor`` without masking an active database-operation failure."""
+    try:
+        cursor.close()
+    except Exception:
+        if not operation_failed:
+            raise
+
+
 class clsOption:
     """
     clsOption.py - Option Class for Getting and Setting System Options
@@ -27,47 +38,45 @@ class clsOption:
     def __init__(self, DB=None):
         if not DB:
             self.DBConnection = None
-            self.JSConnection = None
         else:
             self.DBConnection = DB.DBConnection
-            self.JSConnection = DB.JSConnection
 
     def set_Option_DBConnection(self, DB):
+        """Use an application's database connection."""
         self.DBConnection = DB.DBConnection
-        self.JSConnection = DB.JSConnection
 
     def get_Option_Value(self, optionfor, optiontype):
+        """Return one application option value, or ``None``."""
         if self.DBConnection == None:
             return None
-        SQL = 'SELECT OptionValue FROM tblOptions WHERE OptionFor = "{optionfor}" AND OptionType = "{optiontype}";'.format(
-            optionfor=optionfor, optiontype=optiontype
-        )
+        SQL = "SELECT OptionValue FROM tblOptions WHERE OptionFor = %s AND OptionType = %s;"
+        cursor = None
+        operation_failed = False
         try:
             cursor = self.DBConnection.cursor()
-            cursor.execute(SQL)
+            cursor.execute(SQL, (optionfor, optiontype))
             row = cursor.fetchone()
         except:
+            operation_failed = True
             row = None
-        cursor.close()
-        if not row:
-            SQL = 'SELECT OptionValue FROM jsOptions WHERE OptionFor = "{optionfor}" AND OptionType = "{optiontype}";'.format(
-            optionfor=optionfor, optiontype=optiontype
-            )
-
-            cursor = self.JSConnection.cursor()
-            cursor.execute(SQL)
-            row = cursor.fetchall()
-            cursor.close()
-        return row[0]
+        finally:
+            if cursor is not None:
+                _close_cursor(cursor, operation_failed)
+        return row[0] if row else None
 
     def set_Option_Value(self, optionfor, optiontype, optionvalue):
+        """Update an application option without committing the caller's transaction."""
         if self.DBConnection == None:
             return None
-        SQL = "UPDATE tblOptions SET OptionValue ='{OptionValue}' WHERE OptionFor = '{OptionFor}' AND OptionType='{OptionType}';".format(
-            OptionFor=optionfor, OptionType=optiontype, OptionValue=optionvalue
-        )
+        SQL = "UPDATE tblOptions SET OptionValue = %s WHERE OptionFor = %s AND OptionType = %s;"
         cursor = self.DBConnection.cursor()
-        cursor.execute(SQL)
-        cursor.close()
+        operation_failed = False
+        try:
+            cursor.execute(SQL, (optionvalue, optionfor, optiontype))
+        except:
+            operation_failed = True
+            raise
+        finally:
+            _close_cursor(cursor, operation_failed)
 
 OPTION = clsOption()

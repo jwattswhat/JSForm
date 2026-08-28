@@ -12,8 +12,9 @@ import JSForm
 
 ROOT = Path(__file__).resolve().parent
 STARTER = ROOT / "Reports" / "SBRT01.json"
-CUSTOM = ROOT / "Reports" / "Custom" / "SBRT01.json"
-OUTPUT = ROOT / "Output" / "SBRT01.pdf"
+USER_ROOT = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "JSFormSample"
+CUSTOM = USER_ROOT / "Reports" / "SBRT01.json"
+OUTPUT = USER_ROOT / "Output" / "SBRT01.pdf"
 
 CONTRACT = JSForm.ReportDatasetContract(
     "sample.routemanifest", 1, "sample.route_manifest",
@@ -128,7 +129,7 @@ class RouteManifestDialog(wx.Dialog):
                 definition, build_dataset(self.connection, route_id), OUTPUT
             ),
             starter_definition_path=STARTER,
-            export_directory=ROOT / "Output",
+            export_directory=OUTPUT.parent,
         )
 
 

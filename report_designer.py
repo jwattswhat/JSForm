@@ -1397,6 +1397,8 @@ class ReportDesignerFrame(wx.Frame):
         if dataset_contract is not None:
             dataset_contract.validate_definition(definition)
         super().__init__(None, title=f"JSForm Report Designer - {definition.title}", size=(1100, 850))
+        from JSForm.window_icons import apply_window_icon
+        apply_window_icon(self)
         self.build_menu_bar()
         panel = wx.Panel(self)
         toolbar = wx.BoxSizer(wx.HORIZONTAL)
