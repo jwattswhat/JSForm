@@ -1293,6 +1293,10 @@ When `Location/Form` is absent, the form loader uses the application's bundled
 fallback form directory. A missing configuration record must never be passed
 to `pathlib.Path` as a path value.
 
+File-picker directory settings are optional. When an application has no
+configured directory, JSForm leaves the native picker at its Windows default
+instead of passing `None` to `SetInitialDirectory`.
+
 Configuration families, types, and values are passed to MySQL Connector as
 parameters on the application path. They remain
 data even when they contain quotes, comments, or SQL keywords. Applications
