@@ -104,7 +104,7 @@ class SampleApplicationTests(unittest.TestCase):
         self.assertNotIn("tblUser", schema)
         for table in ("school", "driver", "bus", "route", "route_stop", "student"):
             self.assertIn("sb_{}".format(table), schema)
-        allowed_framework_tables = {"jsConfig", "jsOptions"}
+        allowed_framework_tables = set()
         for line in schema.splitlines():
             if line.strip().upper().startswith(("DROP TABLE", "CREATE TABLE")):
                 self.assertTrue(

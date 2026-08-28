@@ -15,11 +15,6 @@ def _close_cursor(cursor, operation_failed=False):
             raise
 
 
-def _missing_optional_framework_table(error):
-    """Return whether a framework-default table is intentionally absent."""
-    return getattr(error, "errno", None) == 1146
-
-
 class clsOption:
     """
     clsOption.py - Option Class for Getting and Setting System Options
@@ -43,18 +38,15 @@ class clsOption:
     def __init__(self, DB=None):
         if not DB:
             self.DBConnection = None
-            self.JSConnection = None
         else:
             self.DBConnection = DB.DBConnection
-            self.JSConnection = DB.JSConnection
 
     def set_Option_DBConnection(self, DB):
-        """Use an application's paired application/framework connections."""
+        """Use an application's database connection."""
         self.DBConnection = DB.DBConnection
-        self.JSConnection = DB.JSConnection
 
     def get_Option_Value(self, optionfor, optiontype):
-        """Return one value, preferring application options then framework options."""
+        """Return one application option value, or ``None``."""
         if self.DBConnection == None:
             return None
         SQL = "SELECT OptionValue FROM tblOptions WHERE OptionFor = %s AND OptionType = %s;"
@@ -69,21 +61,6 @@ class clsOption:
             row = None
         finally:
             if cursor is not None:
-                _close_cursor(cursor, operation_failed)
-        if not row:
-            SQL = "SELECT OptionValue FROM jsOptions WHERE OptionFor = %s AND OptionType = %s;"
-            cursor = self.JSConnection.cursor()
-            operation_failed = False
-            try:
-                cursor.execute(SQL, (optionfor, optiontype))
-                row = cursor.fetchall()
-            except Exception as error:
-                operation_failed = True
-                if _missing_optional_framework_table(error):
-                    row = None
-                else:
-                    raise
-            finally:
                 _close_cursor(cursor, operation_failed)
         return row[0] if row else None
 

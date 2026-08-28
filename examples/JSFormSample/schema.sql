@@ -5,38 +5,6 @@ DROP TABLE IF EXISTS sb_bus;
 DROP TABLE IF EXISTS sb_driver;
 DROP TABLE IF EXISTS sb_school;
 
-CREATE TABLE IF NOT EXISTS jsConfig (
-    ID INT NOT NULL AUTO_INCREMENT,
-    ConfigFamily VARCHAR(255) NOT NULL,
-    ConfigType VARCHAR(100) NOT NULL,
-    ConfigValue VARCHAR(255) NOT NULL,
-    Note TEXT NULL,
-    PRIMARY KEY (ID),
-    UNIQUE KEY uq_jsconfig_key (ConfigFamily, ConfigType)
-) ENGINE=InnoDB;
-
-CREATE TABLE IF NOT EXISTS jsOptions (
-    ID INT NOT NULL AUTO_INCREMENT,
-    OptionFor VARCHAR(255) NOT NULL,
-    OptionType VARCHAR(255) NOT NULL,
-    OptionValue TEXT NOT NULL,
-    Note TEXT NULL,
-    PRIMARY KEY (ID),
-    UNIQUE KEY uq_jsoptions_key (OptionFor, OptionType)
-) ENGINE=InnoDB;
-
-INSERT INTO jsConfig (ConfigFamily,ConfigType,ConfigValue) VALUES
-('Font','PointSize','10'),('Font','Family','70'),('Font','Style','90'),
-('Font','Weight','90'),('Font','Face','Segoe UI'),('Font','Underline','0'),
-('Format','Date','%m/%d/%Y'),('Format','Time','%I:%M:%S %p'),
-('Format','DateTime','%m/%d/%Y %I:%M:%S %p'),
-('Location','Form','.'),('Location','JSONSchema','.')
-ON DUPLICATE KEY UPDATE ConfigValue=VALUES(ConfigValue);
-
-INSERT INTO jsOptions (OptionFor,OptionType,OptionValue) VALUES
-('JSONSchema','CheckForms','Yes')
-ON DUPLICATE KEY UPDATE OptionValue=VALUES(OptionValue);
-
 CREATE TABLE sb_school (
     ID INT NOT NULL AUTO_INCREMENT,
     Name VARCHAR(120) NOT NULL,

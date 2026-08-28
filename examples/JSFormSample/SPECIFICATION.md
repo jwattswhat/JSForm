@@ -13,8 +13,8 @@ framework without importing or depending on ChurchManager.
 
 - The sample uses its own local `JSFormSample` MariaDB database and restricted
   `jsform_sample` account.
-- Every domain table begins with `sb_`; the database also contains the minimal
-  JSForm-owned `jsConfig` and `jsOptions` framework tables.
+- Every database table begins with `sb_`; JSForm owns no database tables or
+  records.
 - Reset operations may drop and recreate only `sb_` tables.
 - The sample has no login, users, roles, or visible security administration.
 - Runtime authorization uses JSForm's allow-all policy.

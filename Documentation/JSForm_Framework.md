@@ -291,12 +291,10 @@ by the complete ChurchManager suite, including their read-only `JSFormTest` and
 
 ### Database wrapper
 
-`JSForm.clsDB(host, databasename, username, password)` creates two connector connections:
-
-- `DBConnection`: the application database named by `databasename`.
-- `JSConnection`: a connection to the framework/configuration database named exactly `JSForm`.
-
-The current implementation expects the secondary JSForm database to be available as part of its connection setup. Configuration and options are first sought in the application database, then in framework fallback tables.
+`JSForm.clsDB(host, databasename, username, password)` creates one connector
+connection to the application database named by `databasename`. The compatibility
+attributes `DBConnection` and `JSConnection` refer to that same connection.
+JSForm owns no separate database, tables, or records.
 
 ### Framework singletons
 
@@ -1287,10 +1285,12 @@ family = JSForm.CONFIG.get_Config_Family("Font")
 JSForm.CONFIG.set_Config_Value("Location", "Form", ".\\Forms\\")
 ```
 
-The application database's `tblConfig` is checked first. If a value is missing, the framework connection's `jsConfig` table is used as fallback.
+Configuration is read only from the application's `tblConfig` table. Missing
+values return `None` so the application or framework component can use an
+explicit built-in default.
 
 Configuration families, types, and values are passed to MySQL Connector as
-parameters on both the application and framework fallback paths. They remain
+parameters on the application path. They remain
 data even when they contain quotes, comments, or SQL keywords. Applications
 remain responsible for deciding which configuration names and values are
 meaningful and permitted. `set_Config_Value()` does not commit or roll back;
@@ -1317,10 +1317,10 @@ value = JSForm.OPTION.get_Option_Value("JSONSchema", "CheckForms")
 JSForm.OPTION.set_Option_Value("JSONSchema", "CheckForms", "Yes")
 ```
 
-The application database's `tblOptions` is checked first, followed by the framework connection's `jsOptions` fallback table.
+Options are read only from the application's `tblOptions` table.
 
-Option groups, types, and values are connector parameters on both lookup paths
-and on updates. JSForm does not define their application meaning or authorize
+Option groups, types, and values are connector parameters on lookup and update.
+JSForm does not define their application meaning or authorize
 who may change them. `set_Option_Value()` leaves commit and rollback decisions
 to the application.
 
@@ -1597,10 +1597,9 @@ Application-assigned IDs and other record-only system fields do not need visible
 controls. Dirty-state and required-field highlighting safely ignores fields that
 are absent from the form while still including them in record persistence.
 
-## Optional framework configuration tables
+## Database ownership
 
-Applications may store configuration and options entirely in their own
-`tblConfig` and `tblOptions` tables. When the optional framework fallback tables
-`jsConfig` or `jsOptions` are absent, JSForm treats that as no framework default
-and continues with application values or built-in defaults. Other framework
-database failures still propagate normally.
+JSForm owns no database tables or records and opens no separate framework
+database. Applications own their schema, configuration, options, and data.
+The compatibility `JSConnection` attribute refers to the same connection as
+`DBConnection`; it does not represent another database.

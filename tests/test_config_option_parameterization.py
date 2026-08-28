@@ -85,21 +85,21 @@ class ParameterizationTests(unittest.TestCase):
         )])
         self.assertTrue(app.cursors[0].closed)
 
-    def test_config_value_fallback_parameterizes_both_queries(self):
+    def test_missing_config_value_does_not_query_framework_database(self):
         app = Connection(({"rows": []},))
         framework = Connection(({"rows": [("fallback",)]},))
         value = clsConfig(DB(app, framework)).get_Config_Value(HOSTILE, HOSTILE)
-        self.assertEqual(value, "fallback")
+        self.assertIsNone(value)
         self.assert_bound(app, [(app.executed[0][0], (HOSTILE, HOSTILE))])
-        self.assert_bound(framework, [(framework.executed[0][0], (HOSTILE, HOSTILE))])
+        self.assertEqual(framework.executed, [])
 
-    def test_config_family_primary_and_fallback_are_bound(self):
+    def test_missing_config_family_does_not_query_framework_database(self):
         app = Connection(({"rows": []},))
         framework = Connection(({"rows": [("Type", "Value")]},))
         rows = clsConfig(DB(app, framework)).get_Config_Family(HOSTILE)
-        self.assertEqual(rows, [("Type", "Value")])
+        self.assertEqual(rows, [])
         self.assertEqual(app.executed[0][1], (HOSTILE,))
-        self.assertEqual(framework.executed[0][1], (HOSTILE,))
+        self.assertEqual(framework.executed, [])
 
     def test_config_update_binds_all_values_and_preserves_predicate(self):
         app = Connection(({},))
@@ -116,13 +116,13 @@ class ParameterizationTests(unittest.TestCase):
         self.assertEqual(value, "value")
         self.assert_bound(app, [(app.executed[0][0], (HOSTILE, HOSTILE))])
 
-    def test_option_fallback_is_bound_and_preserves_tuple_shape(self):
+    def test_missing_option_does_not_query_framework_database(self):
         app = Connection(({"rows": []},))
         framework = Connection(({"rows": [("fallback",)]},))
         value = clsOption(DB(app, framework)).get_Option_Value(HOSTILE, HOSTILE)
-        self.assertEqual(value, ("fallback",))
+        self.assertIsNone(value)
         self.assertEqual(app.executed[0][1], (HOSTILE, HOSTILE))
-        self.assertEqual(framework.executed[0][1], (HOSTILE, HOSTILE))
+        self.assertEqual(framework.executed, [])
 
     def test_option_update_binds_value_group_and_type(self):
         app = Connection(({},))
@@ -133,19 +133,21 @@ class ParameterizationTests(unittest.TestCase):
         )])
         self.assertEqual((app.commits, app.rollbacks), (0, 0))
 
-    def test_application_read_failure_closes_cursor_and_falls_back(self):
+    def test_application_read_failure_closes_cursor_without_fallback(self):
         app = Connection(({"failure": RuntimeError("read failed")},))
         framework = Connection(({"rows": [("fallback",)]},))
         value = clsConfig(DB(app, framework)).get_Config_Value("Family", "Type")
-        self.assertEqual(value, "fallback")
+        self.assertIsNone(value)
         self.assertTrue(app.cursors[0].closed)
+        self.assertEqual(framework.executed, [])
 
-    def test_framework_failure_closes_cursor_and_propagates(self):
+    def test_framework_failure_is_irrelevant_when_option_is_missing(self):
         app = Connection(({"rows": []},))
         framework = Connection(({"failure": RuntimeError("fallback failed")},))
-        with self.assertRaisesRegex(RuntimeError, "fallback failed"):
+        self.assertIsNone(
             clsOption(DB(app, framework)).get_Option_Value("For", "Type")
-        self.assertTrue(framework.cursors[0].closed)
+        )
+        self.assertEqual(framework.cursors, [])
 
     def test_missing_optional_framework_config_tables_mean_no_default(self):
         app = Connection(({"rows": []}, {"rows": []}))

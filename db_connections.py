@@ -26,21 +26,20 @@ class DatabaseSettings:
 
 
 class DatabaseConnections:
-    """Own the application and framework database connections as one unit."""
+    """Own one application database connection.
+
+    ``framework_settings`` remains accepted temporarily for source compatibility,
+    but JSForm no longer opens or owns a separate framework database.
+    """
 
     def __init__(self, application_settings, framework_settings, connector):
         self.application_settings = application_settings
-        self.framework_settings = framework_settings
+        self.framework_settings = application_settings
         self.application = connector(**application_settings.connector_arguments())
-        try:
-            self.framework = connector(**framework_settings.connector_arguments())
-        except Exception:
-            self.application.close()
-            raise
+        self.framework = self.application
 
     def close(self):
-        for connection in (self.framework, self.application):
-            try:
-                connection.close()
-            except (AttributeError, RuntimeError):
-                continue
+        try:
+            self.application.close()
+        except (AttributeError, RuntimeError):
+            pass

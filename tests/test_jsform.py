@@ -845,7 +845,7 @@ class TestWriteStatements(unittest.TestCase):
 
 
 class TestDatabaseConnections(unittest.TestCase):
-    def test_pair_opens_expected_databases_and_closes_both(self):
+    def test_opens_only_application_database_and_closes_it(self):
         from db_connections import DatabaseConnections, DatabaseSettings
 
         opened = []
@@ -868,11 +868,12 @@ class TestDatabaseConnections(unittest.TestCase):
             DatabaseSettings("server", "JSFormTest", "user", "secret"),
             connect,
         )
-        self.assertEqual([item.arguments["database"] for item in opened], ["ChurchDBTest", "JSFormTest"])
+        self.assertEqual([item.arguments["database"] for item in opened], ["ChurchDBTest"])
+        self.assertIs(pair.application, pair.framework)
         pair.close()
         self.assertTrue(all(item.closed for item in opened))
 
-    def test_framework_failure_closes_application_connection(self):
+    def test_framework_database_setting_is_not_opened(self):
         from db_connections import DatabaseConnections, DatabaseSettings
 
         opened = []
@@ -890,12 +891,14 @@ class TestDatabaseConnections(unittest.TestCase):
             opened.append(connection)
             return connection
 
-        with self.assertRaisesRegex(RuntimeError, "framework unavailable"):
-            DatabaseConnections(
-                DatabaseSettings("server", "ChurchDBTest", "user", "secret"),
-                DatabaseSettings("server", "JSFormTest", "user", "secret"),
-                connect,
-            )
+        pair = DatabaseConnections(
+            DatabaseSettings("server", "ChurchDBTest", "user", "secret"),
+            DatabaseSettings("server", "JSFormTest", "user", "secret"),
+            connect,
+        )
+        self.assertEqual(len(opened), 1)
+        self.assertFalse(opened[0].closed)
+        pair.close()
         self.assertTrue(opened[0].closed)
 
 
