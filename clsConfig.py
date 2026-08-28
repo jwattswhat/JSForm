@@ -3,6 +3,22 @@
 import mysql
 import mysql.connector
 from JSForm import clsDB
+
+
+def _close_cursor(cursor, operation_failed=False):
+    """Close ``cursor`` without masking an active database-operation failure."""
+    try:
+        cursor.close()
+    except Exception:
+        if not operation_failed:
+            raise
+
+
+def _missing_optional_framework_table(error):
+    """Return whether a framework-default table is intentionally absent."""
+    return getattr(error, "errno", None) == 1146
+
+
 class clsConfig:
     """
     clsConfig.py - Configuration Class for getting and setting system configuration data
@@ -36,61 +52,87 @@ class clsConfig:
             self.JSConnection = DB.JSConnection
 
     def set_Config_DBConnection(self, DB):
+        """Use an application's paired application/framework connections."""
         self.DBConnection = DB.DBConnection
         self.JSConnection = DB.JSConnection
 
     def get_Config_Value(self, ConfigFamily, ConfigType):
+        """Return one value, preferring application config then framework config."""
         if self.DBConnection == None:
             return None
-        SQL = "SELECT ConfigValue FROM tblConfig WHERE ConfigFamily = '{ConfigFamily}' AND ConfigType = '{ConfigType}';".format(
-            ConfigFamily=ConfigFamily, ConfigType=ConfigType)
+        SQL = "SELECT ConfigValue FROM tblConfig WHERE ConfigFamily = %s AND ConfigType = %s;"
         cursor = self.DBConnection.cursor()
+        operation_failed = False
         try:
-            cursor.execute(SQL)
+            cursor.execute(SQL, (ConfigFamily, ConfigType))
             row = cursor.fetchone()
         except:
+            operation_failed = True
             row = None
-        cursor.close()
+        finally:
+            _close_cursor(cursor, operation_failed)
         if not row:
-            SQL = "SELECT ConfigValue FROM jsConfig WHERE ConfigFamily = '{ConfigFamily}' AND ConfigType = '{ConfigType}';".format(
-                ConfigFamily=ConfigFamily, ConfigType=ConfigType)
+            SQL = "SELECT ConfigValue FROM jsConfig WHERE ConfigFamily = %s AND ConfigType = %s;"
             cursor = self.JSConnection.cursor()
-            cursor.execute(SQL)
-            row = cursor.fetchone()
-            cursor.close()
-        return row[0]
+            operation_failed = False
+            try:
+                cursor.execute(SQL, (ConfigFamily, ConfigType))
+                row = cursor.fetchone()
+            except Exception as error:
+                operation_failed = True
+                if _missing_optional_framework_table(error):
+                    row = None
+                else:
+                    raise
+            finally:
+                _close_cursor(cursor, operation_failed)
+        return row[0] if row else None
 
     def set_Config_Value(self, ConfigFamily, ConfigType, ConfigValue):
+        """Update an application value without committing the caller's transaction."""
         if self.DBConnection == None:
             return None
-        SQL = "UPDATE tblConfig SET ConfigFamily = '{ConfigFamily}', ConfigValue = '{ConfigValue}' WHERE ConfigType = '{ConfigType}';".format(
-            ConfigFamily=ConfigFamily, ConfigValue=ConfigValue, ConfigType=ConfigType
-        )
+        SQL = "UPDATE tblConfig SET ConfigFamily = %s, ConfigValue = %s WHERE ConfigType = %s;"
         cursor = self.DBConnection.cursor()
-        cursor.execute(SQL)
-        cursor.close()
+        operation_failed = False
+        try:
+            cursor.execute(SQL, (ConfigFamily, ConfigValue, ConfigType))
+        except:
+            operation_failed = True
+            raise
+        finally:
+            _close_cursor(cursor, operation_failed)
 
     def get_Config_Family(self, configfamily):
+        """Return family rows, preferring application then framework config."""
         if self.DBConnection == None:
             return None
-        SQL = "SELECT ConfigType, ConfigValue FROM tblConfig WHERE ConfigFamily = '{configfamily}';".format(
-            configfamily=configfamily
-                )
+        SQL = "SELECT ConfigType, ConfigValue FROM tblConfig WHERE ConfigFamily = %s;"
         cursor = self.DBConnection.cursor()
+        operation_failed = False
         try:
-            cursor.execute(SQL)
+            cursor.execute(SQL, (configfamily,))
             rows = cursor.fetchall()
         except:
+            operation_failed = True
             rows = None
-        cursor.close()
+        finally:
+            _close_cursor(cursor, operation_failed)
         if not rows:
-            SQL = "SELECT ConfigType, ConfigValue FROM jsConfig WHERE ConfigFamily = '{configfamily}';".format(
-                configfamily=configfamily
-                    )
+            SQL = "SELECT ConfigType, ConfigValue FROM jsConfig WHERE ConfigFamily = %s;"
             cursor = self.JSConnection.cursor()
-            cursor.execute(SQL)
-            rows = cursor.fetchall()
-            cursor.close()
+            operation_failed = False
+            try:
+                cursor.execute(SQL, (configfamily,))
+                rows = cursor.fetchall()
+            except Exception as error:
+                operation_failed = True
+                if _missing_optional_framework_table(error):
+                    rows = []
+                else:
+                    raise
+            finally:
+                _close_cursor(cursor, operation_failed)
         return rows
 
 CONFIG = clsConfig()            #   Application Configuration

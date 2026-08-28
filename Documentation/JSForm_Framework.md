@@ -532,7 +532,9 @@ Related forms can substitute values from the parent record:
 "condition": "PersonID = {ID}"
 ```
 
-For a parent record with `ID` 42, this becomes `PersonID = 42`.
+For a parent record with `ID` 42, JSForm compiles this as `PersonID = %s` and
+passes `(42,)` separately to the database connector. Quotes, comments, and SQL
+keywords inside a parent value remain data and cannot change the query.
 
 ### Option placeholders
 
@@ -542,7 +544,14 @@ A condition can incorporate an option:
 "condition": "Lectionary = {OPTION:Lectionary:Current}"
 ```
 
-The current parser interprets the two colon-separated components using its historical option lookup logic. Test every option condition against the installed version because the variable names in the implementation are confusingly reversed.
+The parser preserves the historical option-component mapping. The returned
+option value is bound through a connector parameter and is never inserted into
+the SQL text.
+
+Low-level callers may use `clsSQL.select_statement()` to receive
+`(sql_text, parameter_tuple)` for `cursor.execute()`. `clsSQL.select()` remains
+available for inspecting SQL text, but dynamic output contains `%s` markers and
+must not be executed without the corresponding parameters.
 
 ### Forms without tables
 
@@ -821,10 +830,24 @@ A file picker. Its `directory` property identifies the configuration family and 
 
 The control stores the selected filename while maintaining its directory
 separately. An `openfile` action resolves the remembered directory first and
-then the configured initial directory, and asks the operating system to open
-the resulting file with its registered application. The behavior is not
-limited to a particular extension; DOCX, PDF, spreadsheet, image, text, and
-other registered file types are supported.
+then the configured initial directory. Before constructing forms that use
+`openfile`, the application must configure its approved local document roots
+and passive extensions:
+
+```python
+JSForm.configure_file_opening(
+    approved_roots=[documents_directory],
+    passive_extensions={".pdf", ".docx", ".xlsx", ".txt"},
+)
+```
+
+No configured policy means file opening is denied. The configured picker
+directory helps resolve a stored basename but does not itself grant approval.
+The final existing regular file must resolve beneath an approved local root and
+use an application-approved passive extension. JSForm rejects remote, device,
+URL, shortcut, executable, script, installer, alternate-stream, reparse, and
+outside-root targets before asking Windows to open the document with its
+registered application.
 
 ### `HTMLCtrl`
 
@@ -877,7 +900,7 @@ The current form binder recognizes:
 | `openform` | Opens the named form. |
 | `openlinkedform` | Opens a form declared in `linkedform`. |
 | `openformfromfield` | Derives the form to open from a field value. |
-| `openfile` | Opens the file referenced by another control. |
+| `openfile` | Opens an application-approved passive local file referenced by another control. |
 | `editchecklist` | Performs merge, replace, or clear checklist operations. |
 | `process` | Invokes application-specific processing through `_processaction`. |
 | `onchange` | Handles a combo-box change through `_processaction`. |
@@ -1202,15 +1225,34 @@ Before saving, the form:
 
 1. Checks required controls.
 2. Reads control values into the current record.
-3. Inserts when `ID` is `None`; otherwise updates the existing row.
+3. Classifies the save from the original snapshot: an original blank ID is a
+   create/INSERT, while an original populated ID is an update/UPDATE.
 4. Commits the database transaction.
 5. Saves a new original-record snapshot for dirty tracking.
 
 Although comments say that only changed fields are updated, the current SQL builder constructs assignments from the supplied record. Do not rely on minimal-column updates without testing or revising `clsSQL.update()`.
 
-`form.save_record()` runs the same authorization, required-field, persistence,
-audit, navigation-state, and user-notification workflow as the standard Update
-button. It returns whether the save completed.
+`form.save_record()` asks the application's authorization policy for `create`
+or `update`, matching the operation classified from the saved original record.
+The form-owned `clsRecord` repeats that check immediately before persistence,
+so a permission change after the initial UI check cannot permit SQL. A new
+record with an application-assigned current ID remains a create because its
+original ID was blank. Automatic blank records follow the same rule. Successful
+audits identify the committed operation as `create` or `update`.
+
+The Save/Update button and registered `record.save` command use that pending
+operation when calculating their enabled state after record creation,
+navigation, and refresh. This state is advisory; the persistence-boundary
+authorization remains authoritative. `save_record()` otherwise runs the same
+required-field, persistence, audit, navigation-state, and notification workflow
+and returns whether the save completed.
+
+Low-level applications may construct `clsRecord(connection, table,
+operation_authorizer=callback)`. The optional callback receives `"create"` or
+`"update"` immediately before the corresponding write. Form-owned records use
+`FormSecurity.require`, which delegates permission meaning and the final
+allow/deny decision to the application-supplied authorization policy. JSForm
+does not define application permissions or roles.
 
 ### Deletes
 
@@ -1247,6 +1289,13 @@ JSForm.CONFIG.set_Config_Value("Location", "Form", ".\\Forms\\")
 
 The application database's `tblConfig` is checked first. If a value is missing, the framework connection's `jsConfig` table is used as fallback.
 
+Configuration families, types, and values are passed to MySQL Connector as
+parameters on both the application and framework fallback paths. They remain
+data even when they contain quotes, comments, or SQL keywords. Applications
+remain responsible for deciding which configuration names and values are
+meaningful and permitted. `set_Config_Value()` does not commit or roll back;
+the application retains ownership of its transaction boundary.
+
 Common configuration families used by this repository include:
 
 | Family/type | Purpose |
@@ -1269,6 +1318,11 @@ JSForm.OPTION.set_Option_Value("JSONSchema", "CheckForms", "Yes")
 ```
 
 The application database's `tblOptions` is checked first, followed by the framework connection's `jsOptions` fallback table.
+
+Option groups, types, and values are connector parameters on both lookup paths
+and on updates. JSForm does not define their application meaning or authorize
+who may change them. `set_Option_Value()` leaves commit and rollback decisions
+to the application.
 
 ### Font configuration
 
@@ -1436,15 +1490,16 @@ Use environment variables, a credential manager, or a protected local configurat
 
 ### SQL construction
 
-The current implementation constructs SQL with string formatting. That affects:
+Parent-record and option values in table conditions are parameterized. Modern
+record writes and the public configuration and option storage APIs also use
+connector parameters. Some older direct choice APIs still construct SQL with
+string formatting and are tracked separately in the security-remediation
+roadmap.
 
-- Table descriptions and conditions.
-- configuration and option lookups.
-- record insertion and updating.
-- choice lookups.
-- report lookups.
-
-Only use trusted table/form definitions and trusted values with the current implementation. For new development, migrate value handling to parameterized connector queries and validate identifiers against allowlists. Do not expose raw condition or order-by strings to end users.
+Table names, field expressions, static condition structure, and `orderby`
+cannot be connector parameters. Use only trusted framework or application table
+definitions, validate identifiers against allowlists, and never expose raw
+condition or order-by strings to end users.
 
 ### Process launching
 
@@ -1541,3 +1596,11 @@ specific allocation policy in JSForm.
 Application-assigned IDs and other record-only system fields do not need visible
 controls. Dirty-state and required-field highlighting safely ignores fields that
 are absent from the form while still including them in record persistence.
+
+## Optional framework configuration tables
+
+Applications may store configuration and options entirely in their own
+`tblConfig` and `tblOptions` tables. When the optional framework fallback tables
+`jsConfig` or `jsOptions` are absent, JSForm treats that as no framework default
+and continues with application values or built-in defaults. Other framework
+database failures still propagate normally.
