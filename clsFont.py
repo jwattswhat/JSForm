@@ -29,8 +29,15 @@ class clsFont:
         self.DBConnection = DB.DBConnection
 
     def Get_Config_Font(self):
-        self.fontdict = {}
-        strfont = JSForm.CONFIG.get_Config_Family("Font")
+        self.fontdict = {
+            "pointSize": 10,
+            "family": wx.FONTFAMILY_DEFAULT,
+            "style": wx.FONTSTYLE_NORMAL,
+            "weight": wx.FONTWEIGHT_NORMAL,
+            "underlined": False,
+            "faceName": "",
+        }
+        strfont = JSForm.CONFIG.get_Config_Family("Font") or ()
         for f in strfont:
             match f[0]:
                 case "PointSize":
@@ -50,12 +57,12 @@ class clsFont:
         # faceName/underlined keyword spellings.  Positional construction is
         # supported across the wxPython versions used by JSForm applications.
         self._currentfont = wx.Font(
-            self.fontdict.get("pointSize", 10),
-            self.fontdict.get("family", wx.FONTFAMILY_DEFAULT),
-            self.fontdict.get("style", wx.FONTSTYLE_NORMAL),
-            self.fontdict.get("weight", wx.FONTWEIGHT_NORMAL),
-            self.fontdict.get("underlined", False),
-            self.fontdict.get("faceName", ""),
+            self.fontdict["pointSize"],
+            self.fontdict["family"],
+            self.fontdict["style"],
+            self.fontdict["weight"],
+            self.fontdict["underlined"],
+            self.fontdict["faceName"],
         )
         return self._currentfont
 
