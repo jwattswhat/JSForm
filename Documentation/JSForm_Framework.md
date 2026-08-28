@@ -1397,7 +1397,12 @@ automated suite validates every JSForm definition against this canonical schema.
 
 ### Logging
 
-Framework methods call the global logger `JSForm.LG`. The current logger writes invocation information to its configured log file. Avoid logging passwords, tokens, or sensitive record content.
+Framework methods call the global logger `JSForm.LG`. This legacy diagnostic
+logger is disabled by default, opens its file only when diagnostics are enabled,
+and stores an installed application's log under
+`%LOCALAPPDATA%\<ApplicationName>\Logs\Log.txt`. An unavailable log location
+must never prevent the application from starting. Avoid logging passwords,
+tokens, or sensitive record content.
 
 ### Common failures
 
