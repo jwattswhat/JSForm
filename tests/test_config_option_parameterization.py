@@ -57,7 +57,6 @@ class Connection:
 class DB:
     def __init__(self, application, framework):
         self.DBConnection = application
-        self.JSConnection = framework
 
 
 HOSTILE = "x' OR 1=1; -- \\ % snowman-☃"

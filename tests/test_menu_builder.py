@@ -535,6 +535,9 @@ class FakeRecords:
     def current(self):
         return self.record
 
+    def pending_save_operation(self):
+        return "create" if self.record.get("ID") is None else "update"
+
 
 class FakeForm:
     def __init__(self):
@@ -634,6 +637,12 @@ class TestStandardCommandIntegration(unittest.TestCase):
         self.assertEqual(form.calls, ["new", "save", "delete", "refresh"])
         form.SECURITY.denied.add("delete")
         self.assertFalse(registry.state("record.delete", context).enabled)
+        form.SECURITY.denied.add("update")
+        self.assertFalse(registry.state("record.save", context).enabled)
+        form.RECORDS.record = {"ID": None}
+        self.assertTrue(registry.state("record.save", context).enabled)
+        form.SECURITY.denied.add("create")
+        self.assertFalse(registry.state("record.save", context).enabled)
         form.RECORDS.record = None
         self.assertFalse(registry.state("record.save", context).enabled)
 

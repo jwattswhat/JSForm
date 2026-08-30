@@ -31,6 +31,15 @@ def database_operation_message(error, operation):
 from JSForm.db_connections import DatabaseConnections, DatabaseSettings
 from JSForm.record_state import RecordState
 
+
+class RecordOperationError(RuntimeError):
+    """Raised when JSForm cannot safely classify a pending record save."""
+
+
+class DatabaseCredentialError(RuntimeError):
+    """Raised when protected database credentials cannot be resolved safely."""
+
+
 class clsDB:
     """
     clsDB - Database Class
@@ -59,44 +68,112 @@ class clsDB:
             lblusername =   wx.StaticText(panel,wx.ID_ANY,  pos=(10,80),label="Username:")
             self.username = wx.TextCtrl(panel,wx.ID_ANY,    pos=(100,80),size=(200,30))
             lblpassword =   wx.StaticText(panel,wx.ID_ANY,  pos=(10,110),label="Password:")
-            self.password = wx.TextCtrl(panel,wx.ID_ANY,    pos=(100,110),size=(200,30) )
+            self.password = wx.TextCtrl(
+                panel, wx.ID_ANY, pos=(100,110), size=(200,30), style=wx.TE_PASSWORD,
+            )
             btnok = wx.Button(panel,wx.ID_OK,label="Connect",pos=(10,150),size=(100,30))
 
 
-    def __init__(self, host=None, databasename=None, username=None, password=None, jsform_database="JSForm"):
+    def __init__(
+        self, host=None, databasename=None, username=None, password=None,
+        credential_target=None, credential_store=None,
+    ):
         global CONFIG,OPTION,FONT
-        if host == None or databasename == None or username == None or password  == None:
-                dlg = self._getcredentials(self, title="Enter DB Login info")
+        self.CONNECTIONS = None
+        self.DBConnection = None
+        self.cancelled = False
+        self.DBCredintials = self._nonsecret_arguments(host, databasename, username)
+
+        target_supplied = credential_target is not None
+        target = str(credential_target or "").strip()
+        if target_supplied and not target:
+            raise DatabaseCredentialError("A protected database credential target is required.")
+        if target and password is not None:
+            raise DatabaseCredentialError(
+                "Use either a protected database credential target or an in-memory password, not both."
+            )
+        if credential_store is not None and not target:
+            raise DatabaseCredentialError(
+                "A credential provider requires a protected database credential target."
+            )
+
+        needs_prompt = (
+            host is None or databasename is None
+            or (not target and (username is None or password is None))
+        )
+        if needs_prompt:
+            dlg = self._getcredentials(self, title="Enter DB Login info")
+            try:
                 if host:
                     dlg.host.SetValue(host)
                 if databasename:
                     dlg.database.SetValue(databasename)
                 if username:
                     dlg.username.SetValue(username)
-                if password:
+                if password is not None:
                     dlg.password.SetValue(password)
                 result = dlg.ShowModal()
+                if result == JSForm.CONST.FORM_CANCEL:
+                    self.cancelled = True
+                    return
                 host = dlg.host.GetValue()
                 databasename = dlg.database.GetValue()
                 username = dlg.username.GetValue()
-                password = dlg.password.GetValue()
-
+                if not target:
+                    password = dlg.password.GetValue()
+            finally:
                 dlg.Destroy()
-                if result == JSForm.CONST.FORM_CANCEL:
-                    return True
+
+        host = str(host or "").strip()
+        databasename = str(databasename or "").strip()
+        username = str(username or "").strip()
+        if not host or not databasename:
+            raise DatabaseCredentialError("Database host and name are required.")
+
+        if target:
+            try:
+                if credential_store is None:
+                    from JSForm.credential_store import WindowsCredentialStore
+                    credential_store = WindowsCredentialStore()
+                stored_username, password = credential_store.read(target)
+            except Exception:
+                raise DatabaseCredentialError(
+                    "The protected database credential could not be read."
+                ) from None
+            stored_username = str(stored_username or "").strip()
+            if username and username != stored_username:
+                password = None
+                raise DatabaseCredentialError(
+                    "The database username does not match the protected credential."
+                )
+            username = stored_username
+
+        if not username or password is None or password == "":
+            password = None
+            raise DatabaseCredentialError("Database username and password are required.")
+
+        self.DBCredintials = self._nonsecret_arguments(host, databasename, username)
         application_settings = DatabaseSettings(host, databasename, username, password)
-        framework_settings = DatabaseSettings(host, jsform_database, username, password)
-        self.CONNECTIONS = DatabaseConnections(
-            application_settings, framework_settings, mysql.connector.connect
-        )
-        # Compatibility attributes retained for existing applications.
-        self.DBCredintials = application_settings.connector_arguments()
-        self.JSCredintials = framework_settings.connector_arguments()
-        self.DBConnection = self.CONNECTIONS.application
-        self.JSConnection = self.CONNECTIONS.framework
+        try:
+            connections = DatabaseConnections(application_settings, mysql.connector.connect)
+        finally:
+            password = None
+            application_settings = None
+        self.CONNECTIONS = connections
+        self.DBConnection = connections.application
+
+    @staticmethod
+    def _nonsecret_arguments(host, database, username):
+        return {
+            "host": host,
+            "database": database,
+            "user": username,
+            "password": None,
+        }
 
     def close(self):
-        self.CONNECTIONS.close()
+        if self.CONNECTIONS is not None:
+            self.CONNECTIONS.close()
 
     def __enter__(self):
         return self
@@ -123,7 +200,7 @@ class clsRecord(RecordState):
     """
     BlankRecord = -1
 
-    def __init__(self, connection, table=None):
+    def __init__(self, connection, table=None, operation_authorizer=None):
         """
         DBConnection - connection to database
         TABLE - dictionary containing table info
@@ -141,6 +218,17 @@ class clsRecord(RecordState):
         self.TABLE = table
         self.sqlaspairs = None
         self.sql = None
+        self.operation_authorizer = operation_authorizer
+
+    def pending_save_operation(self):
+        """Return ``create`` or ``update`` from the saved original identity.
+
+        Classification deliberately ignores an editable, preassigned current
+        ID. Indeterminate state fails before an authorization call or cursor.
+        """
+        if self.current() is None or "ID" not in self.original.record:
+            raise RecordOperationError("Unable to determine the pending save operation.")
+        return "create" if self.original.record.get("ID") is None else "update"
 
     def load_records(self, table=None, parentrecord=None):
         if table == None:
@@ -154,9 +242,9 @@ class clsRecord(RecordState):
     def read_records(self, table=None, parentrecord=None):
         self.sql = JSForm.clsSQL(self.DBConnection, table, parentrecord)
         cursor = self.DBConnection.cursor()
-        sql = self.sql.select()
+        sql, parameters = self.sql.select_statement()
         try:
-            cursor.execute(sql)
+            cursor.execute(sql, parameters)
             rows = cursor.fetchall()
         except Exception as error:
             raise RuntimeError("Unable to read records from {}.".format(self.TABLENAME)) from error
@@ -199,8 +287,10 @@ class clsRecord(RecordState):
         therefore assign a stable primary key before the first save without
         causing JSForm to mistake the record for an existing database row.
         """
-        is_new = self.original.record.get("ID") is None
-        if is_new:
+        operation = self.pending_save_operation()
+        if self.operation_authorizer is not None:
+            self.operation_authorizer(operation)
+        if operation == "create":
             cursor = self.DBConnection.cursor()
             assigned_id = self.current().get("ID")
             sql, values = self.sql.insert_statement(self.current())

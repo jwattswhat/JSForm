@@ -26,7 +26,9 @@ EXPECTED_PUBLIC_NAMES = {
     "charactertopoint", "date_to_datetime", "next_weekday",
     "sql_table_exists", "check_internetconnection",
     "ChildFormRegistry",
-    "DatabaseConnections", "DatabaseSettings",
+    "DatabaseConnections", "DatabaseCredentialError", "DatabaseSettings",
+    "ImageMetadata", "ImageValidationError", "preflight_image",
+    "read_bounded_image", "validated_image_bytes",
     "OriginalRecord", "RecordState",
     "WriteStatements", "quote_identifier",
     "ControlFactory", "FormDefinitionError", "FormDefinitionLoader", "required_fields",
@@ -53,6 +55,11 @@ EXPECTED_PUBLIC_NAMES = {
     "standard_edit_commands", "standard_record_commands",
     "DEFAULT_ICON_PATH", "application_icon_path", "apply_window_icon",
     "configure_application_icon",
+    "ACTIVE_EXTENSIONS", "FileOpenDenied", "FileOpenPolicy",
+    "approved_file_path", "configure_file_opening", "current_file_open_policy",
+    "open_approved_file", "resolve_picker_file",
+    "SMTPCredentialMigrationError", "SMTPCredentialMigrationResult",
+    "migrate_legacy_smtp_credential",
     "MenuCommandDescriptor", "MenuDesignerFrame", "MenuDesignerModel",
     "MenuCatalogModel", "open_menu_designer", "open_menu_catalog",
 }
@@ -117,7 +124,9 @@ class TestChoiceRefresh(unittest.TestCase):
             def cursor(self): return Cursor()
 
         original_sql = JSForm.clsSQL
-        JSForm.clsSQL = lambda *_args: type("SQL", (), {"select": lambda self: "SELECT"})()
+        JSForm.clsSQL = lambda *_args: type(
+            "SQL", (), {"select_statement": lambda self: ("SELECT", ())}
+        )()
         try:
             choices = clsChoice(
                 Connection(),
@@ -168,7 +177,9 @@ class TestChoiceRefresh(unittest.TestCase):
             def cursor(self): return Cursor()
 
         original_sql = JSForm.clsSQL
-        JSForm.clsSQL = lambda *_args: type("SQL", (), {"select": lambda self: "SELECT"})()
+        JSForm.clsSQL = lambda *_args: type(
+            "SQL", (), {"select_statement": lambda self: ("SELECT", ())}
+        )()
         try:
             choices = clsChoice(
                 Connection(),
@@ -204,7 +215,9 @@ class TestChoiceRefresh(unittest.TestCase):
             def cursor(self): return Cursor()
 
         original_sql = JSForm.clsSQL
-        JSForm.clsSQL = lambda *_args: type("SQL", (), {"select": lambda self: "SELECT"})()
+        JSForm.clsSQL = lambda *_args: type(
+            "SQL", (), {"select_statement": lambda self: ("SELECT", ())}
+        )()
         try:
             choices = clsChoice(
                 Connection(),
@@ -477,12 +490,13 @@ class TestControlCatalog(unittest.TestCase):
         source = (ROOT / "clsField.py").read_text(encoding="utf-8-sig")
         self.assertIn("class clsImagePickerCtrl(wx.Panel, clsFieldExtra)", source)
         self.assertIn("return bytes(value)", source)
-        self.assertIn("path.read_bytes()", source)
+        self.assertIn("read_bounded_image(", source)
+        self.assertNotIn("path.read_bytes()", source)
         self.assertNotIn("path.read_text()", source)
         self.assertIn('self._show_placeholder("Image unavailable")', source)
         self.assertNotIn("self._value = None\n                self._show_placeholder()", source)
         self.assertIn('get("allowupscale", False)', source)
-        self.assertIn('get("maxpixels", 20_000_000)', source)
+        self.assertIn('get("maxpixels")', source)
         for path in (ROOT / "schema" / "unified_schema.json", ROOT / "jsformschema.json"):
             schema = json.loads(path.read_text(encoding="utf-8-sig"))
             text = json.dumps(schema)
@@ -865,15 +879,13 @@ class TestDatabaseConnections(unittest.TestCase):
 
         pair = DatabaseConnections(
             DatabaseSettings("server", "ChurchDBTest", "user", "secret"),
-            DatabaseSettings("server", "JSFormTest", "user", "secret"),
             connect,
         )
         self.assertEqual([item.arguments["database"] for item in opened], ["ChurchDBTest"])
-        self.assertIs(pair.application, pair.framework)
         pair.close()
         self.assertTrue(all(item.closed for item in opened))
 
-    def test_framework_database_setting_is_not_opened(self):
+    def test_only_application_settings_are_accepted(self):
         from db_connections import DatabaseConnections, DatabaseSettings
 
         opened = []
@@ -885,15 +897,12 @@ class TestDatabaseConnections(unittest.TestCase):
                 self.closed = True
 
         def connect(**arguments):
-            if arguments["database"] == "JSFormTest":
-                raise RuntimeError("framework unavailable")
             connection = Connection()
             opened.append(connection)
             return connection
 
         pair = DatabaseConnections(
             DatabaseSettings("server", "ChurchDBTest", "user", "secret"),
-            DatabaseSettings("server", "JSFormTest", "user", "secret"),
             connect,
         )
         self.assertEqual(len(opened), 1)
@@ -1020,10 +1029,10 @@ class TestJSFormPython(unittest.TestCase):
         fingerprint = hashlib.sha256(
             ("\n".join(names) + "\n").encode("utf-8")
         ).hexdigest()
-        self.assertEqual(len(names), 174)
+        self.assertEqual(len(names), 201)
         self.assertEqual(
             fingerprint,
-            "41c1a71d2b5bb050835cc229cac82808208b99c74d7105cb31f0bc2c2dd5335f",
+            "8d82408c102a784fcb9a6081f9dcfe3323e24b960c7fd2254e841b4e56cbf5bc",
         )
         self.assertIn("__all__", (ROOT / "__init__.py").read_text(encoding="utf-8"))
 
@@ -1127,11 +1136,8 @@ class TestJSFormDefinitions(unittest.TestCase):
             raise AssertionError(f"{path.name} must contain exactly one form root")
         return data, next(iter(data.values()))
 
-    def test_all_framework_forms_are_valid_json(self):
-        self.assertGreater(len(self.form_paths), 0)
-        for path in self.form_paths:
-            with self.subTest(form=path.name):
-                json.loads(path.read_text(encoding="utf-8-sig"))
+    def test_framework_distributes_no_application_forms(self):
+        self.assertEqual(self.form_paths, [])
 
     def test_form_roots_and_names_match_filenames(self):
         for path in self.form_paths:

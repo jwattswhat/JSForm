@@ -5,6 +5,8 @@ from pathlib import Path
 
 import wx
 
+from JSForm.builder_windows import show_builder_window
+
 from JSForm.form_services import FormDefinitionError
 from JSForm.screen_definition import (
     ScreenDefinition,
@@ -1031,7 +1033,7 @@ class ScreenDesignerFrame(wx.Frame):
         try: self.loader.load(target)
         except FormDefinitionError as error: wx.MessageBox(str(error), "Cannot open screen", wx.OK | wx.ICON_ERROR, self); return
         replacement = ScreenDesignerFrame(target, self.preview_handler, self.starter_definition_path, self.allowed_directory, self.audit_hook)
-        replacement.Show(); self.Destroy()
+        show_builder_window(replacement); self.Destroy()
 
     def on_preview(self, event):
         try: self.preview_handler(self.model.validated_definition()); self.audit("SCREEN_DESIGN_PREVIEWED")
@@ -1091,6 +1093,6 @@ class ScreenDesignerFrame(wx.Frame):
 def open_screen_designer(definition_path, preview_handler=None, starter_definition_path=None, allowed_directory=None, audit_hook=None):
     application = wx.App.Get() or wx.App(False)
     frame = ScreenDesignerFrame(definition_path, preview_handler, starter_definition_path, allowed_directory, audit_hook)
-    frame.Show()
+    show_builder_window(frame)
     if not wx.App.Get().IsMainLoopRunning(): application.MainLoop()
     return frame

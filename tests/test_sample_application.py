@@ -151,6 +151,11 @@ class SampleApplicationTests(unittest.TestCase):
         self.assertIn('SAMPLE_CREDENTIAL_TARGET = "JSFormSample/Database"', launcher)
         self.assertIn("read_credential(SAMPLE_CREDENTIAL_TARGET)", launcher)
 
+    def test_sample_closes_the_owned_database_connection_once(self):
+        launcher = (SAMPLE / "app.py").read_text(encoding="utf-8")
+        self.assertEqual(launcher.count("database.close()"), 1)
+        self.assertNotIn("database.DBConnection.close()", launcher)
+
     def test_every_sample_form_loads_and_root_name_matches_filename(self):
         loader = FormDefinitionLoader(FORMS, FORMS)
         for path in FORMS.glob("*.json"):

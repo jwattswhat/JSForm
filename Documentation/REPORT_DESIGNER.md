@@ -149,6 +149,12 @@ system text, lines, rectangles, images, tables, repeaters, matrices, and
 aggregates. Controls belong to named sections such as report header, page
 header, detail, group header/footer, page footer, and report footer.
 
+Bound ordinary and repeater images accept static PNG, JPEG, or BMP bytes. Before
+ReportLab receives them, JSForm checks the encoded size, format, frame count,
+width, height, and total pixels. Images above 10 MiB, 10,000 pixels on either
+axis, or 20 million total pixels are rejected with safe report guidance. Report
+definitions cannot disable or raise these framework ceilings.
+
 Definitions may also configure sorting, filters, grouping, page breaks,
 multi-column repeaters, conditional visibility, default page numbers, and
 repeater separators. Use the bundled

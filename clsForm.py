@@ -19,7 +19,7 @@ import json
 #   import framework classes
 #
 import JSForm
-from JSForm.file_actions import resolve_picker_file
+from JSForm.file_actions import FileOpenDenied, open_approved_file, resolve_picker_file
 from JSForm.form_lifecycle import ChildFormRegistry
 from JSForm.form_services import (
     ControlFactory, FormDefinitionLoader, required_fields, resolve_form_schema,
@@ -387,7 +387,10 @@ class clsForm:
     def initialize_data_record(self, formdescription, SQL=None):
         JSForm.LG.log(formdescription=formdescription)
         if "table" in formdescription:
-            return JSForm.clsRecord(self.DBConnection, formdescription["table"])
+            return JSForm.clsRecord(
+                self.DBConnection, formdescription["table"],
+                operation_authorizer=self.SECURITY.require,
+            )
 
     def update_choices(self):  # defunct
         JSForm.LG.log()
@@ -664,11 +667,19 @@ class clsForm:
             self.apply_navigation_security()
 
     def apply_navigation_security(self):
-        """Disable standard write buttons denied by form security."""
+        """Refresh standard write-button state from application authorization."""
         if "btnNew" in self.CONTROLID and not self.SECURITY.allows("create"):
             self.CONTROLID["btnNew"].Disable()
-        if "btnUpdate" in self.CONTROLID and not self.SECURITY.allows("update"):
-            self.CONTROLID["btnUpdate"].Disable()
+        if "btnUpdate" in self.CONTROLID:
+            try:
+                operation = self.RECORDS.pending_save_operation()
+                allowed = self.SECURITY.allows(operation)
+            except Exception:
+                allowed = False
+            if allowed:
+                self.CONTROLID["btnUpdate"].Enable()
+            else:
+                self.CONTROLID["btnUpdate"].Disable()
         if "btnDelete" in self.CONTROLID and not self.SECURITY.allows("delete"):
             self.CONTROLID["btnDelete"].Disable()
 
@@ -771,13 +782,19 @@ class clsForm:
             if self.NavControlsPresent:
                 self.disable_navigation_buttons()
                 self.CONTROLID["btnUpdate"].Enable()
+                self.apply_navigation_security()
             return True
         return False
 
     def save_record(self):
         """Validate and save the current record through the standard workflow."""
         JSForm.LG.log()
-        if not self._authorize_operation("update"):
+        try:
+            operation = self.RECORDS.pending_save_operation()
+        except Exception as error:
+            self._show_operation_error(str(error))
+            return False
+        if not self._authorize_operation(operation):
             return False
         required = self._check_required_fields()
         if required:
@@ -793,13 +810,21 @@ class clsForm:
         changed_fields = self.RECORDS.recordisdirty()
         try:
             self.RECORDS.update_current_record_in_DB()
+        except AuthorizationDenied as error:
+            dialog = wx.MessageDialog(self.FORM, str(error), "Access denied", wx.OK)
+            dialog.ShowModal()
+            dialog.Destroy()
+            return False
         except RuntimeError as error:
             self._show_operation_error(str(error))
             return False
-        self._audit_operation("update", changed_fields)
+        self._audit_operation(operation, changed_fields)
         self.enable_navigation_buttons()
         dlg = wx.MessageDialog(
-            self.FORM, "Record Updated.", "Updated", wx.OK
+            self.FORM,
+            "Record Added." if operation == "create" else "Record Updated.",
+            "Added" if operation == "create" else "Updated",
+            wx.OK,
         )
         dlg.ShowModal()
         dlg.Destroy()
@@ -826,6 +851,8 @@ class clsForm:
         dlg.Destroy()
         self.fill_form(self.RECORDS.current())
         self._close_linked_forms()
+        if self.NavControlsPresent:
+            self.enable_navigation_buttons()
         return True
 
     def refresh_records(self):
@@ -851,6 +878,8 @@ class clsForm:
                     break
         self.fill_form(self.RECORDS.current())
         self._close_linked_forms()
+        if self.NavControlsPresent:
+            self.enable_navigation_buttons()
         return True
 
     def set_all_controls_to_normal_color(self):
@@ -940,15 +969,36 @@ class clsForm:
             case "ComboBox":
                 table = self.CONTROLDESCRIPTION[openctrl]["table"]
                 sql = JSForm.clsSQL(self.DBConnection, table, self.RECORDS.current())
-                SQL = sql.select()
+                SQL, parameters = sql.select_statement()
                 cursor = self.DBConnection.cursor()
-                cursor.execute(SQL)
-                row = cursor.fetchone()
+                try:
+                    cursor.execute(SQL, parameters)
+                    row = cursor.fetchone()
+                finally:
+                    cursor.close()
                 file = row[0]
             case otherwise:
                 file = None
-        if file is not None:
-            os.startfile(str(file))
+        if file in (None, ""):
+            return False
+        try:
+            open_approved_file(file)
+        except FileOpenDenied as error:
+            dialog = wx.MessageDialog(self.FORM, str(error), "Unable to open file", wx.OK)
+            dialog.ShowModal()
+            dialog.Destroy()
+            return False
+        except OSError:
+            dialog = wx.MessageDialog(
+                self.FORM,
+                "Windows could not open this file with its registered application.",
+                "Unable to open file",
+                wx.OK,
+            )
+            dialog.ShowModal()
+            dialog.Destroy()
+            return False
+        return True
 
     def _openformevent(self, event):
         JSForm.LG.log()
@@ -1098,6 +1148,8 @@ class clsForm:
                     self.RECORDS.last()
 
             self.fill_form(self.RECORDS.current())
+            if self.NavControlsPresent:
+                self.enable_navigation_buttons()
 
     def _on_first_record_click(self, event):
         JSForm.LG.log()

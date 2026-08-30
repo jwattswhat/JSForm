@@ -12,7 +12,6 @@ from pathlib import Path, PurePosixPath
 REQUIRED_WHEEL_SUFFIXES = {
     "JSForm/__init__.py",
     "JSForm/assets/jsform.ico",
-    "JSForm/Forms/frmJSForm.json",
     "JSForm/menu_builder.py",
     "JSForm/menu_commands.py",
     "JSForm/menu_definition.py",
@@ -36,6 +35,8 @@ REQUIRED_SDIST_SUFFIXES = {
 }
 FORBIDDEN_WHEEL_PARTS = {
     "BackupDB", "DevelopmentTesting", "Log.txt", "__pycache__", "tests",
+    "jsform.py", "frmJSForm.json", "frmConfig.json", "frmOptions.json",
+    "frmChecklist.json", "frmEditCheckList.json", "frmChoices.json",
 }
 
 
@@ -87,7 +88,10 @@ def verify_sdist(path: Path) -> None:
     missing = sorted(item for item in REQUIRED_SDIST_SUFFIXES if not _has_suffix(names, item))
     if missing:
         raise DistributionVerificationError(f"Source archive is missing: {missing}")
-    forbidden = [name for name in names if "DevelopmentTesting" in name or name.endswith("/Log.txt")]
+    forbidden = [
+        name for name in names
+        if "DevelopmentTesting" in PurePosixPath(name).parts or name.endswith("/Log.txt")
+    ]
     if forbidden:
         raise DistributionVerificationError(f"Source archive contains forbidden files: {forbidden}")
 

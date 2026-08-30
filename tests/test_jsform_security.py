@@ -14,6 +14,14 @@ class PermissionPolicy:
         return permission_name in self.permissions
 
 
+class FalsyDenyPolicy:
+    def __bool__(self):
+        return False
+
+    def has_permission(self, permission_name):
+        return False
+
+
 class TestFormSecurity(unittest.TestCase):
     FORM = {
         "security": {
@@ -71,6 +79,10 @@ class TestFormSecurity(unittest.TestCase):
     def test_compatibility_and_fail_closed_policies_are_explicit(self):
         self.assertTrue(AllowAllAuthorizationPolicy().has_permission("anything"))
         self.assertFalse(DenyAllAuthorizationPolicy().has_permission("anything"))
+
+    def test_falsy_application_policy_is_not_replaced_by_allow_all(self):
+        security = FormSecurity("frmPerson", self.FORM, self.CONTROLS, FalsyDenyPolicy())
+        self.assertFalse(security.allows("create"))
 
 
 if __name__ == "__main__":

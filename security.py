@@ -31,7 +31,7 @@ class FormSecurity:
         self.form_name = form_name
         self.form_description = form_description
         self.control_descriptions = control_descriptions
-        self.policy = policy or AllowAllAuthorizationPolicy()
+        self.policy = policy if policy is not None else AllowAllAuthorizationPolicy()
 
     def permission_for(self, operation):
         if operation not in self.OPERATIONS:
@@ -47,7 +47,10 @@ class FormSecurity:
     def _allowed(self, permission_name):
         if permission_name is None:
             return True
-        return bool(self.policy.has_permission(permission_name))
+        try:
+            return bool(self.policy.has_permission(permission_name))
+        except Exception:
+            return False
 
     def allows(self, operation):
         return self._allowed(self.permission_for(operation))
@@ -56,8 +59,17 @@ class FormSecurity:
         return self._allowed(self.control_permission_for(control_name, operation))
 
     def require(self, operation):
+        """Require the application policy's permission for ``operation``."""
         permission = self.permission_for(operation)
-        if not self._allowed(permission):
+        if permission is None:
+            return
+        try:
+            allowed = bool(self.policy.has_permission(permission))
+        except Exception as error:
+            raise AuthorizationDenied(
+                "Access denied for {} on {}.".format(operation, self.form_name)
+            ) from error
+        if not allowed:
             raise AuthorizationDenied(
                 "Access denied for {} on {}.".format(operation, self.form_name)
             )

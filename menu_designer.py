@@ -8,6 +8,8 @@ from pathlib import Path
 
 import wx
 
+from JSForm.builder_windows import show_builder_window
+
 from JSForm.menu_definition import MenuDefinition, MenuDefinitionError, MenuDefinitionLoader
 from JSForm.menu_definition import save_menu_definition
 from JSForm.menu_builder import MenuInstaller
@@ -727,7 +729,7 @@ def open_menu_designer(
         starter_path=starter_path, preview_handler=preview_handler,
         audit_hook=audit_hook,
     )
-    frame.Show()
+    show_builder_window(frame)
     return frame
 
 

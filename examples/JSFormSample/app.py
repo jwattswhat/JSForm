@@ -60,7 +60,6 @@ def connect_database(settings, attempts=3):
         if stored_user == settings.user:
             return JSForm.clsDB(
                 settings.server, settings.database, settings.user, stored_password,
-                jsform_database=settings.database,
             )
     except (KeyError, OSError, mysql.connector.Error):
         pass
@@ -69,7 +68,6 @@ def connect_database(settings, attempts=3):
         try:
             return JSForm.clsDB(
                 settings.server, settings.database, settings.user, password,
-                jsform_database=settings.database,
             )
         except mysql.connector.Error as error:
             if error.errno != 1045 or attempt == attempts:
@@ -86,6 +84,10 @@ def main(argv=None):
     settings = arguments(argv)
     os.environ["JSFORM_SCREEN_OVERLAY"] = str(FORMS)
     JSForm.configure_application_icon(SAMPLE_ICON)
+    USER_OUTPUT.mkdir(parents=True, exist_ok=True)
+    JSForm.configure_file_opening(
+        approved_roots=[USER_OUTPUT], passive_extensions={".pdf"},
+    )
     wx_app = wx.App(0)
     database = connect_database(settings)
     JSForm.CONFIG.set_Config_DBConnection(database)
@@ -104,7 +106,7 @@ def main(argv=None):
             "database_name": settings.database,
         },
     )
-    JSForm.install_error_hooks()
+    JSForm.install_error_hooks(wx_app)
 
     main_form = JSForm.clsForm(
         None, database.DBConnection, "frmSampleMain", ["Close"],
@@ -278,8 +280,7 @@ def main(argv=None):
     main_form.show()
     wx_app.MainLoop()
     menu_installer.dispose()
-    database.DBConnection.close()
-    database.JSConnection.close()
+    database.close()
 
 
 if __name__ == "__main__":

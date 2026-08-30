@@ -46,7 +46,7 @@ Required tables:
         (24, 'Location', 'Bulletin', '.\\Bulletins\\', NULL),
         (30, 'SMTP', 'UserName', '<SMTP_USERNAME>', NULL),
         (29, 'SMTP', 'Server', 'smtp.gmail.com', NULL),
-        (31, 'SMTP', 'Password', '<SMTP_APP_PASSWORD>', NULL),
+        (31, 'SMTP', 'CredentialTarget', '<APPLICATION_CREDENTIAL_TARGET>', NULL),
         (32, 'SMTP', 'Port', '587', NULL),
         (33, 'License', 'Liturgy', '000014722', NULL),
         (35, 'SMTP', 'Key', '<GOOGLE_API_KEY>', NULL);

@@ -7,6 +7,11 @@ from JSForm.window_icons import (
     DEFAULT_ICON_PATH, application_icon_path, apply_window_icon,
     configure_application_icon,
 )
+from JSForm.file_actions import (
+    ACTIVE_EXTENSIONS, FileOpenDenied, FileOpenPolicy, approved_file_path,
+    configure_file_opening, current_file_open_policy, open_approved_file,
+    resolve_picker_file,
+)
 from JSForm.clsConstant import CONST
 from JSForm.clsConfig import CONFIG
 from JSForm.clsOption import OPTION
@@ -15,7 +20,7 @@ from JSForm.clsLog import LG
 from JSForm.clsMonitor import PMON
 
 from JSForm.clsForm import clsForm
-from JSForm.clsDB import clsDB, clsRecord
+from JSForm.clsDB import DatabaseCredentialError, clsDB, clsRecord
 from JSForm.clsChoice import clsChoice
 from JSForm.choice_manager import (
     ChoiceCatalogRepository, ChoiceManagerDialog, normalized_choices,
@@ -27,6 +32,10 @@ from JSForm.clsSQL import clsSQL
 from JSForm.clsField import clsField, getcontrolparameters
 from JSForm.form_lifecycle import ChildFormRegistry
 from JSForm.db_connections import DatabaseConnections, DatabaseSettings
+from JSForm.image_safety import (
+    ImageMetadata, ImageValidationError, preflight_image, read_bounded_image,
+    validated_image_bytes,
+)
 from JSForm.record_state import OriginalRecord, RecordState
 from JSForm.sql_statements import WriteStatements, quote_identifier
 from JSForm.form_services import (
@@ -90,6 +99,11 @@ from JSForm.action_ui import (
     Action, OutputLocation, StandardActionBar, action_from_command, confirm_destructive_action,
     destructive_confirmation_message, install_action_menu,
 )
+from JSForm.gui_testing import (
+    GUITestError, VisualComparison, application as gui_test_application,
+    capture_client, compare_png, destroy_owned_windows, drain_events,
+    geometry_issues, named_controls,
+)
 from JSForm.menu_definition import (
     MenuDefinition, MenuDefinitionError, MenuDefinitionLoader,
     save_menu_definition,
@@ -109,7 +123,7 @@ from JSForm.standard_commands import (
 )
 from JSForm.error_reporting import (
     ErrorReporter, ErrorReportingConfig, configure_error_reporting, create_support_package,
-    current_error_reporter, install_error_hooks, report_exception,
+    current_error_reporter, error_boundary, install_error_hooks, report_exception,
     restore_error_hooks,
 )
 from JSForm.error_dialog import show_error_dialog, show_error_dialog_threadsafe
@@ -125,6 +139,10 @@ from JSForm.mail_service import (
     unique_recipients, valid_email,
 )
 from JSForm.credential_store import WindowsCredentialStore
+from JSForm.smtp_credentials import (
+    SMTPCredentialMigrationError, SMTPCredentialMigrationResult,
+    migrate_legacy_smtp_credential,
+)
 
 from JSForm.fnUtil import convertNavButtons, charactertopoint, date_to_datetime, next_weekday, sql_table_exists, check_internetconnection
 # Keep wildcard imports deterministic. The release test fingerprints this

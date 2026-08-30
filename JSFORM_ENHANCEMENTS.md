@@ -1,6 +1,6 @@
 # JSForm enhancement roadmap
 
-Last reviewed: August 14, 2026
+Last reviewed: August 29, 2026
 
 This is the maintained backlog for reusable JSForm framework improvements.
 The former database-backed enhancement list is defunct. New framework
@@ -20,6 +20,14 @@ ChurchManager workflow into the framework.
 ### 1. Centralized error logging and support package
 
 Design: [JSForm centralized error logging and support package specification](Documentation/JSForm.ErrorLogging.Specification.md)
+
+Implemented. JSForm provides opt-in structured JSONL error reporting with
+redaction, bounded rotation and retention, chained Python/thread/wxPython hooks,
+explicit caught-operation reporting, a re-raising error boundary, short support
+references, UI-thread-safe user messages, and verified local support packages.
+The School Bus Routes sample demonstrates configuration and user-controlled
+package creation; applications remain responsible for their safe context and
+the menu or settings entry that exposes the workflow.
 
 - Capture unhandled Python exceptions, including full tracebacks.
 - Capture errors raised by wxPython event handlers, worker threads, background
@@ -182,6 +190,155 @@ is never silently converted to `NULL`.
 - Make actions available from menus where appropriate.
 - Support sensible application-supplied default folders for save and export.
 - Provide consistent confirmation and dependent-record warning dialogs.
+
+### 14. Full-screen Builder windows
+
+Implemented. The Screen Designer, Report Designer, and Menu Designer use one
+shared startup helper that maximizes each Builder before showing it, including
+replacement designer windows. The helper does not alter the frame style, so
+ordinary restore, minimize, maximize, and close controls remain available.
+Automated coverage enforces use by all three designers. A Windows wxPython
+runtime check on August 28, 2026 confirmed the window was shown and reported
+`IsMaximized() == True`; this was a state check, not visual layout inspection.
+
+### 15. Reusable GUI testing helpers
+
+Implemented August 29, 2026. `gui_testing.py` provides bounded wx event draining,
+stable named-control discovery with duplicate rejection, geometry inspection,
+owned-window cleanup, client-area screenshot capture, and PNG comparison that
+never overwrites an approved baseline. Applications own their screen fixtures,
+fictional data, reviewed baselines, and application assertions.
+
+- Open every JSForm Builder screen maximized by default.
+- Apply the behavior consistently to the Screen Designer, Report Designer,
+  Menu Designer, and future visual Builder tools.
+- Preserve ordinary window controls so users can restore, minimize, or close
+  a Builder after it opens.
+- Add automated coverage for the shared Builder-window startup behavior and
+  perform Windows GUI verification before marking this enhancement implemented.
+
+## Codex Security remediation queue
+
+These validated findings came from the August 28, 2026 standard Codex Security
+scan. Each item records its own implementation status.
+
+### Compatibility boundary
+
+- Preserve existing application-facing Python calls, method names, arguments,
+  JSON action names, and supported condition-placeholder syntax.
+- Implement the fixes inside JSForm wherever possible. Applications should not
+  need to rewrite ordinary calls or pass new required parameters.
+- Security enforcement may reject configurations or values that were
+  previously accepted but unsafe, including authenticated plaintext SMTP,
+  executable or remote shell-open targets, and oversized image data.
+- The obsolete internal `jsform.py` configuration launcher has been removed;
+  this does not change applications that call `JSForm.clsDB(...)`.
+
+1. **Parameterize dynamic SELECT-condition values — implemented.** The existing
+   parent-record and option placeholder contract now compiles runtime values to
+   connector parameters instead of SQL text. Record loading, lookup choices,
+   linked-file lookup, and JSForm-owned schedule helpers execute the SQL and
+   ordered native parameter tuple together. Malformed placeholders fail closed;
+   injection, native-type, caller-propagation, and compatibility tests cover the
+   boundary. See
+   [the approved specification](Documentation/JSForm.SelectConditionParameterization.Specification.md).
+2. **Authorize the database operation actually performed — implemented August
+   28, 2026.** JSForm classifies a blank/new record as `create` and an existing
+   loaded record as `update`, then delegates the matching permission decision
+   to the application's policy at both the form workflow and final persistence
+   boundary. Dynamic Save state, fail-closed policy errors, audit operation
+   names, preassigned IDs, and compatibility are covered by automated tests.
+   See [the approved specification](Documentation/JSForm.SaveAuthorization.Specification.md).
+3. **Parameterize configuration and option APIs — implemented August 28,
+   2026.** Existing `CONFIG` and `OPTION` calls and arguments are preserved,
+   while application and framework fallback queries bind every family, type,
+   and value as connector data. Cursor cleanup preserves original operation
+   failures, and transaction ownership remains with the application. See
+   [the approved specification](Documentation/JSForm.ConfigOptionParameterization.Specification.md).
+4. **Constrain Windows file-opening actions — implemented August 28, 2026.**
+   The existing `openfile` action now converges on a secure-default Windows
+   boundary requiring application-approved local roots and passive extensions.
+   Remote, device, URL, alternate-stream, reparse, outside-root, shortcut,
+   script, installer, macro-enabled, and executable targets are rejected before
+   launch. Applications retain ownership of their actual policy values. See
+   [the approved specification](Documentation/JSForm.SafeFileOpening.Specification.md).
+5. **Move historical SMTP secrets out of database configuration — implemented
+   August 29, 2026.** Target-backed mail settings resolve protected credentials
+   only at the SMTP authentication boundary. The historical facade no longer
+   reads or retains `SMTP/Password`, and an explicit, parameterized migration
+   verifies protected-store readback before deleting the legacy application
+   row, with caller-owned transactions and compensation on failure. See
+   [the approved specification](Documentation/JSForm.SMTPCredentialStorage.Specification.md).
+6. **Require protected SMTP transport — implemented August 29, 2026.** The
+   existing mail settings object now requires verified implicit TLS or
+   STARTTLS before credential lookup or authentication. Plain SMTP is an
+   explicit, unauthenticated, credential-free exception limited without DNS to
+   canonical loopback addresses. See
+   `Documentation/JSForm.ProtectedSMTPTransport.Specification.md`.
+7. **Strengthen final diagnostic redaction — implemented August 29, 2026.**
+   Common sensitive key-value, mapping, query-string, header, URI,
+   command-line, and connector-error formats are redacted before persistence
+   and at the final error-display boundary. Support-package construction
+   recursively re-redacts valid JSONL and safely handles malformed historical
+   text before hashing archive bytes. See
+   `Documentation/JSForm.DiagnosticRedaction.Specification.md`.
+8. **Protect database-password entry — implemented August 29, 2026.** The
+   existing wxPython password field now uses native masking, `clsDB` supports
+   late protected-target resolution, and connector settings plus historical
+   compatibility dictionaries retain no plaintext password. The obsolete
+   configuration launcher and its command-line password path have been removed;
+   applications use `credential_target` or the masked prompt. See
+   `Documentation/JSForm.DatabaseCredentialProtection.Specification.md`.
+9. **Bound images before decoding — implemented August 29, 2026.** A shared
+   header preflight now enforces encoded-byte, format, frame, width, height, and
+   pixel ceilings before picker, database BLOB, ordinary report, or repeater
+   image decoding. Selected files use a limit-plus-one bounded read, mutable
+   report buffers use the exact validated immutable snapshot, and rejected
+   stored BLOBs remain unchanged behind an unavailable placeholder. See
+   `Documentation/JSForm.BoundedImageDecoding.Specification.md`.
+
+## Repository cleanup roadmap
+
+These items were identified by the August 29, 2026 stale-code audit. Complete
+them in order, preserving reusable framework controls even when their old
+bundled editor forms are retired.
+
+1. **Remove the remaining obsolete bundled forms - implemented August 29,
+   2026.** Deleted
+   `frmChecklist.json`, `frmEditCheckList.json`, and `frmChoices.json`. They
+   have no runtime references. The checklist forms encode application-owned
+   `tblCheckList` and `tblService` behavior, while the choices form has been
+   superseded by the native Choice Manager. Their package-data exposure was
+   removed and distribution regression coverage added without removing reusable
+   checklist controls, checklist actions, or `tblChoices` service APIs.
+2. **Correct the sample connection shutdown - implemented August 29, 2026.**
+   Replaced separate `DBConnection.close()` and `JSConnection.close()` calls in
+   the sample with one `database.close()` call because both compatibility
+   attributes now refer to the same application connection. Focused coverage
+   prevents duplicate compatibility-handle shutdowns from returning.
+3. **Remove tracked database dumps - implemented August 29, 2026.** Removed
+   all five historical files under `BackupDB`, including four tracked dumps and
+   one ignored local copy. Repository and distribution safeguards now reject
+   their return while preserving legitimate sample schema SQL.
+4. **Review and retire experimental development files - implemented August 29,
+   2026.** A static, file-by-file inventory classified all 36 tracked artifacts
+   as replaced or historical-only; no unique behavior required migration.
+   Removed those files plus 32 generated bytecode files and the directory, then
+   added a source-tree regression guard. The complete JSForm suite (457 passed,
+   2 skipped), ChurchManager suite (1,081 passed, 25 skipped), and fresh wheel
+   and source distribution verification passed. See
+   `Documentation/JSForm.DevelopmentTestingCleanup.Specification.md` and
+   `Documentation/JSForm.DevelopmentTestingCleanup.Inventory.md`.
+5. **Prepare removal of the dual-database compatibility API - completed August
+   29, 2026.** ChurchManager now uses the single application-database contract
+   for startup, reports, backup/restore, test isolation, setup, and shutdown.
+   This completed the supported-application prerequisite without moving
+   ChurchManager behavior into JSForm.
+6. **Remove the dual-database compatibility API - implemented August 29,
+   2026.** Removed `jsform_database`, `JSConnection`, `JSCredintials`, and
+   `framework_settings` after supported applications migrated. The public
+   constructor, connection service, sample, documentation, and regression tests
+   now enforce exactly one owned application database connection.
 
 ## Capabilities that remain application-owned
 

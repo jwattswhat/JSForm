@@ -69,8 +69,9 @@ The principal modules are:
 | `menu_catalog.py` | Manages protected menu starters and user customizations. |
 | `window_icons.py` | Configures and applies framework or application icons. |
 | `fnUtil.py` | Provides layout, date, connectivity, and database helper functions. |
-| `clsSMTP.py` | Historical compatibility email wrapper. New work uses `mail_service.py`. |
-| `mail_service.py` | Provider-neutral email validation, privacy-safe delivery, attachments, and SMTP transport. |
+| `clsSMTP.py` | Historical compatibility email wrapper routed through `mail_service.py`; it never reads `SMTP/Password`. |
+| `mail_service.py` | Provider-neutral email validation, privacy-safe delivery, attachments, late credential resolution, and SMTP transport. |
+| `smtp_credentials.py` | Explicit caller-controlled migration from legacy `SMTP/Password` configuration to a protected credential target. |
 | `dynamic_fields.py` | Application-neutral typed dynamic-field descriptors, validation, controls, and change sets. |
 | `fnSchedule.py` | Application-specific scheduling and notification functions. It is not required by the core form engine. |
 
@@ -93,7 +94,7 @@ The checked-in `requirements.txt` lists the historical runtime dependencies. The
 - MySQL Connector/Python.
 - `jsonschema` for optional form validation.
 - `requests` for the connectivity helper.
-- `yagmail` for `clsSMTP`.
+- Windows Credential Manager for protected SMTP and application credentials.
 
 The repository's checked-in `.venv` is machine-specific and should not be considered portable. Create a fresh environment on each development machine.
 
@@ -103,12 +104,18 @@ Important directories are:
 
 | Directory | Contents |
 | --- | --- |
-| `Forms/` | JSON form definitions included with the framework. |
 | `Documentation/` | Human-readable design and usage documentation. |
 | `schema/` | Experimental or newer schema-validation work. |
 | `reports/` | Generated or sample PDF reports. |
 | `BackupDB/` | Historical SQL dumps. Treat these as sensitive. |
-| `DevelopmentTesting/` | Exploratory scripts and control experiments. |
+
+Applications that maintain their own form catalog may set
+`JSFORM_APPLICATION_FORMS` to an absolute directory before creating forms.
+JSForm searches the user screen overlay first, then this application directory,
+then the configured `Location/Form` directory. JSForm no longer distributes
+application-specific form definitions.
+This process-local setting avoids storing machine-specific application paths in
+the database.
 
 ## Quick start
 
@@ -196,20 +203,20 @@ For data-bound controls, the control dictionary key and `name` should match the 
 
 ### 3. Create a launcher
 
-Store credentials in environment variables, an operating-system credential store, or another protected configuration source. Do not place passwords in source code or JSON form files.
+Store credentials in an operating-system credential store or another protected
+configuration source. Do not place passwords in source code, command lines,
+environment snapshots, or JSON form files.
 
 ```python
-import os
 import wx
 import JSForm
 
 app = wx.App(0)
 
 database = JSForm.clsDB(
-    host=os.environ.get("APP_DB_HOST", "localhost"),
-    databasename=os.environ.get("APP_DB_NAME", "MyApplication"),
-    username=os.environ.get("APP_DB_USER"),
-    password=os.environ.get("APP_DB_PASSWORD"),
+    host="localhost",
+    databasename="MyApplication",
+    credential_target="MyApplication/Database",
 )
 
 JSForm.CONFIG.set_Config_DBConnection(database)
@@ -222,7 +229,11 @@ form.show()
 app.MainLoop()
 ```
 
-If a username or password is omitted, `clsDB` displays a wxPython credentials dialog.
+Without a protected target, an omitted username or password displays a wxPython
+credentials dialog whose password field uses the native masked style. Existing
+explicit-password calls remain accepted for transition use, but JSForm does not
+retain that password after connection. Applications own credential enrollment
+and rotation; opening a connection never writes or replaces a vault entry.
 
 ### Application icon
 
@@ -250,8 +261,7 @@ framework's major responsibilities:
   dictionary-compatible, detaches children before close callbacks run, and
   makes repeated or already-deleted wx window cleanup harmless.
 - `db_connections.DatabaseSettings` describes a database without opening it.
-  `DatabaseConnections` owns the paired application and JSForm framework
-  connections and closes the first connection if the second cannot open.
+  `DatabaseConnections` owns and closes one application database connection.
 - `record_state.RecordState` provides database-independent navigation and dirty
   tracking. `clsRecord` adds loading and persistence while retaining the old
   record API.
@@ -291,10 +301,16 @@ by the complete ChurchManager suite, including their read-only `JSFormTest` and
 
 ### Database wrapper
 
-`JSForm.clsDB(host, databasename, username, password)` creates one connector
-connection to the application database named by `databasename`. The compatibility
-attributes `DBConnection` and `JSConnection` refer to that same connection.
-JSForm owns no separate database, tables, or records.
+`JSForm.clsDB(host, databasename, username, password,
+credential_target=None, credential_store=None)` creates one connector
+connection to the application database named by `databasename`. `DBConnection`
+exposes that connection and `DBCredintials` retains its non-secret connection
+description with a `None` password. JSForm owns no separate database, tables,
+or records.
+
+The obsolete standalone `jsform.py` configuration launcher has been removed.
+Applications connect through `JSForm.clsDB(...)`, using `credential_target` or
+the masked interactive prompt rather than command-line passwords.
 
 ### Framework singletons
 
@@ -1384,6 +1400,70 @@ code in the definition.
 
 ## Public Python API
 
+### Mail credentials
+
+Applications should store only an opaque credential target with their
+non-secret mail settings. `MailSettings.credential_target` selects that target;
+`SMTPTransport` reads `(username, secret)` from the injected credential provider
+immediately before authentication (and after STARTTLS when that mode is selected). It
+does not resolve a credential while constructing the transport or an RFC
+message, and it performs a new lookup for each delivery so credential rotation
+takes effect without restarting the application.
+
+```python
+settings = JSForm.MailSettings(
+    host="smtp.example.org",
+    port=587,
+    username="sender@example.org",
+    password=None,
+    sender_address="sender@example.org",
+    security="starttls",
+    credential_target="MyApplication/Production/SMTP",
+)
+transport = JSForm.SMTPTransport(settings)
+```
+
+The application owns the target name, settings UI, credential creation, and
+authorization. Windows credentials belong to the current Windows user context;
+each account that sends mail must have its own protected entry. Missing,
+malformed, or mismatched credentials fail with a safe configuration error.
+
+`migrate_legacy_smtp_credential(connection, credential_store, target)` is an
+explicit migration helper for the application `tblConfig` row
+`SMTP/Password`. It locks and validates the legacy rows, writes and reads back
+the protected credential, records `SMTP/CredentialTarget`, and only then deletes
+the password row. It never reads framework fallback configuration and never
+commits or rolls back; the application owns that transaction. If a later SQL
+step fails after this operation created a credential, it attempts to remove
+that new credential without hiding the original failure. Migration is never
+performed automatically at startup.
+
+Existing callers may still pass an in-memory password directly to
+`MailSettings` during transition, but must not obtain it from database or file
+configuration. Supplying both a credential target and a plaintext password is
+invalid.
+
+### Protected SMTP transport
+
+Authenticated delivery requires implicit SSL/TLS or a successful STARTTLS
+upgrade. For STARTTLS, JSForm verifies the advertised capability, upgrades with
+the default certificate-verifying context, performs a fresh protected greeting,
+and only then reads credentials and authenticates. A failed capability check,
+upgrade, certificate validation, or protected greeting cannot fall back to
+plain delivery.
+
+Plain SMTP is rejected unless every condition below is true:
+
+- no username, password, credential target, or other authentication is used;
+- `allow_plain_loopback=True` was explicitly supplied; and
+- the host is exactly `localhost`, a canonical address in `127.0.0.0/8`, or
+  canonical `::1`/`[::1]`.
+
+JSForm performs this loopback check without DNS. Private-network, wildcard,
+link-local, mapped, encoded, shortened, suffix, and remote host forms do not
+qualify. The loopback exception is intended only for an application-approved
+mail catcher or relay on the same computer.
+
 The package exports these main objects from `__init__.py`:
 
 ### Singletons
@@ -1457,6 +1537,21 @@ automated suite validates every JSForm definition against this canonical schema.
 6. **Visual tests:** inspect layout at the supported font sizes, display scaling, and monitor configurations.
 7. **Report tests:** use harmless sample reports and paths containing spaces.
 
+### Bounded images
+
+`ImagePickerCtrl` and PDF report images route PNG, JPEG, and BMP bytes through
+`preflight_image` before wx or ReportLab performs a full decode. The preflight
+checks encoded length, format, single-frame structure, width, height, and total
+pixels with hard framework ceilings of 10 MiB, 10,000 pixels per axis, and 20
+million pixels. Picker `maxbytes` and `maxpixels` settings may lower these
+ceilings. Selected files use `read_bounded_image`, which reads at most the
+effective limit plus one byte from one opened regular local file.
+
+Rejected database BLOBs remain unchanged in the picker and display `Image
+unavailable`; this prevents an unrelated record save from silently replacing
+the stored value with `NULL`. Report-bound images use the same preflight and
+fail with safe `ReportRenderError` guidance when rejected.
+
 ### Logging
 
 Framework methods call the global logger `JSForm.LG`. This legacy diagnostic
@@ -1465,6 +1560,14 @@ and stores an installed application's log under
 `%LOCALAPPDATA%\<ApplicationName>\Logs\Log.txt`. An unavailable log location
 must never prevent the application from starting. Avoid logging passwords,
 tokens, or sensitive record content.
+
+The centralized error reporter separately applies bounded diagnostic redaction
+before persistence and at final disclosure boundaries. Common credential
+key-value, mapping, query-string, header, URI, command-line, and connector-error
+representations are normalized. Error dialogs receive a final redaction pass,
+and support-package construction re-redacts selected log and diagnostics bytes
+before calculating manifest hashes. Application-specific redactors remain
+supported; failures in them do not expose original diagnostic content.
 
 ### Common failures
 
@@ -1500,7 +1603,9 @@ Use environment variables, a credential manager, or a protected local configurat
 
 Parent-record and option values in table conditions are parameterized. Modern
 record writes and the public configuration and option storage APIs also use
-connector parameters. Some older direct choice APIs still construct SQL with
+connector parameters. The application-specific scheduling helper likewise
+binds service, participant, and role values when inserting service roles. Some
+older direct choice APIs still construct SQL with
 string formatting and are tracked separately in the security-remediation
 roadmap.
 
@@ -1609,5 +1714,4 @@ are absent from the form while still including them in record persistence.
 
 JSForm owns no database tables or records and opens no separate framework
 database. Applications own their schema, configuration, options, and data.
-The compatibility `JSConnection` attribute refers to the same connection as
-`DBConnection`; it does not represent another database.
+The retired dual-database compatibility names are no longer part of the API.

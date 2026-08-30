@@ -18,9 +18,9 @@ behavior or require ChurchManager to be present.
 
 1. Run `python run_jsform_tests.py` in a complete development environment.
 2. Run `python -m build` to create the wheel and source archive.
-3. Inspect both archives and confirm that `Forms/*.json` and `schema/*.json` are
-   included while tests, logs, reports, backups, and virtual environments are
-   excluded from the wheel.
+3. Inspect both archives and confirm that `schema/*.json` is included while
+   application form definitions, tests, logs, reports, backups, and virtual
+   environments are excluded from the wheel.
    Run `python verify_distribution.py` to enforce the artifact contents.
 4. Install the wheel into a clean environment without the repository on
    `sys.path`.

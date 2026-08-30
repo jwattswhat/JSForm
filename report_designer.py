@@ -6,6 +6,8 @@ import shutil
 
 import wx
 
+from JSForm.builder_windows import show_builder_window
+
 from JSForm.report_definition import (
     ReportDefinitionError,
     ReportDefinitionLoader,
@@ -2365,7 +2367,7 @@ class ReportDesignerFrame(wx.Frame):
             export_directory=self.export_directory,
             protection_manifest=self.protection_manifest,
         )
-        replacement.Show()
+        show_builder_window(replacement)
         self.Destroy()
 
     def on_preview(self, event):
@@ -2555,7 +2557,7 @@ def open_report_designer(
         export_directory=export_directory,
         protection_manifest=protection_manifest,
     )
-    frame.Show()
+    show_builder_window(frame)
     if not wx.App.Get().IsMainLoopRunning():
         application.MainLoop()
     return frame

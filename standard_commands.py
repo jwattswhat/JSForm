@@ -123,9 +123,6 @@ def standard_record_commands():
             form = context.current_form
             if form is None or not callable(getattr(form, method, None)):
                 return CommandState(enabled=False)
-            security = getattr(form, "SECURITY", None)
-            if security is not None and not security.allows(operation):
-                return CommandState(enabled=False)
             records = getattr(form, "RECORDS", None)
             if require_record and (
                 records is None or not callable(getattr(records, "current", None))
@@ -133,6 +130,18 @@ def standard_record_commands():
             ):
                 return CommandState(enabled=False)
             if require_table and "table" not in getattr(form, "FORMDESCRIPTON", {}):
+                return CommandState(enabled=False)
+            required_operation = operation
+            if operation == "save":
+                classifier = getattr(records, "pending_save_operation", None)
+                if not callable(classifier):
+                    return CommandState(enabled=False)
+                try:
+                    required_operation = classifier()
+                except Exception:
+                    return CommandState(enabled=False)
+            security = getattr(form, "SECURITY", None)
+            if security is not None and not security.allows(required_operation):
                 return CommandState(enabled=False)
             return CommandState()
         return state
@@ -149,7 +158,7 @@ def standard_record_commands():
             lambda context: form_method(context, "save_record"), wx_id=wx.ID_SAVE,
             help_text="Save the current record",
             state_provider=form_state(
-                "update", "save_record", require_record=True
+                "save", "save_record", require_record=True
             ),
         ),
         ApplicationCommand(

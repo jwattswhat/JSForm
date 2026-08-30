@@ -10,6 +10,7 @@ import tempfile
 import threading
 import traceback
 import uuid
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -39,6 +40,9 @@ class ErrorReportingConfig:
     context_keys: frozenset[str] = field(default_factory=lambda: frozenset(DEFAULT_CONTEXT_KEYS))
     safe_context_provider: Callable[[], Mapping[str, Any]] | None = None
     redactors: tuple[Callable[[str], str], ...] = ()
+    user_message_provider: Callable[[BaseException, str], str | None] | None = None
+    fatal_error_classifier: Callable[[BaseException], bool] | None = None
+    support_diagnostics_provider: Callable[[], Mapping[str, Any]] | None = None
 
 
 class ErrorReporter:
@@ -85,9 +89,15 @@ class ErrorReporter:
             "exception_type": f"{type(exception).__module__}.{type(exception).__qualname__}",
             "message": redact_text(exception, self.config.redactors),
             "traceback": redact_text(rendered, self.config.redactors, max_length=None),
-            "application_name": self.config.application_name,
-            "application_version": self.config.application_version,
-            "jsform_version": self.config.jsform_version,
+            "application_name": redact_text(self.config.application_name, self.config.redactors),
+            "application_version": (
+                redact_text(self.config.application_version, self.config.redactors)
+                if self.config.application_version is not None else None
+            ),
+            "jsform_version": (
+                redact_text(self.config.jsform_version, self.config.redactors)
+                if self.config.jsform_version is not None else None
+            ),
             "python_version": platform.python_version(),
             "platform": f"{platform.system()} {platform.release()} {platform.machine()}",
             "process_id": os.getpid(),
@@ -145,6 +155,7 @@ class ErrorReporter:
                     pass
 
     def report(self, exception: BaseException, *, severity: str = "error", context: Mapping[str, Any] | None = None) -> str:
+        """Record one unexpected failure and return its telephone-friendly ID."""
         if getattr(self._reporting, "active", False):
             return "ERR-LOGGING"
         self._reporting.active = True
@@ -168,9 +179,12 @@ class ErrorReporter:
 _REPORTER: ErrorReporter | None = None
 _ORIGINAL_SYS_HOOK = None
 _ORIGINAL_THREAD_HOOK = None
+_WX_APPLICATION = None
+_ORIGINAL_WX_HOOK = None
 
 
 def configure_error_reporting(**kwargs) -> ErrorReporter:
+    """Configure the process-wide reporter without installing exception hooks."""
     global _REPORTER
     normalized = dict(kwargs)
     normalized.setdefault("jsform_version", JSFORM_VERSION)
@@ -188,22 +202,59 @@ def current_error_reporter() -> ErrorReporter | None:
     return _REPORTER
 
 
-def report_exception(exception: BaseException, *, severity: str = "error", safe_context: Mapping[str, Any] | None = None, **context) -> str:
+def report_exception(exception: BaseException, *, severity: str = "error", user_message=None, safe_context: Mapping[str, Any] | None = None, **context) -> str:
+    """Record a caught failure; caller-supplied context is allowlisted and redacted."""
     if _REPORTER is None:
         return "ERR-NOT-CONFIGURED"
     combined = dict(safe_context or {})
     combined.update(context)
-    return _REPORTER.report(exception, severity=severity, context=combined)
+    error_id = _REPORTER.report(exception, severity=severity, context=combined)
+    if user_message is not None:
+        _show_unhandled_error(
+            exception, error_id, fatal=severity == "fatal",
+            user_message=user_message,
+        )
+    return error_id
 
 
-def install_error_hooks() -> None:
-    global _ORIGINAL_SYS_HOOK, _ORIGINAL_THREAD_HOOK
+def _show_unhandled_error(exception: BaseException, error_id: str, *, fatal: bool, user_message=None) -> None:
+    """Best-effort UI notification; never replace the original exception."""
+    if _WX_APPLICATION is None or _REPORTER is None:
+        return
+    try:
+        from JSForm.error_dialog import show_error_dialog_threadsafe
+        message = user_message
+        if message is None and _REPORTER.config.user_message_provider:
+            try:
+                message = _REPORTER.config.user_message_provider(exception, error_id)
+            except Exception:
+                pass
+        show_error_dialog_threadsafe(
+            getattr(_WX_APPLICATION, "GetTopWindow", lambda: None)(), error_id,
+            application_name=redact_text(
+                _REPORTER.config.application_name, _REPORTER.config.redactors,
+            ),
+            fatal=fatal,
+            user_message=(
+                redact_text(message, _REPORTER.config.redactors)
+                if message is not None else None
+            ),
+            redactors=_REPORTER.config.redactors,
+        )
+    except Exception:
+        pass
+
+
+def install_error_hooks(wx_application=None) -> None:
+    """Idempotently chain Python, thread, and optional wxPython exception hooks."""
+    global _ORIGINAL_SYS_HOOK, _ORIGINAL_THREAD_HOOK, _WX_APPLICATION, _ORIGINAL_WX_HOOK
     if _ORIGINAL_SYS_HOOK is None:
         _ORIGINAL_SYS_HOOK = sys.excepthook
 
         def sys_hook(exception_type, exception, tb):
             if exception_type not in {KeyboardInterrupt, SystemExit}:
-                report_exception(exception, severity="fatal", operation="python.unhandled")
+                error_id = report_exception(exception, severity="fatal", operation="python.unhandled")
+                _show_unhandled_error(exception, error_id, fatal=True)
             _ORIGINAL_SYS_HOOK(exception_type, exception, tb)
 
         sys.excepthook = sys_hook
@@ -212,24 +263,72 @@ def install_error_hooks() -> None:
 
         def thread_hook(arguments):
             if arguments.exc_type not in {KeyboardInterrupt, SystemExit}:
-                report_exception(arguments.exc_value, severity="error", operation="thread.unhandled")
+                error_id = report_exception(arguments.exc_value, severity="error", operation="thread.unhandled")
+                _show_unhandled_error(arguments.exc_value, error_id, fatal=False)
             _ORIGINAL_THREAD_HOOK(arguments)
 
         threading.excepthook = thread_hook
+    if wx_application is not None and wx_application is not _WX_APPLICATION:
+        _WX_APPLICATION = wx_application
+        original = getattr(wx_application, "OnExceptionInMainLoop", None)
+        _ORIGINAL_WX_HOOK = original
+
+        def wx_hook():
+            exception = sys.exc_info()[1]
+            if exception is None:
+                return bool(original()) if callable(original) else False
+            fatal = False
+            if _REPORTER and _REPORTER.config.fatal_error_classifier:
+                try:
+                    fatal = bool(_REPORTER.config.fatal_error_classifier(exception))
+                except Exception:
+                    fatal = False
+            error_id = report_exception(
+                exception, severity="fatal" if fatal else "error",
+                operation="wx.event.unhandled",
+            )
+            _show_unhandled_error(exception, error_id, fatal=fatal)
+            return not fatal
+
+        wx_application.OnExceptionInMainLoop = wx_hook
 
 
 def restore_error_hooks() -> None:
-    global _ORIGINAL_SYS_HOOK, _ORIGINAL_THREAD_HOOK
+    """Restore hooks replaced by :func:`install_error_hooks`, primarily for tests."""
+    global _ORIGINAL_SYS_HOOK, _ORIGINAL_THREAD_HOOK, _WX_APPLICATION, _ORIGINAL_WX_HOOK
     if _ORIGINAL_SYS_HOOK is not None:
         sys.excepthook = _ORIGINAL_SYS_HOOK
         _ORIGINAL_SYS_HOOK = None
     if _ORIGINAL_THREAD_HOOK is not None:
         threading.excepthook = _ORIGINAL_THREAD_HOOK
         _ORIGINAL_THREAD_HOOK = None
+    if _WX_APPLICATION is not None and _ORIGINAL_WX_HOOK is not None:
+        _WX_APPLICATION.OnExceptionInMainLoop = _ORIGINAL_WX_HOOK
+    _WX_APPLICATION = None
+    _ORIGINAL_WX_HOOK = None
+
+
+@contextmanager
+def error_boundary(*, operation: str, screen: str | None = None, severity="error", suppress=False, safe_context=None):
+    """Report an unexpected boundary failure and re-raise unless explicitly suppressed."""
+    try:
+        yield
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except BaseException as exception:
+        context = dict(safe_context or {})
+        context.update(operation=operation, screen=screen)
+        report_exception(exception, severity=severity, safe_context=context)
+        if not suppress:
+            raise
 
 
 def create_support_package(destination, safe_diagnostics=None):
+    """Create a verified local ZIP containing only approved redacted diagnostics."""
     if _REPORTER is None:
         raise RuntimeError("Error reporting is not configured.")
     from JSForm.support_package import create_support_package as build_package
-    return build_package(_REPORTER, destination, safe_diagnostics=safe_diagnostics)
+    diagnostics = safe_diagnostics
+    if diagnostics is None:
+        diagnostics = _REPORTER.config.support_diagnostics_provider
+    return build_package(_REPORTER, destination, safe_diagnostics=diagnostics)

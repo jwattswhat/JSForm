@@ -161,11 +161,13 @@ class clsChoice:
         self.sql = JSForm.clsSQL(
             self.dbconnection, self.controldescription["lookupchoices"]
         )
-        SQL = self.sql.select()
+        SQL, parameters = self.sql.select_statement()
         cursor = self.dbconnection.cursor()
-        cursor.execute(SQL)
-        rows = cursor.fetchall()
-        cursor.close()
+        try:
+            cursor.execute(SQL, parameters)
+            rows = cursor.fetchall()
+        finally:
+            cursor.close()
 
         choice = []
         lookup = self.controldescription["lookupchoices"]

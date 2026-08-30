@@ -1,6 +1,6 @@
 """Explicit database settings and paired JSForm connections."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
@@ -10,7 +10,7 @@ class DatabaseSettings:
     host: str
     database: str
     username: str
-    password: str
+    password: str | None = field(repr=False)
     port: int | None = None
 
     def connector_arguments(self):
@@ -24,20 +24,28 @@ class DatabaseSettings:
             arguments["port"] = self.port
         return arguments
 
+    def without_password(self):
+        """Return the same non-secret connection description."""
+        return DatabaseSettings(
+            self.host, self.database, self.username, None, self.port,
+        )
+
 
 class DatabaseConnections:
-    """Own one application database connection.
+    """Open, retain, and close one application database connection."""
 
-    ``framework_settings`` remains accepted temporarily for source compatibility,
-    but JSForm no longer opens or owns a separate framework database.
-    """
-
-    def __init__(self, application_settings, framework_settings, connector):
-        self.application_settings = application_settings
-        self.framework_settings = application_settings
-        self.application = connector(**application_settings.connector_arguments())
-        self.framework = self.application
-
+    def __init__(self, application_settings, connector):
+        self.application_settings = application_settings.without_password()
+        arguments = application_settings.connector_arguments()
+        try:
+            try:
+                self.application = connector(**arguments)
+            except Exception as error:
+                raise RuntimeError(
+                    "The database connection could not be established."
+                ) from error
+        finally:
+            arguments["password"] = None
     def close(self):
         try:
             self.application.close()

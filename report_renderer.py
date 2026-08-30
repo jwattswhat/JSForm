@@ -10,6 +10,8 @@ from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas
 
+from JSForm.image_safety import validated_image_bytes
+
 
 PAGE_SIZES = {"letter": LETTER, "legal": LEGAL, "a4": A4}
 
@@ -456,10 +458,11 @@ class PDFReportRenderer:
             value = self._bound_value(control, dataset, current_row, current_collection)
             if value:
                 try:
-                    pdf.drawImage(ImageReader(BytesIO(bytes(value))), x, y, width, height,
+                    encoded, _metadata = validated_image_bytes(value)
+                    pdf.drawImage(ImageReader(BytesIO(encoded)), x, y, width, height,
                                   preserveAspectRatio=True, anchor="c", mask="auto")
-                except Exception as error:
-                    raise ReportRenderError("Unable to render report image") from error
+                except Exception:
+                    raise ReportRenderError("Unable to render report image safely") from None
 
     def _system_value(self, control, definition):
         value_name = control["systemvalue"]
@@ -805,13 +808,16 @@ class PDFReportRenderer:
                 value = row.get(item["field"])
                 if value:
                     try:
+                        encoded, _metadata = validated_image_bytes(value)
                         pdf.drawImage(
-                            ImageReader(BytesIO(bytes(value))), x, y_top - item["size"][1],
+                            ImageReader(BytesIO(encoded)), x, y_top - item["size"][1],
                             item["size"][0], item["size"][1], preserveAspectRatio=True,
                             anchor="c", mask="auto",
                         )
-                    except Exception as error:
-                        raise ReportRenderError("Unable to render repeating report image") from error
+                    except Exception:
+                        raise ReportRenderError(
+                            "Unable to render repeating report image safely"
+                        ) from None
                 continue
             size = item.get("fontsize", 9)
             for index, line in enumerate(lines):

@@ -43,13 +43,30 @@ class ProjectDocumentationTests(unittest.TestCase):
         self.assertRegex(metadata, r'(?m)^name = "jsform-desktop"$')
         self.assertIn('package-dir = {JSForm = "."}', metadata)
         self.assertIn('version = {attr = "JSForm.version.__version__"}', metadata)
-        self.assertIn('"Forms/*.json"', metadata)
+        self.assertNotIn('"Forms/*.json"', metadata)
         self.assertIn('"schema/*.json"', metadata)
         self.assertIn('"assets/*.ico"', metadata)
 
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("distribution name is `jsform-desktop`", readme)
         self.assertIn("`import JSForm`", readme)
+
+    def test_repository_contains_no_database_backups(self):
+        backup_directory = ROOT / "BackupDB"
+        backup_files = [] if not backup_directory.exists() else [
+            path for path in backup_directory.rglob("*") if path.is_file()
+        ]
+        self.assertEqual(backup_files, [])
+
+        ignore_rules = (ROOT / ".gitignore").read_text(encoding="utf-8")
+        manifest = (ROOT / "MANIFEST.in").read_text(encoding="utf-8")
+        self.assertIn("BackupDB/*.SQL", ignore_rules)
+        self.assertIn("prune BackupDB", manifest)
+
+    def test_retired_development_testing_directory_is_absent(self):
+        self.assertFalse((ROOT / "DevelopmentTesting").exists())
+        manifest = (ROOT / "MANIFEST.in").read_text(encoding="utf-8")
+        self.assertIn("prune DevelopmentTesting", manifest)
 
     def test_compatibility_requirements_match_project_dependencies(self):
         metadata = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
@@ -113,7 +130,8 @@ class ProjectDocumentationTests(unittest.TestCase):
                 self.assertNotIn("." + "lrxml", text.lower())
         for removed in (
             "fnReport.py", "report_runtime.py", "report_credentials.py",
-            "Forms/frmReports.json",
+            "Forms/frmReports.json", "Forms/frmChecklist.json",
+            "Forms/frmEditCheckList.json", "Forms/frmChoices.json",
         ):
             self.assertFalse((ROOT / removed).exists(), removed)
 

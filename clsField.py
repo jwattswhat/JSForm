@@ -34,6 +34,12 @@ from JSForm.control_values import (
     phone_storage,
     value_sequence,
 )
+from JSForm.image_safety import (
+    ImageValidationError,
+    effective_image_limit,
+    preflight_image,
+    read_bounded_image,
+)
 
 # import framwork
 
@@ -1328,6 +1334,9 @@ class clsField:
             parameters = getcontrolparameters(self.CONTROLDESCRIPTION)
             super().__init__(parent.PARENT.FORM, wx.ID_ANY, **parameters)
             self._value = None
+            self._image_metadata = None
+            self._validated_value = None
+            self._limits()
 
             self.preview = wx.StaticBitmap(self, wx.ID_ANY)
             self.choose_button = wx.Button(self, wx.ID_ANY, label="Choose image...")
@@ -1367,6 +1376,17 @@ class clsField:
 
         def SetValue(self, value):
             self._value = self._as_bytes(value)
+            self._image_metadata = None
+            self._validated_value = None
+            if self._value:
+                try:
+                    maximum_bytes, maximum_pixels = self._limits()
+                    self._image_metadata = preflight_image(
+                        self._value, max_bytes=maximum_bytes, max_pixels=maximum_pixels,
+                    )
+                    self._validated_value = self._value
+                except ImageValidationError:
+                    pass
             self._refresh_preview()
 
         def GetValue(self):
@@ -1394,6 +1414,9 @@ class clsField:
             if not self._value:
                 self._show_placeholder()
                 return
+            if self._image_metadata is None or self._validated_value is not self._value:
+                self._show_placeholder("Image unavailable")
+                return
             try:
                 image = wx.Image(io.BytesIO(self._value))
                 if not image.IsOk():
@@ -1412,16 +1435,16 @@ class clsField:
                 # image must not silently become NULL when another field is saved.
                 self._show_placeholder("Image unavailable")
 
-        def _validate_dimensions(self, image):
-            maximum_pixels = int(
-                self.CONTROLDESCRIPTION.get("maxpixels", 20_000_000)
+        def _limits(self):
+            maximum_bytes = effective_image_limit(
+                self.CONTROLDESCRIPTION.get("maxbytes"),
+                5 * 1024 * 1024, 10 * 1024 * 1024, "Image byte limit",
             )
-            pixels = int(image.GetWidth()) * int(image.GetHeight())
-            if pixels > maximum_pixels:
-                raise ValueError(
-                    "The image dimensions are too large. The maximum is "
-                    "{:,} pixels.".format(maximum_pixels)
-                )
+            maximum_pixels = effective_image_limit(
+                self.CONTROLDESCRIPTION.get("maxpixels"),
+                20_000_000, 20_000_000, "Image pixel limit",
+            )
+            return maximum_bytes, maximum_pixels
 
         def _on_size(self, event):
             event.Skip()
@@ -1439,25 +1462,19 @@ class clsField:
                 if dialog.ShowModal() != wx.ID_OK:
                     return
                 path = pathlib.Path(dialog.GetPath())
-                maximum = self.CONTROLDESCRIPTION.get("maxbytes", 5 * 1024 * 1024)
-                if path.stat().st_size > maximum:
-                    wx.MessageBox(
-                        "The image is too large. The maximum size is {:,.1f} MB.".format(
-                            maximum / (1024 * 1024)
-                        ),
-                        "Image too large",
-                        wx.OK | wx.ICON_WARNING,
-                    )
-                    return
-                value = path.read_bytes()
-                image = wx.Image(io.BytesIO(value))
-                if not image.IsOk():
-                    raise ValueError("Unsupported or damaged image file")
-                self._validate_dimensions(image)
+                maximum_bytes, maximum_pixels = self._limits()
+                value, metadata = read_bounded_image(
+                    path, max_bytes=maximum_bytes, max_pixels=maximum_pixels,
+                )
                 self._value = value
+                self._image_metadata = metadata
+                self._validated_value = value
                 self._refresh_preview()
-            except (OSError, ValueError) as error:
-                wx.MessageBox(str(error), "Unable to load image", wx.OK | wx.ICON_ERROR)
+            except ImageValidationError:
+                wx.MessageBox(
+                    "The selected image is unsupported, damaged, or too large.",
+                    "Unable to load image", wx.OK | wx.ICON_ERROR,
+                )
             finally:
                 dialog.Destroy()
 

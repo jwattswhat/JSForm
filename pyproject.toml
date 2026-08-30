@@ -37,7 +37,6 @@ dependencies = [
     "requests>=2.28,<3",
     "screeninfo>=0.8,<1",
     "wxPython>=4.2,<5",
-    "yagmail>=0.15,<1",
 ]
 
 [project.urls]
@@ -64,6 +63,5 @@ version = {attr = "JSForm.version.__version__"}
 JSForm = [
     "assets/*.ico",
     "assets/*.png",
-    "Forms/*.json",
     "schema/*.json",
 ]

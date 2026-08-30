@@ -13,7 +13,6 @@ recursive-include assets *.ico *.png
 recursive-include examples *.py *.md *.json *.sql *.cmd *.ico *.png
 prune examples/JSFormSample/Reports/Custom
 recursive-include tests *.py *.md
-recursive-include Forms *.json
 recursive-include schema *.json
 prune BackupDB
 prune DevelopmentTesting

@@ -12,6 +12,10 @@ import JSForm
 from JSForm.sql_statements import WriteStatements
 
 
+class ConditionCompilationError(ValueError):
+    """Raised when a dynamic SELECT condition cannot be compiled safely."""
+
+
 class clsSQL:
     """
     clsSQL - Manages SQL Statements
@@ -62,8 +66,16 @@ class clsSQL:
         self.parentrecord = parentrecord
         self.aspairs = self.clsAsPairs(self.table["fields"])
         self.sqldescription = self._build_sql_record_description()
+        self.select_parameters = ()
 
     def select(self, tbl=None):
+        """Return parameterized SELECT text; use ``select_statement`` to execute it."""
+        sql, parameters = self.select_statement(tbl)
+        self.select_parameters = parameters
+        return sql
+
+    def select_statement(self, tbl=None):
+        """Return ``(sql_text, parameters)`` for safe connector execution."""
         if tbl == None:
             table = self.table.copy()
         else:
@@ -81,52 +93,71 @@ class clsSQL:
                     table=table["name"],
                 )
         if "condition" in table:
-            table["condition"] = self.conditionCONFIG(table["condition"])
-            if self.parentrecord == None:
-                sql = sql + "WHERE {condition} ".format(condition=table["condition"])
-            else:
-                sql = sql + "WHERE {condition} ".format(
-                    condition=self.condition(table["condition"]),
-                )
+            condition, parameters = self.compile_condition(table["condition"])
+            sql = sql + "WHERE {condition} ".format(condition=condition)
+        else:
+            parameters = ()
         if "orderby" in table:
             sql = sql + "ORDER BY {orderby}".format(orderby=table["orderby"])
-        return sql
+        self.select_parameters = parameters
+        return sql, parameters
+
+    def compile_condition(self, condition, parentrecord=None):
+        """Compile runtime placeholders to connector parameters from left to right."""
+        if not isinstance(condition, str):
+            raise ConditionCompilationError("SELECT condition must be a string.")
+        record = self.parentrecord if parentrecord is None else parentrecord
+        parameters = []
+        output = []
+        position = 0
+        while position < len(condition):
+            start = condition.find("{", position)
+            closing_before_start = condition.find("}", position)
+            if closing_before_start != -1 and (start == -1 or closing_before_start < start):
+                raise ConditionCompilationError("Malformed SELECT condition placeholder.")
+            if start == -1:
+                output.append(condition[position:])
+                break
+            output.append(condition[position:start])
+            end = condition.find("}", start + 1)
+            if end == -1 or condition.find("{", start + 1, end) != -1:
+                raise ConditionCompilationError("Malformed SELECT condition placeholder.")
+            token = condition[start + 1:end]
+            if token.startswith("OPTION:"):
+                components = token.split(":")
+                if len(components) != 3 or not components[1] or not components[2]:
+                    raise ConditionCompilationError("Malformed OPTION condition placeholder.")
+                # Preserve the historical, externally visible component mapping.
+                optionvalue, optionfor = components[1], components[2]
+                value = JSForm.OPTION.get_Option_Value(optionfor, optionvalue)
+            else:
+                if not token or ":" in token:
+                    raise ConditionCompilationError("Unknown SELECT condition placeholder.")
+                if record is None:
+                    raise ConditionCompilationError(
+                        "Parent record is required for placeholder {{{}}}.".format(token)
+                    )
+                if token not in record:
+                    raise ConditionCompilationError(
+                        "Parent record has no field named {}.".format(token)
+                    )
+                value = record[token]
+            output.append("%s")
+            parameters.append(value)
+            position = end + 1
+        return "".join(output), tuple(parameters)
 
     def conditionCONFIG(self, condition):
-        pos = 0
-        while True:
-            start = condition.find("{OPTION", pos)
-            if start == -1:
-                break
-            end = condition.find("}", start)
-            c1 = condition.find(":", start)
-            c2 = condition.find(":", c1 + 1)
-            optionvalue = condition[c1 + 1 : c2]
-            optionfor = condition[c2 + 1 : end]
-            pos = start
-            condition = condition.replace(
-                condition[start : end + 1],
-                '"' + JSForm.OPTION.get_Option_Value(optionfor, optionvalue) + '"',
-                1,
-            )
-        return condition
+        """Compatibility wrapper returning safely parameterized condition text."""
+        compiled, parameters = self.compile_condition(condition)
+        self.select_parameters = parameters
+        return compiled
 
     def condition(self, condition, parentrecord=None):
-        if parentrecord == None:
-            parentrecord = self.parentrecord.copy()
-
-        start = True
-        while start != -1:
-            start = condition.find("{")
-            if start != -1:
-                end = condition.find("}")
-                fieldname = condition[start + 1 : end]
-                value = parentrecord[fieldname]
-                sql_value = "NULL" if value is None else str(value)
-                condition = condition.replace(
-                    "{" + fieldname + "}", sql_value
-                )
-        return condition
+        """Compatibility wrapper returning safely parameterized condition text."""
+        compiled, parameters = self.compile_condition(condition, parentrecord)
+        self.select_parameters = parameters
+        return compiled
 
     def insert(self, record):
         ky, va = self._prepare_keys_values(record)
